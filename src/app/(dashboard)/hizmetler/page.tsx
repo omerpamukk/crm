@@ -1,6 +1,10 @@
+import { Scissors } from "lucide-react";
+
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice } from "@/lib/format";
 import type { Service } from "@/types/database";
+import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import {
   Table,
   TableBody,
@@ -23,39 +27,34 @@ export default async function HizmetlerPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Hizmetler</h1>
-          <p className="text-sm text-muted-foreground">
-            Toplam {services.length} kayıt
-          </p>
-        </div>
+      <PageHeader
+        title="Hizmetler"
+        description="Sunduğun hizmetleri, sürelerini ve fiyatlarını yönet."
+      >
         <NewServiceButton />
-      </div>
+      </PageHeader>
 
-      <div className="rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Hizmet</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Süre</TableHead>
-              <TableHead>Fiyat</TableHead>
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {services.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="py-10 text-center text-sm text-muted-foreground"
-                >
-                  Henüz hizmet yok. “Yeni hizmet” ile ekleyin.
-                </TableCell>
+      {services.length === 0 ? (
+        <EmptyState
+          icon={Scissors}
+          title="Henüz hizmet yok"
+          description="Sunduğun hizmetleri ekle; randevu oluştururken bu listeden seçebileceksin."
+          action={<NewServiceButton />}
+        />
+      ) : (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead>Hizmet</TableHead>
+                <TableHead>Kategori</TableHead>
+                <TableHead>Süre</TableHead>
+                <TableHead>Fiyat</TableHead>
+                <TableHead className="w-12" />
               </TableRow>
-            ) : (
-              services.map((s) => (
+            </TableHeader>
+            <TableBody>
+              {services.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell>{s.category ?? "—"}</TableCell>
@@ -67,11 +66,11 @@ export default async function HizmetlerPage() {
                     <ServiceRowActions service={s} />
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

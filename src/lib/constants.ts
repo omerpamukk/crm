@@ -22,6 +22,29 @@ export function customerStatusLabel(status: string | null): string {
   return CUSTOMER_STATUSES.find((s) => s.value === status)?.label ?? "—";
 }
 
+/** Durum badge renk varyantı (badge.tsx variant'larıyla eşleşir). */
+export type StatusVariant =
+  | "positive"
+  | "warning"
+  | "danger"
+  | "info"
+  | "secondary";
+
+export function customerStatusVariant(status: string | null): StatusVariant {
+  switch (status) {
+    case "active":
+      return "positive";
+    case "new":
+      return "info";
+    case "lead":
+      return "warning";
+    case "passive":
+      return "secondary";
+    default:
+      return "secondary";
+  }
+}
+
 /** Randevu durumları. */
 export const APPOINTMENT_STATUSES = [
   { value: "planned", label: "Planlandı" },
@@ -32,4 +55,19 @@ export const APPOINTMENT_STATUSES = [
 
 export function appointmentStatusLabel(status: string | null): string {
   return APPOINTMENT_STATUSES.find((s) => s.value === status)?.label ?? "—";
+}
+
+export function appointmentStatusVariant(status: string | null): StatusVariant {
+  switch (status) {
+    case "completed":
+      return "positive";
+    case "planned":
+      return "info";
+    case "cancelled":
+      return "danger";
+    case "no_show":
+      return "warning";
+    default:
+      return "secondary";
+  }
 }

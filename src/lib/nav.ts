@@ -4,6 +4,7 @@ import {
   Scissors,
   CalendarDays,
   Package,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -19,5 +20,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/musteriler", label: "Müşteriler", icon: Users },
   { href: "/hizmetler", label: "Hizmetler", icon: Scissors },
   { href: "/randevular", label: "Randevular", icon: CalendarDays },
+  { href: "/firsatlar", label: "Gelir Fırsatları", icon: Sparkles },
   { href: "/paketler", label: "Paketler", icon: Package },
 ];

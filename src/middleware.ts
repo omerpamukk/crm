@@ -7,6 +7,7 @@ const PROTECTED_PREFIXES = [
   "/musteriler",
   "/hizmetler",
   "/randevular",
+  "/firsatlar",
   "/paketler",
   "/isletme-kur",
 ];

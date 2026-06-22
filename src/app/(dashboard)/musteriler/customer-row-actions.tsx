@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Eye, CircleDot } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -20,13 +24,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CUSTOMER_STATUSES } from "@/lib/constants";
 import type { Customer } from "@/types/database";
 
 import { CustomerForm } from "./customer-form";
-import { deleteCustomer } from "./actions";
+import { CustomerDetailSheet } from "./customer-detail-sheet";
+import { deleteCustomer, updateCustomerStatus } from "./actions";
 
 export function CustomerRowActions({ customer }: { customer: Customer }) {
   const router = useRouter();
+  const [detailOpen, setDetailOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -45,6 +52,17 @@ export function CustomerRowActions({ customer }: { customer: Customer }) {
     router.refresh();
   }
 
+  async function handleStatusChange(status: string) {
+    if (status === customer.status) return;
+    const result = await updateCustomerStatus(customer.id, status);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Durum güncellendi");
+    router.refresh();
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -55,10 +73,32 @@ export function CustomerRowActions({ customer }: { customer: Customer }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setDetailOpen(true)}>
+            <Eye className="size-4" />
+            Detay
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setEditOpen(true)}>
             <Pencil className="size-4" />
             Düzenle
           </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <CircleDot className="size-4" />
+              Durum değiştir
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {CUSTOMER_STATUSES.map((s) => (
+                <DropdownMenuItem
+                  key={s.value}
+                  onClick={() => handleStatusChange(s.value)}
+                  disabled={s.value === customer.status}
+                >
+                  {s.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             variant="destructive"
             onClick={() => setDeleteOpen(true)}
@@ -68,6 +108,12 @@ export function CustomerRowActions({ customer }: { customer: Customer }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <CustomerDetailSheet
+        customer={customer}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
 
       {/* Düzenleme */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

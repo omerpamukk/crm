@@ -1,6 +1,10 @@
+import { Package } from "lucide-react";
+
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatPrice } from "@/lib/format";
-import type { Package } from "@/types/database";
+import type { Package as PackageType } from "@/types/database";
+import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import {
   Table,
   TableBody,
@@ -13,7 +17,7 @@ import {
 import { NewPackageButton } from "./new-package-button";
 import { PackageRowActions } from "./package-row-actions";
 
-type PackageRow = Package & {
+type PackageRow = PackageType & {
   customer: { full_name: string } | null;
 };
 
@@ -33,46 +37,45 @@ export default async function PaketlerPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Paketler</h1>
-          <p className="text-sm text-muted-foreground">
-            Toplam {packages.length} kayıt
-          </p>
-        </div>
+      <PageHeader
+        title="Paketler"
+        description="Müşterilere tanımlı seans paketlerini ve kalan haklarını takip et."
+      >
         <NewPackageButton customers={customers} />
-      </div>
+      </PageHeader>
 
-      {customers.length === 0 && (
-        <p className="rounded-md border border-dashed bg-card p-4 text-sm text-muted-foreground">
+      {customers.length === 0 && packages.length === 0 && (
+        <p className="rounded-lg border border-dashed bg-card p-4 text-sm text-muted-foreground">
           Paket oluşturabilmek için önce en az bir müşteri eklemelisiniz.
         </p>
       )}
 
-      <div className="rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Müşteri</TableHead>
-              <TableHead>Paket</TableHead>
-              <TableHead>Kalan / Toplam</TableHead>
-              <TableHead>Fiyat</TableHead>
-              <TableHead>Satın alma</TableHead>
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {packages.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="py-10 text-center text-sm text-muted-foreground"
-                >
-                  Henüz paket yok. “Yeni paket” ile ekleyin.
-                </TableCell>
+      {packages.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title="Henüz paket yok"
+          description="Müşterilere seans paketleri tanımla; kalan seansları buradan takip edebilirsin."
+          action={
+            customers.length > 0 ? (
+              <NewPackageButton customers={customers} />
+            ) : undefined
+          }
+        />
+      ) : (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead>Müşteri</TableHead>
+                <TableHead>Paket</TableHead>
+                <TableHead>Kalan / Toplam</TableHead>
+                <TableHead>Fiyat</TableHead>
+                <TableHead>Satın alma</TableHead>
+                <TableHead className="w-12" />
               </TableRow>
-            ) : (
-              packages.map((p) => (
+            </TableHeader>
+            <TableBody>
+              {packages.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">
                     {p.customer?.full_name ?? "—"}
@@ -89,11 +92,11 @@ export default async function PaketlerPage() {
                     <PackageRowActions pkg={p} customers={customers} />
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

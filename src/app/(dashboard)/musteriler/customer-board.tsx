@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Phone, Mail } from "lucide-react";
@@ -29,9 +29,12 @@ export function CustomerBoard({ customers }: { customers: Customer[] }) {
   const [overStatus, setOverStatus] = useState<string | null>(null);
 
   // Server verisi değişince (ekleme/düzenleme/silme sonrası) panoyu senkronla.
-  useEffect(() => {
+  // (Render sırasında prop değişimine uyum — React'in önerdiği desen.)
+  const [prevCustomers, setPrevCustomers] = useState(customers);
+  if (prevCustomers !== customers) {
+    setPrevCustomers(customers);
     setItems(customers);
-  }, [customers]);
+  }
 
   async function moveTo(customerId: string, status: string) {
     const current = items.find((c) => c.id === customerId);
