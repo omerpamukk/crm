@@ -2,7 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 // Giriş gerektiren yollar (dashboard grubu + onboarding)
-const PROTECTED_PREFIXES = ["/panel", "/isletme-kur"];
+const PROTECTED_PREFIXES = [
+  "/panel",
+  "/musteriler",
+  "/hizmetler",
+  "/randevular",
+  "/paketler",
+  "/isletme-kur",
+];
 // Yalnızca giriş yapmamış kullanıcıların görebileceği yollar
 const AUTH_ONLY_PATHS = ["/giris", "/kayit"];
 
