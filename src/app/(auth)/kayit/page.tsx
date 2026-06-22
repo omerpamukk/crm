@@ -53,14 +53,21 @@ export default function KayitPage() {
     });
 
     if (error) {
+      const msg = error.message.toLowerCase();
       if (
-        error.message.toLowerCase().includes("already registered") ||
-        error.message.toLowerCase().includes("already been registered") ||
-        error.message.toLowerCase().includes("user already")
+        msg.includes("already registered") ||
+        msg.includes("already been registered") ||
+        msg.includes("user already")
       ) {
         setFormError("Bu e-posta zaten kayıtlı");
+      } else if (msg.includes("password")) {
+        setFormError("Şifre en az 8 karakter olmalı");
+      } else if (msg.includes("database error saving new user")) {
+        setFormError(
+          "Veritabanı hatası: kullanıcı profili oluşturulamadı. 0001_init.sql migration'ının (handle_new_user trigger'ı) Supabase'de çalıştırıldığından emin olun."
+        );
       } else {
-        setFormError("Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.");
+        setFormError(`Kayıt sırasında bir hata oluştu: ${error.message}`);
       }
       return;
     }

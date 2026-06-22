@@ -84,14 +84,16 @@ export default function IsletmeKurPage() {
       return;
     }
 
-    // 1) İşletmeyi oluştur
-    const { data: business, error: businessError } = await supabase
+    // 1) İşletmeyi oluştur.
+    // id'yi client'ta üretiyoruz; böylece insert'i RETURNING'siz yapabiliyoruz.
+    // (RETURNING/.select(), henüz profile bağlı olmayan yeni satırı
+    //  businesses_select_own politikasına takıp 42501 hatasına yol açıyordu.)
+    const businessId = crypto.randomUUID();
+    const { error: businessError } = await supabase
       .from("businesses")
-      .insert({ name: values.name, sector: values.sector })
-      .select("id")
-      .single();
+      .insert({ id: businessId, name: values.name, sector: values.sector });
 
-    if (businessError || !business) {
+    if (businessError) {
       setFormError("İşletme oluşturulamadı. Lütfen tekrar deneyin.");
       return;
     }
@@ -99,11 +101,13 @@ export default function IsletmeKurPage() {
     // 2) Profili bu işletmeye bağla
     const { error: profileError } = await supabase
       .from("profiles")
-      .update({ business_id: business.id })
+      .update({ business_id: businessId })
       .eq("id", user.id);
 
     if (profileError) {
-      setFormError("İşletme kaydedildi ancak profil güncellenemedi. Lütfen tekrar deneyin.");
+      setFormError(
+        "İşletme kaydedildi ancak profil güncellenemedi. Lütfen tekrar deneyin."
+      );
       return;
     }
 
