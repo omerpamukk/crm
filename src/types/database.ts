@@ -102,6 +102,7 @@ export interface Appointment {
   note: string | null;
   package_id: string | null;
   price: number | null;
+  staff_member_id: string | null;
 }
 
 export interface Payment {

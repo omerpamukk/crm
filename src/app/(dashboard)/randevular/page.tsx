@@ -25,7 +25,7 @@ import { AppointmentRowActions } from "./appointment-row-actions";
 type AppointmentRow = Appointment & {
   customer: { full_name: string } | null;
   service: { name: string } | null;
-  staff: { full_name: string | null } | null;
+  staff_member: { full_name: string } | null;
 };
 
 type BucketKey = "today" | "tomorrow" | "week" | "later" | "past";
@@ -44,12 +44,16 @@ export default async function RandevularPage({
       supabase
         .from("appointments")
         .select(
-          "*, customer:customers(full_name), service:services(name), staff:profiles(full_name)"
+          "*, customer:customers(full_name), service:services(name), staff_member:staff(full_name)"
         )
         .order("starts_at", { ascending: true }),
       supabase.from("customers").select("id, full_name").order("full_name"),
       supabase.from("services").select("id, name, price").order("name"),
-      supabase.from("profiles").select("id, full_name"),
+      supabase
+        .from("staff")
+        .select("id, full_name")
+        .eq("is_active", true)
+        .order("full_name"),
       supabase
         .from("packages")
         .select("id, customer_id, service_name, remaining_sessions"),
@@ -200,8 +204,8 @@ export default async function RandevularPage({
                               <p className="truncate text-xs text-muted-foreground">
                                 {formatDateTime(a.starts_at)}
                                 {a.service?.name ? ` · ${a.service.name}` : ""}
-                                {a.staff?.full_name
-                                  ? ` · ${a.staff.full_name}`
+                                {a.staff_member?.full_name
+                                  ? ` · ${a.staff_member.full_name}`
                                   : ""}
                               </p>
                             </div>
@@ -246,7 +250,7 @@ export default async function RandevularPage({
                       </TableCell>
                       <TableCell>{a.customer?.full_name ?? "—"}</TableCell>
                       <TableCell>{a.service?.name ?? "—"}</TableCell>
-                      <TableCell>{a.staff?.full_name ?? "—"}</TableCell>
+                      <TableCell>{a.staff_member?.full_name ?? "—"}</TableCell>
                       <TableCell>
                         <Badge variant={appointmentStatusVariant(a.status)}>
                           {appointmentStatusLabel(a.status)}

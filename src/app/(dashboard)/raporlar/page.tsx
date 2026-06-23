@@ -6,6 +6,7 @@ import {
   Users,
   CalendarCheck,
   Target,
+  UserCog,
   PieChart as PieIcon,
 } from "lucide-react";
 
@@ -20,6 +21,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   RevenueAreaChart,
   ServiceBarChart,
@@ -61,16 +70,17 @@ export default async function RaporlarPage() {
     customerCountRes,
     apptCountRes,
     completedCountRes,
+    staffRes,
   ] = await Promise.all([
     // 1) Son 6 ay tahsilatları (aylık ciro)
     supabase
       .from("payments")
       .select("amount, created_at")
       .gte("created_at", sixMonthsAgo.toISOString()),
-    // 2) Tamamlanan randevular — hizmet bazlı ciro
+    // 2) Tamamlanan randevular — hizmet + personel bazlı ciro
     supabase
       .from("appointments")
-      .select("price, service:services(name)")
+      .select("price, staff_member_id, service:services(name)")
       .eq("status", "completed")
       .not("price", "is", null),
     // 3) Müşteri kaynak dağılımı
@@ -89,6 +99,8 @@ export default async function RaporlarPage() {
       .from("appointments")
       .select("*", { count: "exact", head: true })
       .eq("status", "completed"),
+    // 5) Personel (komisyon oranlarıyla)
+    supabase.from("staff").select("id, full_name, commission_rate"),
   ]);
 
   // --- Aylık ciro (son 6 ay) ---
@@ -123,12 +135,15 @@ export default async function RaporlarPage() {
     value,
   }));
 
-  // --- Hizmet bazlı ciro ---
-  const serviceMap = new Map<string, number>();
-  for (const a of (completedApptRes.data ?? []) as {
+  // --- Hizmet + personel bazlı ciro ---
+  const completedAppts = (completedApptRes.data ?? []) as {
     price: number | null;
+    staff_member_id: string | null;
     service: { name: string } | { name: string }[] | null;
-  }[]) {
+  }[];
+
+  const serviceMap = new Map<string, number>();
+  for (const a of completedAppts) {
     const svc = pickOne(a.service);
     const name = svc?.name ?? "Diğer";
     serviceMap.set(name, (serviceMap.get(name) ?? 0) + (a.price ?? 0));
@@ -189,6 +204,36 @@ export default async function RaporlarPage() {
     },
   ];
   const funnelMax = Math.max(...funnel.map((f) => f.value), 1);
+
+  // --- Personel performansı (tamamlanan randevulardan) ---
+  const staffList = (staffRes.data ?? []) as {
+    id: string;
+    full_name: string;
+    commission_rate: number | null;
+  }[];
+  const staffAgg = new Map<string, { count: number; revenue: number }>();
+  for (const a of completedAppts) {
+    if (!a.staff_member_id) continue;
+    const cur = staffAgg.get(a.staff_member_id) ?? { count: 0, revenue: 0 };
+    cur.count += 1;
+    cur.revenue += a.price ?? 0;
+    staffAgg.set(a.staff_member_id, cur);
+  }
+  const staffPerf = staffList
+    .map((s) => {
+      const agg = staffAgg.get(s.id) ?? { count: 0, revenue: 0 };
+      const rate = s.commission_rate ?? 0;
+      return {
+        id: s.id,
+        name: s.full_name,
+        count: agg.count,
+        revenue: agg.revenue,
+        rate,
+        commission: (agg.revenue * rate) / 100,
+      };
+    })
+    .filter((s) => s.count > 0)
+    .sort((a, b) => b.revenue - a.revenue);
 
   const kpis = [
     {
@@ -392,6 +437,58 @@ export default async function RaporlarPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Personel performansı */}
+          {staffPerf.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <UserCog className="size-4 text-primary" />
+                  Personel Performansı
+                </CardTitle>
+                <CardDescription>
+                  Tamamlanan randevulardan personel bazlı ciro ve hak edilen
+                  komisyon.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="pl-6">Personel</TableHead>
+                      <TableHead className="text-right">Randevu</TableHead>
+                      <TableHead className="text-right">Ciro</TableHead>
+                      <TableHead className="text-right">Komisyon %</TableHead>
+                      <TableHead className="pr-6 text-right">
+                        Hak Ediş
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {staffPerf.map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell className="pl-6 font-medium">
+                          {s.name}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {s.count}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatPrice(s.revenue)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {s.rate > 0 ? `%${s.rate}` : "—"}
+                        </TableCell>
+                        <TableCell className="pr-6 text-right font-semibold tabular-nums text-positive">
+                          {s.commission > 0 ? formatPrice(s.commission) : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>

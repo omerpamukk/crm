@@ -14,7 +14,7 @@ function toRow(values: AppointmentInput) {
   return {
     customer_id: values.customer_id,
     service_id: optional(values.service_id),
-    staff_id: optional(values.staff_id),
+    staff_member_id: optional(values.staff_member_id),
     package_id: optional(values.package_id),
     starts_at: values.starts_at,
     status: values.status?.trim() || "planned",

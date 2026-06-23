@@ -38,7 +38,7 @@ export interface ServiceOption {
 }
 export interface StaffOption {
   id: string;
-  full_name: string | null;
+  full_name: string;
 }
 export interface PackageOption {
   id: string;
@@ -79,7 +79,7 @@ export function AppointmentForm({
     defaultValues: {
       customer_id: appointment?.customer_id ?? "",
       service_id: appointment?.service_id ?? NONE,
-      staff_id: appointment?.staff_id ?? NONE,
+      staff_member_id: appointment?.staff_member_id ?? NONE,
       package_id: appointment?.package_id ?? NONE,
       starts_at: toDateTimeLocal(appointment?.starts_at ?? null),
       status: appointment?.status ?? "planned",
@@ -173,20 +173,20 @@ export function AppointmentForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="staff_id">Personel</Label>
+          <Label htmlFor="staff_member_id">Personel</Label>
           <Controller
             control={control}
-            name="staff_id"
+            name="staff_member_id"
             render={({ field }) => (
               <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="staff_id" className="w-full">
+                <SelectTrigger id="staff_member_id" className="w-full">
                   <SelectValue placeholder="Personel seçin" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE}>— Atanmadı —</SelectItem>
                   {staff.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.full_name ?? "İsimsiz"}
+                      {p.full_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
