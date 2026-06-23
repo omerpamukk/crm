@@ -4,9 +4,12 @@ import {
   Columns3,
   Scissors,
   CalendarDays,
+  CalendarRange,
   Package,
   Sparkles,
   Banknote,
+  BarChart3,
+  Scale,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,6 +31,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Ana Menü",
     items: [
       { href: "/panel", label: "Genel Bakış", icon: LayoutDashboard },
+      { href: "/raporlar", label: "Raporlar", icon: BarChart3 },
       { href: "/musteriler", label: "Müşteriler", icon: Users },
       { href: "/leadler", label: "Lead'ler", icon: Columns3 },
       { href: "/firsatlar", label: "Gelir Fırsatları", icon: Sparkles },
@@ -35,12 +39,16 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: "Randevu Yönetimi",
-    items: [{ href: "/randevular", label: "Randevular", icon: CalendarDays }],
+    items: [
+      { href: "/takvim", label: "Takvim", icon: CalendarRange },
+      { href: "/randevular", label: "Randevular", icon: CalendarDays },
+    ],
   },
   {
     label: "Satış & Tahsilat",
     items: [
       { href: "/tahsilat", label: "Tahsilat", icon: Banknote },
+      { href: "/cari", label: "Cari Hesap", icon: Scale },
       { href: "/paketler", label: "Paketler", icon: Package },
     ],
   },
