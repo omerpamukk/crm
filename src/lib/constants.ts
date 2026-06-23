@@ -19,6 +19,7 @@ export const CUSTOMER_STATUSES = [
 ] as const;
 
 export function customerStatusLabel(status: string | null): string {
+  if (status === "archived") return "Arşiv";
   return CUSTOMER_STATUSES.find((s) => s.value === status)?.label ?? "—";
 }
 
@@ -39,6 +40,8 @@ export function customerStatusVariant(status: string | null): StatusVariant {
     case "lead":
       return "warning";
     case "passive":
+      return "secondary";
+    case "archived":
       return "secondary";
     default:
       return "secondary";

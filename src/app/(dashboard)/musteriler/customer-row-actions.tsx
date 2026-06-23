@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Pencil, Trash2, Eye, CircleDot } from "lucide-react";
+import {
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Eye,
+  CircleDot,
+  Archive,
+  ArchiveRestore,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -98,6 +106,17 @@ export function CustomerRowActions({ customer }: { customer: Customer }) {
               ))}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          {customer.status === "archived" ? (
+            <DropdownMenuItem onClick={() => handleStatusChange("active")}>
+              <ArchiveRestore className="size-4" />
+              Arşivden çıkar
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onClick={() => handleStatusChange("archived")}>
+              <Archive className="size-4" />
+              Arşivle
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             variant="destructive"
