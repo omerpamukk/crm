@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import type { UserRole } from "@/types/database";
 
 export interface AccountContext {
   userId: string;
@@ -8,6 +9,8 @@ export interface AccountContext {
   fullName: string | null;
   businessId: string;
   businessName: string;
+  role: UserRole;
+  roleLabel: string;
 }
 
 /**
@@ -27,7 +30,7 @@ export async function getAccountContext(): Promise<AccountContext> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, business_id, businesses(name)")
+    .select("full_name, business_id, role, businesses(name)")
     .eq("id", user.id)
     .single();
 
@@ -41,11 +44,15 @@ export async function getAccountContext(): Promise<AccountContext> {
       : profile.businesses
   ) as { name: string } | null;
 
+  const role = (profile.role as UserRole) ?? "owner";
+
   return {
     userId: user.id,
     email: user.email ?? null,
     fullName: profile.full_name,
     businessId: profile.business_id,
     businessName: business?.name ?? "İşletmen",
+    role,
+    roleLabel: role === "owner" ? "Yönetici" : "Personel",
   };
 }
