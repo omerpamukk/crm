@@ -115,9 +115,7 @@ export default async function MusterilerPage() {
       <PageHeader
         title="Müşteriler"
         description="Dönüşmüş müşterilerini yönet, filtrele ve geçmişlerini takip et."
-      >
-        <NewCustomerButton />
-      </PageHeader>
+      />
 
       {customers.length === 0 ? (
         <EmptyState

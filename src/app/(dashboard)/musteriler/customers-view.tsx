@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Download, Users, UserX, Archive } from "lucide-react";
+import { Search, Download, Users, UserX, Archive, UserPlus } from "lucide-react";
 
 import { customerStatusLabel, customerStatusVariant } from "@/lib/constants";
 import { formatPrice, formatDateTime } from "@/lib/format";
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/table";
 
 import { CustomerRowActions } from "./customer-row-actions";
+import { CustomerInlineForm } from "./customer-inline-form";
 
 export type EnrichedCustomer = Customer & {
   service: string | null;
@@ -79,6 +80,7 @@ export function CustomersView({
   tags: string[];
 }) {
   const [nowMs] = useState(() => Date.now());
+  const [addOpen, setAddOpen] = useState(false);
   const [tab, setTab] = useState<"aktif" | "pasif" | "arsiv">("aktif");
   const [q, setQ] = useState("");
   const [service, setService] = useState("all");
@@ -213,8 +215,17 @@ export function CustomersView({
             <Download className="size-4" />
             Dışa Aktar
           </Button>
+          <Button className="gap-1.5" onClick={() => setAddOpen((o) => !o)}>
+            <UserPlus className="size-4" />
+            Yeni Müşteri
+          </Button>
         </div>
       </div>
+
+      {/* Sayfa içi ekleme formu */}
+      {addOpen && (
+        <CustomerInlineForm services={services} onClose={() => setAddOpen(false)} />
+      )}
 
       {/* Tablo */}
       <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">

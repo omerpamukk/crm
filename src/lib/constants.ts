@@ -10,6 +10,28 @@ export const SECTORS = [
   { value: "diger", label: "Diğer" },
 ] as const;
 
+/** Müşteri/lead kaynakları. */
+export const CUSTOMER_SOURCES = [
+  "Instagram",
+  "WhatsApp",
+  "Web Sitesi",
+  "Facebook",
+  "Messenger",
+  "TikTok",
+  "Google",
+  "Tavsiye",
+  "Diğer",
+] as const;
+
+/** Hızlı seçilebilen hazır müşteri etiketleri (çip). */
+export const CUSTOMER_TAG_PRESETS = [
+  { label: "Randevu Hatırlatma", emoji: "📅", tone: "info" },
+  { label: "Form Dolduranlar", emoji: "📋", tone: "positive" },
+  { label: "Reklamdan Form Dolduranlar", emoji: "📢", tone: "warning" },
+  { label: "Satın Almaktan Vazgeçti", emoji: "🛒", tone: "warning" },
+  { label: "İşlemi Biten Müşteri", emoji: "✅", tone: "positive" },
+] as const;
+
 /** Müşteri durumları. */
 export const CUSTOMER_STATUSES = [
   { value: "new", label: "Yeni" },
