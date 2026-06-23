@@ -6,7 +6,6 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  Eye,
   CircleDot,
   Archive,
   ArchiveRestore,
@@ -36,12 +35,10 @@ import { CUSTOMER_STATUSES } from "@/lib/constants";
 import type { Customer } from "@/types/database";
 
 import { CustomerForm } from "./customer-form";
-import { CustomerDetailSheet } from "./customer-detail-sheet";
 import { deleteCustomer, updateCustomerStatus } from "./actions";
 
 export function CustomerRowActions({ customer }: { customer: Customer }) {
   const router = useRouter();
-  const [detailOpen, setDetailOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -81,10 +78,6 @@ export function CustomerRowActions({ customer }: { customer: Customer }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setDetailOpen(true)}>
-            <Eye className="size-4" />
-            Detay
-          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setEditOpen(true)}>
             <Pencil className="size-4" />
             Düzenle
@@ -127,12 +120,6 @@ export function CustomerRowActions({ customer }: { customer: Customer }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <CustomerDetailSheet
-        customer={customer}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-      />
 
       {/* Düzenleme */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
