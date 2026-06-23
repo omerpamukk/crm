@@ -9,6 +9,7 @@ import {
   Ban,
   RefreshCw,
   Link2,
+  Pencil,
   BarChart3,
   Banknote,
   Users,
@@ -55,6 +56,7 @@ import {
 
 import {
   createAgencyAccess,
+  updateAgencyAccess,
   revokeAgencyAccess,
   renewAgencyAccess,
 } from "./agency-actions";
@@ -98,6 +100,7 @@ function isExpired(a: AgencyAccess): boolean {
 export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set(ALL_KEYS));
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -106,7 +109,7 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
   const [note, setNote] = useState("");
   const [token, setToken] = useState("");
   const [origin, setOrigin] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -120,6 +123,34 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
 
   const link = origin && token ? `${origin}/ajans/${token}` : "";
   const allSelected = selected.size === ALL_KEYS.length;
+  const isEditing = editingId !== null;
+  const durationOptions = isEditing
+    ? [{ value: "keep", label: "Mevcut süreyi koru" }, ...AGENCY_DURATIONS]
+    : [...AGENCY_DURATIONS];
+
+  function resetForm() {
+    setEditingId(null);
+    setName("");
+    setEmail("");
+    setNote("");
+    setSelected(new Set(ALL_KEYS));
+    setPermission("view");
+    setDays("180");
+    setToken(genToken());
+    setError(null);
+  }
+
+  function startEdit(a: AgencyAccess) {
+    setEditingId(a.id);
+    setName(a.name);
+    setEmail(a.email ?? "");
+    setNote(a.note ?? "");
+    setSelected(new Set(a.sections));
+    setPermission(a.permission);
+    setDays("keep");
+    setToken(a.token);
+    setError(null);
+  }
 
   function toggle(key: string) {
     setSelected((prev) => {
@@ -134,36 +165,43 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
     setSelected(allSelected ? new Set() : new Set(ALL_KEYS));
   }
 
-  async function copyLink() {
-    if (!link) return;
-    await navigator.clipboard.writeText(link);
-    setCopied(true);
+  async function copyText(text: string, id: string) {
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    setCopiedId(id);
     toast.success("Bağlantı kopyalandı");
-    setTimeout(() => setCopied(false), 1500);
+    setTimeout(() => setCopiedId(null), 1500);
   }
 
-  async function handleCreate() {
+  async function handleSubmit() {
     setError(null);
     setSubmitting(true);
-    const result = await createAgencyAccess({
-      name,
-      email,
-      token,
-      sections: [...selected],
-      permission,
-      days: Number(days),
-      note,
-    });
+    const result = isEditing
+      ? await updateAgencyAccess(editingId, {
+          name,
+          email,
+          sections: [...selected],
+          permission,
+          note,
+          days: days === "keep" ? undefined : Number(days),
+          keepDuration: days === "keep",
+        })
+      : await createAgencyAccess({
+          name,
+          email,
+          token,
+          sections: [...selected],
+          permission,
+          days: Number(days),
+          note,
+        });
     setSubmitting(false);
     if (result.error) {
       setError(result.error);
       return;
     }
-    toast.success("Ajans paneli oluşturuldu");
-    setName("");
-    setEmail("");
-    setNote("");
-    setToken(genToken());
+    toast.success(isEditing ? "Ajans erişimi güncellendi" : "Ajans paneli oluşturuldu");
+    resetForm();
     router.refresh();
   }
 
@@ -201,12 +239,16 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
         <DialogHeader className="shrink-0 gap-1.5 border-b px-6 py-5">
           <div className="flex items-center gap-2.5">
             <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-white">
-              <Store className="size-5" />
+              {isEditing ? <Pencil className="size-5" /> : <Store className="size-5" />}
             </span>
             <div>
-              <DialogTitle className="text-lg">Ajans Paneli Oluştur</DialogTitle>
+              <DialogTitle className="text-lg">
+                {isEditing ? "Ajans Erişimini Düzenle" : "Ajans Paneli Oluştur"}
+              </DialogTitle>
               <DialogDescription>
-                Ajansa hangi bölümleri göstereceğinizi seçin, ardından erişim verin.
+                {isEditing
+                  ? "Bu ajansın görebileceği bölümleri ve ayarlarını güncelleyin."
+                  : "Ajansa hangi bölümleri göstereceğinizi seçin, ardından erişim verin."}
               </DialogDescription>
             </div>
           </div>
@@ -276,7 +318,7 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
           {/* Erişim formu */}
           <section className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Ajansa Erişim Ver
+              {isEditing ? "Erişim Ayarları" : "Ajansa Erişim Ver"}
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -292,7 +334,7 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
                 <Select value={days} onValueChange={setDays}>
                   <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {AGENCY_DURATIONS.map((d) => (
+                    {durationOptions.map((d) => (
                       <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -321,11 +363,13 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
                 <Link2 className="size-[18px]" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground">Oluşturulacak özel erişim bağlantısı</p>
+                <p className="text-xs text-muted-foreground">
+                  {isEditing ? "Bu ajansın erişim bağlantısı" : "Oluşturulacak özel erişim bağlantısı"}
+                </p>
                 <p className="truncate font-mono text-xs font-medium">{link || "…"}</p>
               </div>
-              <Button type="button" variant="outline" size="icon-sm" onClick={copyLink} disabled={!link} title="Kopyala">
-                {copied ? <Check className="size-4 text-positive" /> : <Copy className="size-4" />}
+              <Button type="button" variant="outline" size="icon-sm" onClick={() => copyText(link, "form")} disabled={!link} title="Kopyala">
+                {copiedId === "form" ? <Check className="size-4 text-positive" /> : <Copy className="size-4" />}
               </Button>
             </div>
           </section>
@@ -334,34 +378,49 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
           {existing.length > 0 && (
             <section className="space-y-2.5">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Mevcut Ajans Erişimleri
+                Mevcut Ajans Erişimleri ({existing.length})
               </p>
               <ul className="space-y-2">
                 {existing.map((a) => {
                   const expired = isExpired(a);
+                  const rowLink = origin ? `${origin}/ajans/${a.token}` : "";
                   return (
-                    <li key={a.id} className="flex items-center gap-3 rounded-xl border p-3">
+                    <li
+                      key={a.id}
+                      className={cn(
+                        "flex flex-wrap items-center gap-2.5 rounded-xl border p-3",
+                        editingId === a.id && "border-primary/50 bg-primary/[0.04] ring-1 ring-primary/15"
+                      )}
+                    >
                       <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-500 text-xs font-semibold text-white">
                         {a.name.slice(0, 2).toUpperCase()}
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{a.name}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {a.email ?? "—"} · {agencyPermissionLabel(a.permission)} · {remainingText(a)}
+                          {a.email ?? "—"} · {agencyPermissionLabel(a.permission)} · {a.sections.length} bölüm · {remainingText(a)}
                         </p>
                       </div>
                       <Badge variant={expired ? "secondary" : "positive"}>
                         {expired ? "Pasif" : "Aktif"}
                       </Badge>
-                      {expired ? (
-                        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => handleRenew(a.id)}>
-                          <RefreshCw className="size-3.5" /> Yenile
+                      <div className="flex items-center gap-1">
+                        <Button type="button" variant="outline" size="icon-sm" onClick={() => copyText(rowLink, a.id)} disabled={!rowLink} title="Bağlantıyı kopyala">
+                          {copiedId === a.id ? <Check className="size-4 text-positive" /> : <Link2 className="size-4" />}
                         </Button>
-                      ) : (
-                        <Button type="button" variant="outline" size="icon-sm" onClick={() => handleRevoke(a.id)} title="Erişimi kapat">
-                          <Ban className="size-4 text-danger" />
+                        <Button type="button" variant="outline" size="icon-sm" onClick={() => startEdit(a)} title="Düzenle">
+                          <Pencil className="size-4" />
                         </Button>
-                      )}
+                        {expired ? (
+                          <Button type="button" variant="outline" size="icon-sm" onClick={() => handleRenew(a.id)} title="3 ay yenile">
+                            <RefreshCw className="size-4 text-positive" />
+                          </Button>
+                        ) : (
+                          <Button type="button" variant="outline" size="icon-sm" onClick={() => handleRevoke(a.id)} title="Erişimi kapat">
+                            <Ban className="size-4 text-danger" />
+                          </Button>
+                        )}
+                      </div>
                     </li>
                   );
                 })}
@@ -375,16 +434,27 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
         </div>
 
         {/* Footer (sabit) */}
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t bg-muted/30 px-6 py-4">
-          <Button variant="outline" onClick={() => setOpen(false)}>İptal</Button>
-          <Button
-            className="gap-2 bg-gradient-to-r from-primary to-violet-500 text-white hover:opacity-90"
-            onClick={handleCreate}
-            disabled={submitting}
-          >
-            <Store className="size-4" />
-            {submitting ? "Oluşturuluyor..." : "Paneli Oluştur & Erişim Ver"}
-          </Button>
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-muted/30 px-6 py-4">
+          <span className="text-xs text-muted-foreground">
+            {isEditing ? "Bir ajans erişimini düzenliyorsunuz" : `${existing.length} aktif/pasif erişim`}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => (isEditing ? resetForm() : setOpen(false))}>
+              {isEditing ? "Vazgeç" : "İptal"}
+            </Button>
+            <Button
+              className="gap-2 bg-gradient-to-r from-primary to-violet-500 text-white hover:opacity-90"
+              onClick={handleSubmit}
+              disabled={submitting}
+            >
+              {isEditing ? <Pencil className="size-4" /> : <Store className="size-4" />}
+              {submitting
+                ? "Kaydediliyor..."
+                : isEditing
+                  ? "Değişiklikleri Kaydet"
+                  : "Paneli Oluştur & Erişim Ver"}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

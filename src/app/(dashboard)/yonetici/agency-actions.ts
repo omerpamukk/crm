@@ -58,6 +58,50 @@ export async function createAgencyAccess(
   return {};
 }
 
+export interface AgencyUpdateInput {
+  name: string;
+  email?: string;
+  sections: string[];
+  permission: string;
+  note?: string;
+  days?: number;
+  keepDuration?: boolean;
+}
+
+export async function updateAgencyAccess(
+  id: string,
+  input: AgencyUpdateInput
+): Promise<ActionResult> {
+  if (!input.name.trim()) return { error: "Ajans / kişi adı zorunludur." };
+  if (input.sections.length === 0)
+    return { error: "En az bir bölüm seçmelisiniz." };
+
+  const supabase = await createClient();
+
+  const patch: Record<string, unknown> = {
+    name: input.name.trim(),
+    email: input.email?.trim() || null,
+    sections: input.sections,
+    permission: input.permission,
+    note: input.note?.trim() || null,
+  };
+  // Süre değiştirilmek istenmişse yeni bitiş tarihi uygula; aksi halde dokunma.
+  if (!input.keepDuration) {
+    patch.expires_at = expiresFromDays(input.days ?? 0);
+    patch.is_active = true;
+  }
+
+  const { error } = await supabase
+    .from("agency_access")
+    .update(patch)
+    .eq("id", id);
+
+  if (error) return { error: `Ajans erişimi güncellenemedi: ${error.message}` };
+
+  revalidatePath("/yonetici");
+  return {};
+}
+
 export async function revokeAgencyAccess(id: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase
