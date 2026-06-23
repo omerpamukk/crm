@@ -113,6 +113,14 @@ export async function revokeAgencyAccess(id: string): Promise<ActionResult> {
   return {};
 }
 
+export async function deleteAgencyAccess(id: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("agency_access").delete().eq("id", id);
+  if (error) return { error: `Silinemedi: ${error.message}` };
+  revalidatePath("/yonetici");
+  return {};
+}
+
 export async function renewAgencyAccess(
   id: string,
   days = 90

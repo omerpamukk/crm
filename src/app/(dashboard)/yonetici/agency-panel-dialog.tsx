@@ -4,10 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Store,
-  Copy,
   Check,
-  Ban,
-  RefreshCw,
+  Trash2,
   Link2,
   Pencil,
   BarChart3,
@@ -57,8 +55,7 @@ import {
 import {
   createAgencyAccess,
   updateAgencyAccess,
-  revokeAgencyAccess,
-  renewAgencyAccess,
+  deleteAgencyAccess,
 } from "./agency-actions";
 
 const ALL_KEYS = AGENCY_SECTIONS.map((s) => s.key);
@@ -110,6 +107,7 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
   const [token, setToken] = useState("");
   const [origin, setOrigin] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,7 +119,6 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
     }
   }
 
-  const link = origin && token ? `${origin}/ajans/${token}` : "";
   const allSelected = selected.size === ALL_KEYS.length;
   const isEditing = editingId !== null;
   const durationOptions = isEditing
@@ -205,20 +202,13 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
     router.refresh();
   }
 
-  async function handleRevoke(id: string) {
-    const r = await revokeAgencyAccess(id);
+  async function handleDelete(id: string) {
+    const r = await deleteAgencyAccess(id);
+    setConfirmDeleteId(null);
     if (r.error) toast.error(r.error);
     else {
-      toast.success("Erişim kapatıldı");
-      router.refresh();
-    }
-  }
-
-  async function handleRenew(id: string) {
-    const r = await renewAgencyAccess(id);
-    if (r.error) toast.error(r.error);
-    else {
-      toast.success("Erişim 3 ay uzatıldı");
+      toast.success("Ajans erişimi silindi");
+      if (editingId === id) resetForm();
       router.refresh();
     }
   }
@@ -357,21 +347,12 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
               <Textarea id="ag-note" rows={2} placeholder="Ajansa iletmek istediğiniz özel not..." value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
 
-            {/* Bağlantı önizleme */}
-            <div className="flex items-center gap-3 rounded-xl border border-dashed bg-muted/30 p-3">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Link2 className="size-[18px]" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground">
-                  {isEditing ? "Bu ajansın erişim bağlantısı" : "Oluşturulacak özel erişim bağlantısı"}
-                </p>
-                <p className="truncate font-mono text-xs font-medium">{link || "…"}</p>
-              </div>
-              <Button type="button" variant="outline" size="icon-sm" onClick={() => copyText(link, "form")} disabled={!link} title="Kopyala">
-                {copiedId === "form" ? <Check className="size-4 text-positive" /> : <Copy className="size-4" />}
-              </Button>
-            </div>
+            {!isEditing && (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Link2 className="size-3.5" />
+                Erişim bağlantısı oluşturduktan sonra aşağıdaki listede, ajansın yanındaki bağlantı butonundan kopyalanır.
+              </p>
+            )}
           </section>
 
           {/* Mevcut erişimler */}
@@ -401,26 +382,34 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
                           {a.email ?? "—"} · {agencyPermissionLabel(a.permission)} · {a.sections.length} bölüm · {remainingText(a)}
                         </p>
                       </div>
-                      <Badge variant={expired ? "secondary" : "positive"}>
-                        {expired ? "Pasif" : "Aktif"}
-                      </Badge>
-                      <div className="flex items-center gap-1">
-                        <Button type="button" variant="outline" size="icon-sm" onClick={() => copyText(rowLink, a.id)} disabled={!rowLink} title="Bağlantıyı kopyala">
-                          {copiedId === a.id ? <Check className="size-4 text-positive" /> : <Link2 className="size-4" />}
-                        </Button>
-                        <Button type="button" variant="outline" size="icon-sm" onClick={() => startEdit(a)} title="Düzenle">
-                          <Pencil className="size-4" />
-                        </Button>
-                        {expired ? (
-                          <Button type="button" variant="outline" size="icon-sm" onClick={() => handleRenew(a.id)} title="3 ay yenile">
-                            <RefreshCw className="size-4 text-positive" />
+                      {confirmDeleteId === a.id ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-medium text-danger">Kalıcı silinsin mi?</span>
+                          <Button type="button" variant="destructive" size="sm" onClick={() => handleDelete(a.id)}>
+                            Sil
                           </Button>
-                        ) : (
-                          <Button type="button" variant="outline" size="icon-sm" onClick={() => handleRevoke(a.id)} title="Erişimi kapat">
-                            <Ban className="size-4 text-danger" />
+                          <Button type="button" variant="outline" size="sm" onClick={() => setConfirmDeleteId(null)}>
+                            Vazgeç
                           </Button>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <>
+                          <Badge variant={expired ? "secondary" : "positive"}>
+                            {expired ? "Pasif" : "Aktif"}
+                          </Badge>
+                          <div className="flex items-center gap-1">
+                            <Button type="button" variant="outline" size="icon-sm" onClick={() => copyText(rowLink, a.id)} disabled={!rowLink} title="Bağlantıyı kopyala">
+                              {copiedId === a.id ? <Check className="size-4 text-positive" /> : <Link2 className="size-4" />}
+                            </Button>
+                            <Button type="button" variant="outline" size="icon-sm" onClick={() => startEdit(a)} title="Düzenle">
+                              <Pencil className="size-4" />
+                            </Button>
+                            <Button type="button" variant="outline" size="icon-sm" onClick={() => setConfirmDeleteId(a.id)} title="Kalıcı sil">
+                              <Trash2 className="size-4 text-danger" />
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </li>
                   );
                 })}
