@@ -27,9 +27,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+import type { AgencyAccess } from "@/types/database";
+
 import { NewExpenseButton } from "../giderler/new-expense-button";
 import { TrendChart } from "../raporlar/charts";
 import { RangeSelector } from "./range-selector";
+import { AgencyPanelDialog } from "./agency-panel-dialog";
 
 const MONTH_NAMES = [
   "Oca", "Şub", "Mar", "Nis", "May", "Haz",
@@ -121,6 +124,7 @@ export default async function YoneticiPage({
     periodPayRes, prevPayRes, periodExpRes, periodApptRes, prevApptCount,
     customersTotalRes, newMonthRes, chartPayRes, chartCustRes, chartApptRes,
     packagesRes, leadCountRes, completedAllRes, noShowRes, cancelledRes,
+    agencyRes,
   ] = await Promise.all([
     supabase.from("payments").select("amount, customer_id, customer:customers(source)").gte("created_at", startISO).lte("created_at", endISO),
     supabase.from("payments").select("amount").gte("created_at", prevStartISO).lt("created_at", prevEndISO),
@@ -137,7 +141,10 @@ export default async function YoneticiPage({
     supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "completed"),
     supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "no_show"),
     supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "cancelled"),
+    supabase.from("agency_access").select("*").order("created_at", { ascending: false }),
   ]);
+
+  const agencyAccesses = (agencyRes.data ?? []) as AgencyAccess[];
 
   // --- Finansal metrikler (dönem) ---
   const periodPay = (periodPayRes.data ?? []) as {
@@ -223,10 +230,10 @@ export default async function YoneticiPage({
     if (i !== undefined) buckets[i].hizmet += 1;
   }
   const newInWindow = buckets.reduce((s, b) => s + b.yeni, 0);
-  let running = customersTotal - newInWindow;
-  const chartData = buckets.map((b) => {
-    running += b.yeni;
-    return { label: b.label, ciro: b.ciro, musteri: running, hizmet: b.hizmet };
+  const custBase = customersTotal - newInWindow;
+  const chartData = buckets.map((b, i) => {
+    const cum = custBase + buckets.slice(0, i + 1).reduce((s, x) => s + x.yeni, 0);
+    return { label: b.label, ciro: b.ciro, musteri: cum, hizmet: b.hizmet };
   });
 
   // --- Tahsilat sağlığı ---
@@ -296,7 +303,10 @@ export default async function YoneticiPage({
           Kazanç İstatistikleri
           <span className="text-sm font-normal text-muted-foreground">· {RANGE_LABEL[range] ?? ""}</span>
         </h2>
-        <RangeSelector />
+        <div className="flex flex-wrap items-center gap-2">
+          <AgencyPanelDialog existing={agencyAccesses} />
+          <RangeSelector />
+        </div>
       </div>
 
       {/* 6 KPI kartı */}

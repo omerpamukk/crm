@@ -166,3 +166,34 @@ export function expenseCategoryVariant(category: string | null): StatusVariant {
       return "secondary";
   }
 }
+
+/** Ajans paneline açılabilecek bölümler. */
+export const AGENCY_SECTIONS = [
+  { key: "kazanc", label: "Kazanç İstatistikleri", desc: "Dönemsel gelir grafikleri", emoji: "📊" },
+  { key: "ciro_netkar", label: "Toplam Ciro & Net Kâr", desc: "Finansal özet kartları", emoji: "💰" },
+  { key: "musteri_hizmet", label: "Müşteri & Hizmet Sayısı", desc: "Toplam müşteri, satılan hizmet", emoji: "👥" },
+  { key: "aylik_grafik", label: "Aylık Ciro / Müşteri Grafiği", desc: "Trend çizgi grafikleri", emoji: "📈" },
+  { key: "hizmet_karlilik", label: "Hizmet Bazlı Kârlılık", desc: "Hangi hizmet ne kazandırıyor", emoji: "🥧" },
+  { key: "kaynak_gelir", label: "Kaynak Bazlı Gelir", desc: "Instagram, WhatsApp, Web...", emoji: "🌐" },
+  { key: "gelir_girisi", label: "Gelir Girişi", desc: "Son gelir kayıtları", emoji: "🟢" },
+  { key: "aylik_gider", label: "Aylık Giderler", desc: "Gider takibi", emoji: "🧾" },
+  { key: "reklam_kampanya", label: "Reklam & Kampanya Verileri", desc: "Meta reklam istatistikleri", emoji: "📣" },
+  { key: "potansiyel", label: "Potansiyel Müşteri Verileri", desc: "Lead listesi ve dönüşümler", emoji: "✨" },
+] as const;
+
+export const AGENCY_PERMISSIONS = [
+  { value: "view", label: "Sadece Görüntüleme" },
+  { value: "view_report", label: "Görüntüleme + Rapor" },
+] as const;
+
+export function agencyPermissionLabel(p: string | null): string {
+  return AGENCY_PERMISSIONS.find((x) => x.value === p)?.label ?? "—";
+}
+
+export const AGENCY_DURATIONS = [
+  { value: "30", label: "1 Ay" },
+  { value: "90", label: "3 Ay" },
+  { value: "180", label: "6 Ay" },
+  { value: "365", label: "1 Yıl" },
+  { value: "0", label: "Süresiz" },
+] as const;

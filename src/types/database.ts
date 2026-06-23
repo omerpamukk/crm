@@ -144,6 +144,23 @@ export interface Staff {
   note: string | null;
 }
 
+export type AgencyPermission = "view" | "view_report";
+
+export interface AgencyAccess {
+  id: string;
+  created_at: string;
+  business_id: string;
+  name: string;
+  email: string | null;
+  token: string;
+  sections: string[];
+  permission: AgencyPermission;
+  expires_at: string | null;
+  is_active: boolean;
+  note: string | null;
+  created_by: string | null;
+}
+
 export interface Package {
   id: string;
   created_at: string;
