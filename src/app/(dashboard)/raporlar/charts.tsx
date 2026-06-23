@@ -6,7 +6,10 @@ import {
   Bar,
   BarChart,
   Cell,
+  CartesianGrid,
+  ComposedChart,
   Legend,
+  Line,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -63,6 +66,77 @@ export function RevenueAreaChart({
           fill="url(#rev)"
         />
       </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+export function TrendChart({
+  data,
+}: {
+  data: { label: string; ciro: number; musteri: number; hizmet: number }[];
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={340}>
+      <ComposedChart data={data} margin={{ left: 4, right: 8, top: 12 }}>
+        <defs>
+          <linearGradient id="trend" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#5B5BD6" stopOpacity={0.25} />
+            <stop offset="100%" stopColor="#5B5BD6" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+        <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
+        <YAxis
+          yAxisId="left"
+          tickLine={false}
+          axisLine={false}
+          fontSize={12}
+          width={52}
+          tickFormatter={(v) => `₺${(Number(v) / 1000).toFixed(0)}k`}
+        />
+        <YAxis
+          yAxisId="right"
+          orientation="right"
+          tickLine={false}
+          axisLine={false}
+          fontSize={12}
+          width={40}
+        />
+        <Tooltip
+          formatter={(v, name) =>
+            name === "Ciro (₺)" ? [tl(Number(v)), name] : [Number(v), name]
+          }
+        />
+        <Legend iconType="plainline" wrapperStyle={{ fontSize: 12 }} />
+        <Area
+          yAxisId="left"
+          type="monotone"
+          dataKey="ciro"
+          name="Ciro (₺)"
+          stroke="#5B5BD6"
+          strokeWidth={2.5}
+          fill="url(#trend)"
+        />
+        <Line
+          yAxisId="right"
+          type="monotone"
+          dataKey="musteri"
+          name="Müşteri"
+          stroke="#16A34A"
+          strokeWidth={2}
+          dot={{ r: 3 }}
+        />
+        <Line
+          yAxisId="right"
+          type="monotone"
+          dataKey="hizmet"
+          name="Hizmet"
+          stroke="#F59E0B"
+          strokeWidth={2}
+          strokeDasharray="5 5"
+          dot={{ r: 3 }}
+        />
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }
