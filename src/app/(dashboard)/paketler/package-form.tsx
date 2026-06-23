@@ -16,10 +16,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toDateTimeLocal } from "@/lib/format";
+import { PAYMENT_STATUSES } from "@/lib/constants";
 import type { Package } from "@/types/database";
 
 import { packageSchema, type PackageInput } from "./schema";
 import { createPackage, updatePackage } from "./actions";
+
+function suggestStatus(priceStr?: string, paidStr?: string): string {
+  const price = priceStr ? Number(priceStr.replace(",", ".")) : null;
+  const paid = paidStr ? Number(paidStr.replace(",", ".")) : 0;
+  if (price != null && price > 0) {
+    if (paid >= price) return "odendi";
+    if (paid > 0) return "kismi";
+    return "odenmedi";
+  }
+  return paid > 0 ? "odendi" : "odenmedi";
+}
 
 export interface CustomerOption {
   id: string;
@@ -44,6 +56,8 @@ export function PackageForm({
     register,
     handleSubmit,
     control,
+    getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<PackageInput>({
     resolver: zodResolver(packageSchema),
@@ -56,8 +70,18 @@ export function PackageForm({
         ? toDateTimeLocal(pkg.purchased_at).slice(0, 10)
         : "",
       price: pkg?.price?.toString() ?? "",
+      paid_amount: pkg?.paid_amount?.toString() ?? "",
+      payment_status: pkg?.payment_status ?? "odenmedi",
     },
   });
+
+  // Fiyat/ödenen değiştikçe ödeme durumunu otomatik öner (elle değiştirilebilir).
+  function recomputeStatus() {
+    setValue(
+      "payment_status",
+      suggestStatus(getValues("price"), getValues("paid_amount"))
+    );
+  }
 
   async function onSubmit(values: PackageInput) {
     setFormError(null);
@@ -152,11 +176,47 @@ export function PackageForm({
             id="price"
             inputMode="decimal"
             placeholder="2500"
-            {...register("price")}
+            {...register("price", { onChange: recomputeStatus })}
           />
           {errors.price && (
             <p className="text-sm text-danger">{errors.price.message}</p>
           )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="paid_amount">Ödenen (₺)</Label>
+          <Input
+            id="paid_amount"
+            inputMode="decimal"
+            placeholder="0"
+            {...register("paid_amount", { onChange: recomputeStatus })}
+          />
+          {errors.paid_amount && (
+            <p className="text-sm text-danger">{errors.paid_amount.message}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="payment_status">Ödeme durumu</Label>
+          <Controller
+            control={control}
+            name="payment_status"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="payment_status" className="w-full">
+                  <SelectValue placeholder="Ödeme durumu" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_STATUSES.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
         </div>
       </div>
 

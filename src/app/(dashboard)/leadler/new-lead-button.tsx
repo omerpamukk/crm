@@ -12,9 +12,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { CustomerForm } from "./customer-form";
+import { CustomerForm } from "../musteriler/customer-form";
 
-export function NewCustomerButton() {
+export function NewLeadButton() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
@@ -23,15 +23,15 @@ export function NewCustomerButton() {
       <DialogTrigger asChild>
         <Button>
           <Plus className="size-4" />
-          Yeni müşteri
+          Yeni lead
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Yeni müşteri</DialogTitle>
+          <DialogTitle>Yeni lead</DialogTitle>
         </DialogHeader>
         <CustomerForm
-          asLead={false}
+          asLead
           onSuccess={() => {
             setOpen(false);
             router.refresh();

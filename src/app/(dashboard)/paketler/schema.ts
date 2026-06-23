@@ -18,6 +18,14 @@ export const packageSchema = z.object({
       (v) => !v || /^\d+([.,]\d{1,2})?$/.test(v),
       "Geçerli bir fiyat girin"
     ),
+  paid_amount: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || /^\d+([.,]\d{1,2})?$/.test(v),
+      "Geçerli bir tutar girin"
+    ),
+  payment_status: z.string().optional(),
 });
 
 export type PackageInput = z.infer<typeof packageSchema>;

@@ -28,7 +28,8 @@ function toRow(values: CustomerInput) {
 }
 
 export async function createCustomer(
-  input: CustomerInput
+  input: CustomerInput,
+  options?: { asLead?: boolean }
 ): Promise<ActionResult> {
   const parsed = customerSchema.safeParse(input);
   if (!parsed.success) {
@@ -39,13 +40,31 @@ export async function createCustomer(
   const businessId = await getBusinessId(supabase);
   if (!businessId) return { error: "Oturum bulunamadı." };
 
-  const { error } = await supabase
-    .from("customers")
-    .insert({ business_id: businessId, ...toRow(parsed.data) });
+  // Varsayılan: yeni kayıt lead olarak, pipeline'ın ilk sütununa düşer.
+  const asLead = options?.asLead ?? true;
+  let pipelineStageId: string | null = null;
+  if (asLead) {
+    const { data: stage } = await supabase
+      .from("pipeline_stages")
+      .select("id")
+      .eq("business_id", businessId)
+      .order("position", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    pipelineStageId = stage?.id ?? null;
+  }
 
-  if (error) return { error: `Müşteri eklenemedi: ${error.message}` };
+  const { error } = await supabase.from("customers").insert({
+    business_id: businessId,
+    is_lead: asLead,
+    pipeline_stage_id: pipelineStageId,
+    ...toRow(parsed.data),
+  });
+
+  if (error) return { error: `Kayıt eklenemedi: ${error.message}` };
 
   revalidatePath("/musteriler");
+  revalidatePath("/leadler");
   return {};
 }
 

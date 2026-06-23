@@ -71,3 +71,27 @@ export function appointmentStatusVariant(status: string | null): StatusVariant {
       return "secondary";
   }
 }
+
+/** Paket ödeme durumları. */
+export const PAYMENT_STATUSES = [
+  { value: "odenmedi", label: "Ödenmedi" },
+  { value: "kismi", label: "Kısmi" },
+  { value: "odendi", label: "Ödendi" },
+] as const;
+
+export function paymentStatusLabel(status: string | null): string {
+  return PAYMENT_STATUSES.find((s) => s.value === status)?.label ?? "—";
+}
+
+export function paymentStatusVariant(status: string | null): StatusVariant {
+  switch (status) {
+    case "odendi":
+      return "positive";
+    case "kismi":
+      return "warning";
+    case "odenmedi":
+      return "danger";
+    default:
+      return "secondary";
+  }
+}

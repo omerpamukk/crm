@@ -2,7 +2,9 @@ import { Package } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatPrice } from "@/lib/format";
+import { paymentStatusLabel, paymentStatusVariant } from "@/lib/constants";
 import type { Package as PackageType } from "@/types/database";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
@@ -70,6 +72,8 @@ export default async function PaketlerPage() {
                 <TableHead>Paket</TableHead>
                 <TableHead>Kalan / Toplam</TableHead>
                 <TableHead>Fiyat</TableHead>
+                <TableHead>Ödeme</TableHead>
+                <TableHead>Kalan Borç</TableHead>
                 <TableHead>Satın alma</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
@@ -85,6 +89,20 @@ export default async function PaketlerPage() {
                     {p.remaining_sessions ?? "—"} / {p.total_sessions ?? "—"}
                   </TableCell>
                   <TableCell>{formatPrice(p.price)}</TableCell>
+                  <TableCell>
+                    <Badge variant={paymentStatusVariant(p.payment_status)}>
+                      {paymentStatusLabel(p.payment_status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {p.price != null && p.price - (p.paid_amount ?? 0) > 0 ? (
+                      <span className="font-medium text-danger">
+                        {formatPrice(p.price - (p.paid_amount ?? 0))}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDate(p.purchased_at)}
                   </TableCell>

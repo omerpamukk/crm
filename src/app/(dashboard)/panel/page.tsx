@@ -7,11 +7,12 @@ import {
   TrendingUp,
   Clock,
   UserPlus,
+  Wallet,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAccountContext } from "@/lib/supabase/account";
-import { formatTime, formatDate } from "@/lib/format";
+import { formatTime, formatDate, formatPrice } from "@/lib/format";
 import {
   appointmentStatusLabel,
   appointmentStatusVariant,
@@ -65,14 +66,19 @@ export default async function PanelPage() {
     newThisWeek,
     todayRes,
     recentRes,
+    debtRes,
   ] = await Promise.all([
-    supabase.from("customers").select("*", { count: "exact", head: true }),
+    supabase
+      .from("customers")
+      .select("*", { count: "exact", head: true })
+      .eq("is_lead", false),
     supabase.from("appointments").select("*", { count: "exact", head: true }),
     supabase.from("services").select("*", { count: "exact", head: true }),
     supabase.from("packages").select("*", { count: "exact", head: true }),
     supabase
       .from("customers")
       .select("*", { count: "exact", head: true })
+      .eq("is_lead", false)
       .gte("created_at", weekAgo.toISOString()),
     supabase
       .from("appointments")
@@ -85,14 +91,25 @@ export default async function PanelPage() {
     supabase
       .from("customers")
       .select("id, full_name, status, created_at")
+      .eq("is_lead", false)
       .order("created_at", { ascending: false })
       .limit(5),
+    supabase.from("packages").select("price, paid_amount"),
   ]);
 
   const todayAppointments = (todayRes.data ??
     []) as unknown as TodayAppointment[];
   const recentCustomers = (recentRes.data ?? []) as RecentCustomer[];
   const newCount = newThisWeek.count ?? 0;
+
+  // Toplam açık borç: tüm paketlerde pozitif (price - paid_amount) toplamı.
+  const totalDebt = ((debtRes.data ?? []) as {
+    price: number | null;
+    paid_amount: number | null;
+  }[]).reduce((sum, p) => {
+    const debt = (p.price ?? 0) - (p.paid_amount ?? 0);
+    return debt > 0 ? sum + debt : sum;
+  }, 0);
 
   const stats = [
     {
@@ -167,6 +184,27 @@ export default async function PanelPage() {
           );
         })}
       </div>
+
+      {totalDebt > 0 && (
+        <Card className="border-l-4 border-l-danger">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Toplam Açık Borç
+            </CardTitle>
+            <span className="flex size-9 items-center justify-center rounded-lg bg-danger/10 text-danger">
+              <Wallet className="size-5" />
+            </span>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-danger">
+              {formatPrice(totalDebt)}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Paketlerden tahsil edilmemiş toplam tutar
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Bugünün randevuları */}

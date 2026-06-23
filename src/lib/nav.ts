@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Users,
+  Columns3,
   Scissors,
   CalendarDays,
   Package,
@@ -18,6 +19,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/panel", label: "Genel Bakış", icon: LayoutDashboard },
   { href: "/musteriler", label: "Müşteriler", icon: Users },
+  { href: "/leadler", label: "Lead'ler", icon: Columns3 },
   { href: "/hizmetler", label: "Hizmetler", icon: Scissors },
   { href: "/randevular", label: "Randevular", icon: CalendarDays },
   { href: "/firsatlar", label: "Gelir Fırsatları", icon: Sparkles },

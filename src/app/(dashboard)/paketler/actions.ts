@@ -9,6 +9,23 @@ import { packageSchema, type PackageInput } from "./schema";
 type ActionResult = { error?: string };
 
 function toRow(values: PackageInput) {
+  const price = values.price ? Number(values.price.replace(",", ".")) : null;
+  const paid = values.paid_amount
+    ? Number(values.paid_amount.replace(",", "."))
+    : 0;
+
+  // payment_status verilmemişse paid/price oranından otomatik belirle.
+  let status = values.payment_status?.trim();
+  if (!status || !["odendi", "kismi", "odenmedi"].includes(status)) {
+    if (price != null && price > 0) {
+      if (paid >= price) status = "odendi";
+      else if (paid > 0) status = "kismi";
+      else status = "odenmedi";
+    } else {
+      status = paid > 0 ? "odendi" : "odenmedi";
+    }
+  }
+
   return {
     customer_id: values.customer_id,
     service_name: values.service_name?.trim() || null,
@@ -19,7 +36,9 @@ function toRow(values: PackageInput) {
       ? Number(values.remaining_sessions)
       : null,
     purchased_at: values.purchased_at?.trim() || null,
-    price: values.price ? Number(values.price.replace(",", ".")) : null,
+    price,
+    paid_amount: paid,
+    payment_status: status,
   };
 }
 

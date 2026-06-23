@@ -26,10 +26,13 @@ export function CustomerForm({
   customer,
   onSuccess,
   onCancel,
+  asLead = true,
 }: {
   customer?: Customer;
   onSuccess: () => void;
   onCancel: () => void;
+  /** Yeni kayıt lead mi yoksa doğrudan müşteri mi olsun (yalnızca ekleme). */
+  asLead?: boolean;
 }) {
   const isEdit = Boolean(customer);
   const [formError, setFormError] = useState<string | null>(null);
@@ -57,14 +60,16 @@ export function CustomerForm({
     setFormError(null);
     const result = isEdit
       ? await updateCustomer(customer!.id, values)
-      : await createCustomer(values);
+      : await createCustomer(values, { asLead });
 
     if (result.error) {
       setFormError(result.error);
       return;
     }
 
-    toast.success(isEdit ? "Müşteri güncellendi" : "Müşteri eklendi");
+    toast.success(
+      isEdit ? "Kayıt güncellendi" : asLead ? "Lead eklendi" : "Müşteri eklendi"
+    );
     onSuccess();
   }
 

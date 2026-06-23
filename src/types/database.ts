@@ -1,9 +1,19 @@
 /**
  * Veritabanı tablolarının TypeScript karşılıkları.
- * supabase/migrations/0001_init.sql ile eşleşir.
+ * supabase/migrations/0001_init.sql + 0002_*.sql ile eşleşir.
  */
 
 export type UserRole = "owner" | "staff";
+
+export type InteractionType =
+  | "mesaj"
+  | "arama"
+  | "randevu_olusturuldu"
+  | "randevu_tamamlandi"
+  | "not"
+  | "asama_degisikligi";
+
+export type PaymentStatus = "odendi" | "kismi" | "odenmedi";
 
 export interface Business {
   id: string;
@@ -20,6 +30,15 @@ export interface Profile {
   role: UserRole;
 }
 
+export interface PipelineStage {
+  id: string;
+  created_at: string;
+  business_id: string;
+  name: string;
+  color: string;
+  position: number;
+}
+
 export interface Customer {
   id: string;
   created_at: string;
@@ -33,6 +52,19 @@ export interface Customer {
   status: string | null;
   last_visit_at: string | null;
   birthday: string | null;
+  is_lead: boolean;
+  assigned_to: string | null;
+  pipeline_stage_id: string | null;
+}
+
+export interface Interaction {
+  id: string;
+  created_at: string;
+  business_id: string;
+  customer_id: string;
+  type: InteractionType;
+  note: string | null;
+  created_by: string | null;
 }
 
 export interface Service {
@@ -67,4 +99,6 @@ export interface Package {
   remaining_sessions: number | null;
   purchased_at: string | null;
   price: number | null;
+  paid_amount: number;
+  payment_status: PaymentStatus;
 }

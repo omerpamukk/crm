@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessId } from "@/lib/supabase/business";
+import { logInteraction } from "@/lib/supabase/interactions";
 import { appointmentSchema, NONE, type AppointmentInput } from "./schema";
 
 type ActionResult = { error?: string };
@@ -32,11 +33,24 @@ export async function createAppointment(
   const businessId = await getBusinessId(supabase);
   if (!businessId) return { error: "Oturum bulunamadı." };
 
+  const row = toRow(parsed.data);
   const { error } = await supabase
     .from("appointments")
-    .insert({ business_id: businessId, ...toRow(parsed.data) });
+    .insert({ business_id: businessId, ...row });
 
   if (error) return { error: `Randevu eklenemedi: ${error.message}` };
+
+  // Zaman çizelgesine otomatik kayıt
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  await logInteraction(supabase, {
+    businessId,
+    customerId: row.customer_id,
+    type: "randevu_olusturuldu",
+    note: "Randevu oluşturuldu",
+    createdBy: user?.id ?? null,
+  });
 
   revalidatePath("/randevular");
   return {};
