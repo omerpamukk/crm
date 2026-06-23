@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Package,
   Sparkles,
+  Banknote,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,4 +25,5 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/randevular", label: "Randevular", icon: CalendarDays },
   { href: "/firsatlar", label: "Gelir Fırsatları", icon: Sparkles },
   { href: "/paketler", label: "Paketler", icon: Package },
+  { href: "/tahsilat", label: "Tahsilat", icon: Banknote },
 ];

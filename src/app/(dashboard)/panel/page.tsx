@@ -8,6 +8,8 @@ import {
   Clock,
   UserPlus,
   Wallet,
+  Banknote,
+  Target,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
@@ -57,6 +59,7 @@ export default async function PanelPage() {
   endOfToday.setDate(endOfToday.getDate() + 1);
   const weekAgo = new Date(now);
   weekAgo.setDate(now.getDate() - 7);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const [
     customers,
@@ -67,6 +70,8 @@ export default async function PanelPage() {
     todayRes,
     recentRes,
     debtRes,
+    leadsCount,
+    monthPaymentsRes,
   ] = await Promise.all([
     supabase
       .from("customers")
@@ -95,6 +100,14 @@ export default async function PanelPage() {
       .order("created_at", { ascending: false })
       .limit(5),
     supabase.from("packages").select("price, paid_amount"),
+    supabase
+      .from("customers")
+      .select("*", { count: "exact", head: true })
+      .eq("is_lead", true),
+    supabase
+      .from("payments")
+      .select("amount")
+      .gte("created_at", startOfMonth.toISOString()),
   ]);
 
   const todayAppointments = (todayRes.data ??
@@ -110,6 +123,18 @@ export default async function PanelPage() {
     const debt = (p.price ?? 0) - (p.paid_amount ?? 0);
     return debt > 0 ? sum + debt : sum;
   }, 0);
+
+  // Bu ay toplam tahsilat
+  const monthRevenue = ((monthPaymentsRes.data ?? []) as {
+    amount: number | null;
+  }[]).reduce((sum, p) => sum + (p.amount ?? 0), 0);
+
+  // Lead dönüşüm: müşteri / (müşteri + lead)
+  const customerCount = customers.count ?? 0;
+  const leadCount = leadsCount.count ?? 0;
+  const totalPeople = customerCount + leadCount;
+  const conversionPct =
+    totalPeople > 0 ? Math.round((customerCount / totalPeople) * 100) : null;
 
   const stats = [
     {
@@ -185,26 +210,64 @@ export default async function PanelPage() {
         })}
       </div>
 
-      {totalDebt > 0 && (
-        <Card className="border-l-4 border-l-danger">
+      {/* Gelir/ilişki metrikleri */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Card className="border-l-4 border-l-positive">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Toplam Açık Borç
+              Bu Ay Tahsilat
             </CardTitle>
-            <span className="flex size-9 items-center justify-center rounded-lg bg-danger/10 text-danger">
-              <Wallet className="size-5" />
+            <span className="flex size-9 items-center justify-center rounded-lg bg-positive/10 text-positive">
+              <Banknote className="size-5" />
             </span>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-danger">
-              {formatPrice(totalDebt)}
+            <div className="text-2xl font-bold text-positive">
+              {formatPrice(monthRevenue)}
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Paketlerden tahsil edilmemiş toplam tutar
-            </p>
           </CardContent>
         </Card>
-      )}
+
+        {totalDebt > 0 && (
+          <Card className="border-l-4 border-l-danger">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Toplam Açık Borç
+              </CardTitle>
+              <span className="flex size-9 items-center justify-center rounded-lg bg-danger/10 text-danger">
+                <Wallet className="size-5" />
+              </span>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-danger">
+                {formatPrice(totalDebt)}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Paketlerden tahsil edilmemiş toplam
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {conversionPct !== null && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Lead Dönüşüm
+              </CardTitle>
+              <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Target className="size-5" />
+              </span>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">%{conversionPct}</div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {customerCount} müşteri / {totalPeople} toplam
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Bugünün randevuları */}

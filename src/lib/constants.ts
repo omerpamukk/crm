@@ -95,3 +95,40 @@ export function paymentStatusVariant(status: string | null): StatusVariant {
       return "secondary";
   }
 }
+
+/** Ödeme durumunu her zaman fiyat/ödenen oranından türetir (UI veriyle çelişmesin). */
+export function derivePaymentStatus(
+  price: number | null,
+  paid: number | null
+): "odendi" | "kismi" | "odenmedi" {
+  const p = paid ?? 0;
+  if (p <= 0) return "odenmedi";
+  if (price == null) return "odendi";
+  if (p >= price) return "odendi";
+  return "kismi";
+}
+
+/** Tahsilat yöntemleri. */
+export const PAYMENT_METHODS = [
+  { value: "nakit", label: "Nakit" },
+  { value: "kart", label: "Kart" },
+  { value: "havale", label: "Havale" },
+  { value: "diger", label: "Diğer" },
+] as const;
+
+export function paymentMethodLabel(method: string | null): string {
+  return PAYMENT_METHODS.find((m) => m.value === method)?.label ?? "—";
+}
+
+export function paymentMethodVariant(method: string | null): StatusVariant {
+  switch (method) {
+    case "nakit":
+      return "positive";
+    case "kart":
+      return "info";
+    case "havale":
+      return "warning";
+    default:
+      return "secondary";
+  }
+}

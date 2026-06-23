@@ -63,7 +63,7 @@ export default async function FirsatlarPage() {
       supabase
         .from("customers")
         .select("id, full_name, created_at")
-        .eq("status", "new")
+        .eq("is_lead", true)
         .order("created_at", { ascending: false }),
       supabase.from("appointments").select("customer_id").not("customer_id", "is", null),
     ]);

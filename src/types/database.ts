@@ -15,6 +15,10 @@ export type InteractionType =
 
 export type PaymentStatus = "odendi" | "kismi" | "odenmedi";
 
+export type PaymentMethod = "nakit" | "kart" | "havale" | "diger";
+
+export type PaymentRelatedType = "paket" | "randevu" | "diger";
+
 export interface Business {
   id: string;
   created_at: string;
@@ -87,6 +91,21 @@ export interface Appointment {
   staff_id: string | null;
   status: string | null;
   note: string | null;
+  package_id: string | null;
+  price: number | null;
+}
+
+export interface Payment {
+  id: string;
+  created_at: string;
+  business_id: string;
+  customer_id: string | null;
+  amount: number;
+  method: PaymentMethod;
+  related_type: PaymentRelatedType | null;
+  related_id: string | null;
+  note: string | null;
+  created_by: string | null;
 }
 
 export interface Package {

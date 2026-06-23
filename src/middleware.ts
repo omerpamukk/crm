@@ -10,6 +10,7 @@ const PROTECTED_PREFIXES = [
   "/randevular",
   "/firsatlar",
   "/paketler",
+  "/tahsilat",
   "/isletme-kur",
 ];
 // Yalnızca giriş yapmamış kullanıcıların görebileceği yollar

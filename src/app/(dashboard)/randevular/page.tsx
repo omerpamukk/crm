@@ -39,7 +39,7 @@ export default async function RandevularPage({
   const isList = view === "list";
   const supabase = await createClient();
 
-  const [appointmentsRes, customersRes, servicesRes, staffRes] =
+  const [appointmentsRes, customersRes, servicesRes, staffRes, packagesRes] =
     await Promise.all([
       supabase
         .from("appointments")
@@ -48,8 +48,11 @@ export default async function RandevularPage({
         )
         .order("starts_at", { ascending: true }),
       supabase.from("customers").select("id, full_name").order("full_name"),
-      supabase.from("services").select("id, name").order("name"),
+      supabase.from("services").select("id, name, price").order("name"),
       supabase.from("profiles").select("id, full_name"),
+      supabase
+        .from("packages")
+        .select("id, customer_id, service_name, remaining_sessions"),
     ]);
 
   const appointments = (appointmentsRes.data ??
@@ -57,6 +60,7 @@ export default async function RandevularPage({
   const customers = customersRes.data ?? [];
   const services = servicesRes.data ?? [];
   const staff = staffRes.data ?? [];
+  const packages = packagesRes.data ?? [];
 
   // Gün gruplama sınırları (Liste görünümü için)
   const now = new Date();
@@ -108,6 +112,7 @@ export default async function RandevularPage({
           customers={customers}
           services={services}
           staff={staff}
+          packages={packages}
         />
       </PageHeader>
 
@@ -128,6 +133,7 @@ export default async function RandevularPage({
                 customers={customers}
                 services={services}
                 staff={staff}
+                packages={packages}
               />
             ) : undefined
           }
@@ -209,6 +215,7 @@ export default async function RandevularPage({
                               customers={customers}
                               services={services}
                               staff={staff}
+                              packages={packages}
                             />
                           </div>
                         </div>
@@ -251,6 +258,7 @@ export default async function RandevularPage({
                           customers={customers}
                           services={services}
                           staff={staff}
+                          packages={packages}
                         />
                       </TableCell>
                     </TableRow>

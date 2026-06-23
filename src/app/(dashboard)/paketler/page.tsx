@@ -2,7 +2,11 @@ import { Package } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatPrice } from "@/lib/format";
-import { paymentStatusLabel, paymentStatusVariant } from "@/lib/constants";
+import {
+  derivePaymentStatus,
+  paymentStatusLabel,
+  paymentStatusVariant,
+} from "@/lib/constants";
 import type { Package as PackageType } from "@/types/database";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
@@ -90,9 +94,14 @@ export default async function PaketlerPage() {
                   </TableCell>
                   <TableCell>{formatPrice(p.price)}</TableCell>
                   <TableCell>
-                    <Badge variant={paymentStatusVariant(p.payment_status)}>
-                      {paymentStatusLabel(p.payment_status)}
-                    </Badge>
+                    {(() => {
+                      const st = derivePaymentStatus(p.price, p.paid_amount);
+                      return (
+                        <Badge variant={paymentStatusVariant(st)}>
+                          {paymentStatusLabel(st)}
+                        </Badge>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     {p.price != null && p.price - (p.paid_amount ?? 0) > 0 ? (

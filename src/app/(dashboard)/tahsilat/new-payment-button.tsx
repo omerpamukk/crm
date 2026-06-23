@@ -13,22 +13,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  AppointmentForm,
+  PaymentForm,
   type CustomerOption,
-  type ServiceOption,
-  type StaffOption,
   type PackageOption,
-} from "./appointment-form";
+} from "./payment-form";
 
-export function NewAppointmentButton({
+export function NewPaymentButton({
   customers,
-  services,
-  staff,
   packages,
 }: {
   customers: CustomerOption[];
-  services: ServiceOption[];
-  staff: StaffOption[];
   packages: PackageOption[];
 }) {
   const router = useRouter();
@@ -39,17 +33,15 @@ export function NewAppointmentButton({
       <DialogTrigger asChild>
         <Button disabled={customers.length === 0}>
           <Plus className="size-4" />
-          Yeni randevu
+          Ödeme al
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Yeni randevu</DialogTitle>
+          <DialogTitle>Ödeme al</DialogTitle>
         </DialogHeader>
-        <AppointmentForm
+        <PaymentForm
           customers={customers}
-          services={services}
-          staff={staff}
           packages={packages}
           onSuccess={() => {
             setOpen(false);

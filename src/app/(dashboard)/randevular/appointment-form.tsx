@@ -34,10 +34,17 @@ export interface CustomerOption {
 export interface ServiceOption {
   id: string;
   name: string;
+  price: number | null;
 }
 export interface StaffOption {
   id: string;
   full_name: string | null;
+}
+export interface PackageOption {
+  id: string;
+  customer_id: string | null;
+  service_name: string | null;
+  remaining_sessions: number | null;
 }
 
 export function AppointmentForm({
@@ -45,6 +52,7 @@ export function AppointmentForm({
   customers,
   services,
   staff,
+  packages,
   onSuccess,
   onCancel,
 }: {
@@ -52,6 +60,7 @@ export function AppointmentForm({
   customers: CustomerOption[];
   services: ServiceOption[];
   staff: StaffOption[];
+  packages: PackageOption[];
   onSuccess: () => void;
   onCancel: () => void;
 }) {
@@ -62,6 +71,8 @@ export function AppointmentForm({
     register,
     handleSubmit,
     control,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<AppointmentInput>({
     resolver: zodResolver(appointmentSchema),
@@ -69,11 +80,18 @@ export function AppointmentForm({
       customer_id: appointment?.customer_id ?? "",
       service_id: appointment?.service_id ?? NONE,
       staff_id: appointment?.staff_id ?? NONE,
+      package_id: appointment?.package_id ?? NONE,
       starts_at: toDateTimeLocal(appointment?.starts_at ?? null),
       status: appointment?.status ?? "planned",
+      price: appointment?.price?.toString() ?? "",
       note: appointment?.note ?? "",
     },
   });
+
+  const selectedCustomer = watch("customer_id");
+  const customerPackages = packages.filter(
+    (p) => p.customer_id === selectedCustomer && (p.remaining_sessions ?? 0) > 0
+  );
 
   async function onSubmit(values: AppointmentInput) {
     setFormError(null);
@@ -98,7 +116,13 @@ export function AppointmentForm({
           control={control}
           name="customer_id"
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select
+              value={field.value}
+              onValueChange={(v) => {
+                field.onChange(v);
+                setValue("package_id", NONE); // müşteri değişince paketi sıfırla
+              }}
+            >
               <SelectTrigger id="customer_id" className="w-full">
                 <SelectValue placeholder="Müşteri seçin" />
               </SelectTrigger>
@@ -124,7 +148,15 @@ export function AppointmentForm({
             control={control}
             name="service_id"
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
+              <Select
+                value={field.value}
+                onValueChange={(v) => {
+                  field.onChange(v);
+                  // Hizmet seçilince fiyatı otomatik doldur (düzenlenebilir).
+                  const svc = services.find((s) => s.id === v);
+                  if (svc?.price != null) setValue("price", String(svc.price));
+                }}
+              >
                 <SelectTrigger id="service_id" className="w-full">
                   <SelectValue placeholder="Hizmet seçin" />
                 </SelectTrigger>
@@ -196,6 +228,50 @@ export function AppointmentForm({
               </Select>
             )}
           />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="price">Ücret (₺)</Label>
+          <Input
+            id="price"
+            inputMode="decimal"
+            placeholder="Hizmet seçilince otomatik dolar"
+            {...register("price")}
+          />
+          {errors.price && (
+            <p className="text-sm text-danger">{errors.price.message}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="package_id">Pakete bağla</Label>
+          <Controller
+            control={control}
+            name="package_id"
+            render={({ field }) => (
+              <Select
+                value={field.value}
+                onValueChange={field.onChange}
+                disabled={!selectedCustomer || customerPackages.length === 0}
+              >
+                <SelectTrigger id="package_id" className="w-full">
+                  <SelectValue placeholder="Paket seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>— Bağlama —</SelectItem>
+                  {customerPackages.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.service_name ?? "Paket"} ({p.remaining_sessions} seans)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <p className="text-xs text-muted-foreground">
+            Tamamlandığında seçili paketten 1 seans düşülür.
+          </p>
         </div>
       </div>
 

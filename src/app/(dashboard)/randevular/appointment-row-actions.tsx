@@ -27,6 +27,7 @@ import {
   type CustomerOption,
   type ServiceOption,
   type StaffOption,
+  type PackageOption,
 } from "./appointment-form";
 import { deleteAppointment } from "./actions";
 
@@ -35,11 +36,13 @@ export function AppointmentRowActions({
   customers,
   services,
   staff,
+  packages,
 }: {
   appointment: Appointment;
   customers: CustomerOption[];
   services: ServiceOption[];
   staff: StaffOption[];
+  packages: PackageOption[];
 }) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
@@ -94,6 +97,7 @@ export function AppointmentRowActions({
             customers={customers}
             services={services}
             staff={staff}
+            packages={packages}
             onSuccess={() => {
               setEditOpen(false);
               router.refresh();
