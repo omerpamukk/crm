@@ -61,7 +61,7 @@ function Bars({ rows }: { rows: { name: string; value: number }[] }) {
   );
 }
 
-/** Başlık + sağına doğru solan modern çizgi (yapışık değil). */
+/** Çerçeveli bölüm — başlık çerçevenin sol üst köşesine oturup çizgiyi keser (fieldset/legend). */
 function Section({
   title,
   icon: Icon,
@@ -72,22 +72,18 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border bg-card p-5 shadow-xs">
-      <div className="mb-5 flex items-center gap-3">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Icon className="size-[18px]" />
-        </span>
-        <h2 className="shrink-0 text-sm font-semibold uppercase tracking-wide">
-          {title}
-        </h2>
-        <span className="h-px flex-1 bg-gradient-to-r from-border via-border/60 to-transparent" />
-      </div>
+    <section className="relative rounded-2xl border bg-card px-5 pb-5 pt-7 shadow-xs">
+      <span className="absolute -top-3 left-5 inline-flex items-center gap-1.5 bg-card px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <Icon className="size-3.5 text-primary" />
+        {title}
+      </span>
       {children}
     </section>
   );
 }
 
-function Kpi({
+/** Çerçeve içi sade istatistik bloğu (kart içinde kart olmasın diye çerçevesiz). */
+function Stat({
   label,
   value,
   sub,
@@ -101,15 +97,15 @@ function Kpi({
   tone: string;
 }) {
   return (
-    <div className="rounded-2xl border bg-card p-4 shadow-xs">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">{label}</span>
-        <span className={`flex size-8 items-center justify-center rounded-lg ${tone}`}>
-          <Icon className="size-4" />
-        </span>
+    <div className="flex items-start justify-between gap-2">
+      <div>
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="mt-1 text-2xl font-bold tracking-tight">{value}</p>
+        {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
       </div>
-      <p className="mt-2 text-xl font-bold tracking-tight">{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
+      <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${tone}`}>
+        <Icon className="size-[18px]" />
+      </span>
     </div>
   );
 }
@@ -161,17 +157,6 @@ export default async function AjansPanelPage({
     return { label: MONTH_NAMES[mi] ?? m.month, value: m.ciro };
   });
 
-  // KPI kartları — her bölüm bire-bir kontrol eder
-  const kpis: { label: string; value: string; sub?: string; icon: LucideIcon; tone: string }[] = [];
-  if (has("ciro_netkar")) {
-    kpis.push({ label: "Toplam Ciro", value: formatPrice(d.revenue), icon: Banknote, tone: "bg-positive/10 text-positive" });
-    kpis.push({ label: "Net Kâr", value: formatPrice(net), sub: `%${margin} marj`, icon: PieChart, tone: net >= 0 ? "bg-positive/10 text-positive" : "bg-danger/10 text-danger" });
-  }
-  if (has("musteri_hizmet")) {
-    kpis.push({ label: "Toplam Müşteri", value: d.customers_total.toLocaleString("tr-TR"), icon: Users, tone: "bg-primary/10 text-primary" });
-    kpis.push({ label: "Satılan Hizmet", value: d.services_sold.toLocaleString("tr-TR"), icon: ListChecks, tone: "bg-warning/12 text-amber-600" });
-  }
-
   const nothingSelected = sections.length === 0;
 
   return (
@@ -203,12 +188,25 @@ export default async function AjansPanelPage({
           </div>
         )}
 
-        {/* KPI kartları */}
-        {kpis.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {kpis.map((k) => (
-              <Kpi key={k.label} {...k} />
-            ))}
+        {/* Finansal KPI'lar */}
+        {(has("ciro_netkar") || has("musteri_hizmet")) && (
+          <div className="grid gap-5 lg:grid-cols-2">
+            {has("ciro_netkar") && (
+              <Section title="Toplam Ciro & Net Kâr" icon={Banknote}>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Stat label="Toplam Ciro" value={formatPrice(d.revenue)} icon={Banknote} tone="bg-positive/10 text-positive" />
+                  <Stat label="Net Kâr" value={formatPrice(net)} sub={`%${margin} marj`} icon={PieChart} tone={net >= 0 ? "bg-positive/10 text-positive" : "bg-danger/10 text-danger"} />
+                </div>
+              </Section>
+            )}
+            {has("musteri_hizmet") && (
+              <Section title="Müşteri & Hizmet" icon={Users}>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Stat label="Toplam Müşteri" value={d.customers_total.toLocaleString("tr-TR")} icon={Users} tone="bg-primary/10 text-primary" />
+                  <Stat label="Satılan Hizmet" value={d.services_sold.toLocaleString("tr-TR")} icon={ListChecks} tone="bg-warning/12 text-amber-600" />
+                </div>
+              </Section>
+            )}
           </div>
         )}
 
