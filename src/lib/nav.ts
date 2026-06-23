@@ -20,6 +20,7 @@ import {
   Globe,
   Building2,
   Settings,
+  Crown,
   type LucideIcon,
 } from "lucide-react";
 
@@ -48,6 +49,7 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: Home,
     items: [
       { href: "/panel", label: "Genel Bakış", icon: LayoutDashboard },
+      { href: "/yonetici", label: "Yönetici Paneli", icon: Crown },
       { href: "/raporlar", label: "Raporlar", icon: BarChart3 },
       { href: "/musteriler", label: "Müşteriler", icon: Users },
       { href: "/leadler", label: "Lead'ler", icon: Columns3 },

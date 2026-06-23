@@ -6,6 +6,7 @@ import {
   Bar,
   BarChart,
   Cell,
+  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -62,6 +63,34 @@ export function RevenueAreaChart({
           fill="url(#rev)"
         />
       </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+export function RevenueExpenseChart({
+  data,
+}: {
+  data: { label: string; gelir: number; gider: number }[];
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={data} margin={{ left: 4, right: 8, top: 8 }} barGap={4}>
+        <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
+        <YAxis
+          tickLine={false}
+          axisLine={false}
+          fontSize={12}
+          width={56}
+          tickFormatter={(v) => `₺${(Number(v) / 1000).toFixed(0)}k`}
+        />
+        <Tooltip
+          formatter={(v, name) => [tl(Number(v)), name]}
+          cursor={{ fill: "#f1f5f9" }}
+        />
+        <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+        <Bar dataKey="gelir" name="Gelir" fill="#16A34A" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="gider" name="Gider" fill="#E11D48" radius={[4, 4, 0, 0]} />
+      </BarChart>
     </ResponsiveContainer>
   );
 }
