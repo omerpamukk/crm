@@ -132,3 +132,37 @@ export function paymentMethodVariant(method: string | null): StatusVariant {
       return "secondary";
   }
 }
+
+/** Gider kategorileri. */
+export const EXPENSE_CATEGORIES = [
+  { value: "kira", label: "Kira" },
+  { value: "maas", label: "Maaş / Personel" },
+  { value: "malzeme", label: "Malzeme / Stok" },
+  { value: "fatura", label: "Fatura (elektrik, su, internet...)" },
+  { value: "pazarlama", label: "Pazarlama / Reklam" },
+  { value: "vergi", label: "Vergi / Resmi" },
+  { value: "diger", label: "Diğer" },
+] as const;
+
+export function expenseCategoryLabel(category: string | null): string {
+  return EXPENSE_CATEGORIES.find((c) => c.value === category)?.label ?? "Diğer";
+}
+
+export function expenseCategoryVariant(category: string | null): StatusVariant {
+  switch (category) {
+    case "kira":
+      return "info";
+    case "maas":
+      return "warning";
+    case "malzeme":
+      return "secondary";
+    case "fatura":
+      return "info";
+    case "pazarlama":
+      return "positive";
+    case "vergi":
+      return "danger";
+    default:
+      return "secondary";
+  }
+}

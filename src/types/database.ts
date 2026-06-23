@@ -19,6 +19,15 @@ export type PaymentMethod = "nakit" | "kart" | "havale" | "diger";
 
 export type PaymentRelatedType = "paket" | "randevu" | "diger";
 
+export type ExpenseCategory =
+  | "kira"
+  | "maas"
+  | "malzeme"
+  | "fatura"
+  | "pazarlama"
+  | "vergi"
+  | "diger";
+
 export interface Business {
   id: string;
   created_at: string;
@@ -106,6 +115,32 @@ export interface Payment {
   related_id: string | null;
   note: string | null;
   created_by: string | null;
+}
+
+export interface Expense {
+  id: string;
+  created_at: string;
+  business_id: string;
+  title: string;
+  category: ExpenseCategory;
+  amount: number;
+  spent_at: string;
+  method: PaymentMethod;
+  note: string | null;
+  created_by: string | null;
+}
+
+export interface Staff {
+  id: string;
+  created_at: string;
+  business_id: string;
+  full_name: string;
+  title: string | null;
+  phone: string | null;
+  email: string | null;
+  commission_rate: number;
+  is_active: boolean;
+  note: string | null;
 }
 
 export interface Package {

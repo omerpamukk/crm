@@ -14,6 +14,8 @@ const PROTECTED_PREFIXES = [
   "/paketler",
   "/tahsilat",
   "/cari",
+  "/giderler",
+  "/personel",
   "/isletme-kur",
 ];
 // Yalnızca giriş yapmamış kullanıcıların görebileceği yollar

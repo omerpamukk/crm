@@ -10,6 +10,8 @@ import {
   Banknote,
   BarChart3,
   Scale,
+  Receipt,
+  UserCog,
   type LucideIcon,
 } from "lucide-react";
 
@@ -49,12 +51,16 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/tahsilat", label: "Tahsilat", icon: Banknote },
       { href: "/cari", label: "Cari Hesap", icon: Scale },
+      { href: "/giderler", label: "Giderler", icon: Receipt },
       { href: "/paketler", label: "Paketler", icon: Package },
     ],
   },
   {
     label: "İşletme",
-    items: [{ href: "/hizmetler", label: "Hizmetler", icon: Scissors }],
+    items: [
+      { href: "/hizmetler", label: "Hizmetler", icon: Scissors },
+      { href: "/personel", label: "Personel", icon: UserCog },
+    ],
   },
 ];
 
