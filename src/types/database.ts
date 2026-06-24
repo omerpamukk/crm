@@ -104,6 +104,7 @@ export interface Appointment {
   package_id: string | null;
   price: number | null;
   staff_member_id: string | null;
+  booked_online?: boolean;
 }
 
 export interface Payment {

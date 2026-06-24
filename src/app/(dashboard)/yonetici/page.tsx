@@ -177,21 +177,6 @@ export default async function YoneticiPage({
   const customersTotal = customersTotalRes.count ?? 0;
   const newMonth = newMonthRes.count ?? 0;
 
-  // --- Hizmet bazlı kârlılık ---
-  const svcMap = new Map<string, number>();
-  for (const a of periodAppts) {
-    const name = pickOne(a.service)?.name ?? "Diğer";
-    svcMap.set(name, (svcMap.get(name) ?? 0) + (a.price ?? 0));
-  }
-  const svcSorted = [...svcMap.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  const svcTop = svcSorted.slice(0, 4);
-  const svcRest = svcSorted.slice(4).reduce((s, x) => s + x.value, 0);
-  if (svcRest > 0) svcTop.push({ name: "Diğer", value: svcRest });
-  const svcRows = svcTop
-    .filter((r) => r.value > 0)
-    .map((r, i) => ({ ...r, color: PALETTE[i % PALETTE.length] }));
-  const svcMax = Math.max(...svcRows.map((r) => r.value), 1);
-
   // --- Kaynak bazlı gelir ---
   const srcMap = new Map<string, number>();
   for (const p of periodPay) {
@@ -336,62 +321,38 @@ export default async function YoneticiPage({
         })}
       </div>
 
-      {/* Hizmet bazlı kârlılık + Kaynak bazlı gelir */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <PieChart className="size-4 text-primary" />
-              Hizmet Bazlı Kârlılık
-            </CardTitle>
-            <CardDescription>Hangi hizmet ne kadar kazandırıyor.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {svcRows.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">Bu dönemde tamamlanmış hizmet yok.</p>
-            ) : (
-              <div className="space-y-3">
-                {svcRows.map((r) => (
-                  <div key={r.name} className="flex items-center gap-3 text-sm">
-                    <span className="w-28 shrink-0 truncate text-muted-foreground">{r.name}</span>
-                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full" style={{ width: `${(r.value / svcMax) * 100}%`, background: r.color }} />
-                    </div>
-                    <span className="w-20 shrink-0 text-right font-medium tabular-nums">{formatPrice(r.value)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
+      {/* Kaynak bazlı gelir — hangi kanal ne kadar kazandırıyor (Raporlar'da sadece adet var) */}
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
+          <div className="space-y-1.5">
             <CardTitle className="flex items-center gap-2 text-base">
               <BarChart3 className="size-4 text-primary" />
               Kaynak Bazlı Gelir
             </CardTitle>
-            <CardDescription>Gelir hangi kanaldan geliyor.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {srcRows.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">Bu dönemde kaynaklı gelir verisi yok.</p>
-            ) : (
-              <div className="space-y-3">
-                {srcRows.map((r) => (
-                  <div key={r.name} className="flex items-center gap-3 text-sm">
-                    <span className="w-28 shrink-0 truncate text-muted-foreground">{r.name}</span>
-                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full" style={{ width: `${(r.value / srcMax) * 100}%`, background: r.color }} />
-                    </div>
-                    <span className="w-20 shrink-0 text-right font-medium tabular-nums">{formatPrice(r.value)}</span>
+            <CardDescription>Gelirin hangi kanaldan (Instagram, WhatsApp, Web…) geldiğini gösterir.</CardDescription>
+          </div>
+          <Link href="/raporlar" className="flex shrink-0 items-center gap-1 text-xs text-primary hover:underline">
+            Hizmet & dönüşüm detayı <ArrowRight className="size-3" />
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {srcRows.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Bu dönemde kaynaklı gelir verisi yok.</p>
+          ) : (
+            <div className="space-y-3">
+              {srcRows.map((r) => (
+                <div key={r.name} className="flex items-center gap-3 text-sm">
+                  <span className="w-28 shrink-0 truncate text-muted-foreground">{r.name}</span>
+                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full" style={{ width: `${(r.value / srcMax) * 100}%`, background: r.color }} />
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  <span className="w-20 shrink-0 text-right font-medium tabular-nums">{formatPrice(r.value)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Trend grafiği */}
       <Card>

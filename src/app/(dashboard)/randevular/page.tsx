@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, List, LayoutList } from "lucide-react";
+import { CalendarDays, List, LayoutList, Globe } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format";
@@ -29,6 +29,16 @@ type AppointmentRow = Appointment & {
 };
 
 type BucketKey = "today" | "tomorrow" | "week" | "later" | "past";
+
+/** Online randevu linkinden gelen randevular için küçük rozet. */
+function OnlineBadge() {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+      <Globe className="size-2.5" />
+      Online
+    </span>
+  );
+}
 
 export default async function RandevularPage({
   searchParams,
@@ -198,8 +208,9 @@ export default async function RandevularPage({
                               <CalendarDays className="size-4" />
                             </div>
                             <div className="min-w-0">
-                              <p className="truncate font-medium leading-tight">
+                              <p className="flex items-center gap-1.5 truncate font-medium leading-tight">
                                 {a.customer?.full_name ?? "—"}
+                                {a.booked_online && <OnlineBadge />}
                               </p>
                               <p className="truncate text-xs text-muted-foreground">
                                 {formatDateTime(a.starts_at)}
@@ -248,7 +259,12 @@ export default async function RandevularPage({
                       <TableCell className="font-medium">
                         {formatDateTime(a.starts_at)}
                       </TableCell>
-                      <TableCell>{a.customer?.full_name ?? "—"}</TableCell>
+                      <TableCell>
+                        <span className="flex items-center gap-1.5">
+                          {a.customer?.full_name ?? "—"}
+                          {a.booked_online && <OnlineBadge />}
+                        </span>
+                      </TableCell>
                       <TableCell>{a.service?.name ?? "—"}</TableCell>
                       <TableCell>{a.staff_member?.full_name ?? "—"}</TableCell>
                       <TableCell>
