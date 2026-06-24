@@ -21,6 +21,7 @@ import {
   Building2,
   Settings,
   Crown,
+  Link2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -76,6 +77,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/takvim", label: "Takvim", icon: CalendarRange },
       { href: "/randevular", label: "Randevular", icon: CalendarDays },
+      { href: "/randevu-linki", label: "Randevu Linki", icon: Link2 },
     ],
   },
   {

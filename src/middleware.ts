@@ -11,6 +11,7 @@ const PROTECTED_PREFIXES = [
   "/hizmetler",
   "/randevular",
   "/takvim",
+  "/randevu-linki",
   "/firsatlar",
   "/paketler",
   "/tahsilat",

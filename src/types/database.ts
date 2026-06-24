@@ -88,6 +88,7 @@ export interface Service {
   duration_min: number | null;
   price: number | null;
   category: string | null;
+  bookable?: boolean;
 }
 
 export interface Appointment {
@@ -159,6 +160,19 @@ export interface AgencyAccess {
   is_active: boolean;
   note: string | null;
   created_by: string | null;
+}
+
+export interface BookingSettings {
+  id: string;
+  created_at: string;
+  business_id: string;
+  token: string;
+  slot_minutes: number;
+  /** 1=Pzt ... 7=Paz */
+  work_days: number[];
+  start_time: string;
+  end_time: string;
+  is_active: boolean;
 }
 
 export interface Package {
