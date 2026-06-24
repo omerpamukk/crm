@@ -279,12 +279,12 @@ export default async function YoneticiPage({
 
   // --- KPI kartları ---
   const kpis = [
-    { label: "Toplam Ciro", value: formatPrice(revenue), icon: Banknote, tone: "bg-positive/10 text-positive", delta: ciroDelta },
-    { label: "Toplam Müşteri", value: customersTotal.toLocaleString("tr-TR"), icon: Users, tone: "bg-primary/10 text-primary", sub: newMonth > 0 ? `+${newMonth} bu ay` : undefined },
-    { label: "Satılan Hizmet", value: servicesSold.toLocaleString("tr-TR"), icon: ListChecks, tone: "bg-warning/12 text-amber-600", delta: servicesDelta },
-    { label: "Net Kâr", value: formatPrice(netProfit), icon: PieChart, tone: netProfit >= 0 ? "bg-positive/10 text-positive" : "bg-danger/10 text-danger", sub: `%${Math.round(margin)} marj`, accent: netProfit >= 0 ? "text-positive" : "text-danger" },
-    { label: "Ort. Müşteri Değeri", value: formatPrice(avgCustomerValue), icon: Coins, tone: "bg-primary/10 text-primary", sub: "müşteri başına" },
-    { label: "Ort. Hizmet Ücreti", value: formatPrice(avgServiceFee), icon: Tag, tone: "bg-primary/10 text-primary", sub: "hizmet başına" },
+    { label: "Toplam Ciro", value: formatPrice(revenue), icon: Banknote, tone: "bg-positive/10 text-positive", bar: "border-l-positive", delta: ciroDelta },
+    { label: "Toplam Müşteri", value: customersTotal.toLocaleString("tr-TR"), icon: Users, tone: "bg-primary/10 text-primary", bar: "border-l-primary", sub: newMonth > 0 ? `+${newMonth} bu ay` : undefined },
+    { label: "Satılan Hizmet", value: servicesSold.toLocaleString("tr-TR"), icon: ListChecks, tone: "bg-warning/12 text-amber-600", bar: "border-l-warning", delta: servicesDelta },
+    { label: "Net Kâr", value: formatPrice(netProfit), icon: PieChart, tone: netProfit >= 0 ? "bg-positive/10 text-positive" : "bg-danger/10 text-danger", bar: netProfit >= 0 ? "border-l-positive" : "border-l-danger", sub: `%${Math.round(margin)} marj`, accent: netProfit >= 0 ? "text-positive" : "text-danger" },
+    { label: "Ort. Müşteri Değeri", value: formatPrice(avgCustomerValue), icon: Coins, tone: "bg-primary/10 text-primary", bar: "border-l-primary", sub: "müşteri başına" },
+    { label: "Ort. Hizmet Ücreti", value: formatPrice(avgServiceFee), icon: Tag, tone: "bg-primary/10 text-primary", bar: "border-l-primary", sub: "hizmet başına" },
   ];
 
   return (
@@ -314,7 +314,7 @@ export default async function YoneticiPage({
         {kpis.map((kpi) => {
           const Icon = kpi.icon;
           return (
-            <Card key={kpi.label}>
+            <Card key={kpi.label} className={cn("border-l-4", kpi.bar)}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-xs font-medium text-muted-foreground">{kpi.label}</CardTitle>
                 <span className={cn("flex size-8 items-center justify-center rounded-lg", kpi.tone)}>

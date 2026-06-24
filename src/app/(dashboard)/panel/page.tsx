@@ -242,6 +242,7 @@ export default async function PanelPage() {
       value: customerTotal.toLocaleString("tr-TR"),
       icon: Users,
       tone: "bg-primary/10 text-primary",
+      bar: "border-l-primary",
       trend: newThisMonth > 0 ? { up: true, text: `+${newThisMonth} bu ay` } : null,
       href: "/musteriler",
     },
@@ -250,6 +251,7 @@ export default async function PanelPage() {
       value: formatPrice(monthRevenue),
       icon: Banknote,
       tone: "bg-positive/10 text-positive",
+      bar: "border-l-positive",
       trend:
         revenuePct !== null
           ? { up: revenuePct >= 0, text: `${revenuePct >= 0 ? "+" : ""}%${revenuePct}` }
@@ -261,6 +263,7 @@ export default async function PanelPage() {
       value: pendingAppt.toLocaleString("tr-TR"),
       icon: CalendarDays,
       tone: "bg-warning/12 text-amber-600",
+      bar: "border-l-warning",
       sub: `Bugün ${todayAppointments.length}`,
       href: "/randevular",
     },
@@ -269,6 +272,7 @@ export default async function PanelPage() {
       value: formatPrice(totalDebt),
       icon: Wallet,
       tone: "bg-danger/10 text-danger",
+      bar: "border-l-danger",
       sub: `${debtors.length} müşteri`,
       href: "/cari",
     },
@@ -324,7 +328,7 @@ export default async function PanelPage() {
           const Icon = kpi.icon;
           return (
             <Link key={kpi.label} href={kpi.href}>
-              <Card className="h-full transition-all hover:-translate-y-0.5 hover:shadow-md">
+              <Card className={cn("h-full border-l-4 transition-all hover:-translate-y-0.5 hover:shadow-md", kpi.bar)}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     {kpi.label}

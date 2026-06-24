@@ -124,12 +124,12 @@ export default async function SatislarPage({
   const packagesForForm = pkgs.map((p) => ({ id: p.id, customer_id: p.customer_id, service_name: p.service_name }));
 
   const kpis = [
-    { label: "Toplam Satış (Ciro)", value: formatPrice(periodSalesTotal), icon: ShoppingBag, tone: "bg-primary/10 text-primary", accent: "" },
-    { label: "İşlem Sayısı", value: String(periodCount), icon: ListChecks, tone: "bg-warning/12 text-amber-600", accent: "" },
-    { label: "Ort. Satış", value: formatPrice(avgSale), icon: Coins, tone: "bg-primary/10 text-primary", accent: "" },
-    { label: "Tahsilat", value: formatPrice(periodCollected), icon: Banknote, tone: "bg-positive/10 text-positive", accent: "text-positive" },
-    { label: "Kalan Alacak", value: formatPrice(openReceivable), icon: Scale, tone: "bg-danger/10 text-danger", accent: openReceivable > 0 ? "text-danger" : "" },
-    { label: "Ödeme Bekleyen", value: String(pendingCount), icon: Hourglass, tone: "bg-danger/10 text-danger", accent: "", sub: "paket satışı" },
+    { label: "Toplam Satış (Ciro)", value: formatPrice(periodSalesTotal), icon: ShoppingBag, tone: "bg-primary/10 text-primary", bar: "border-l-primary", accent: "" },
+    { label: "İşlem Sayısı", value: String(periodCount), icon: ListChecks, tone: "bg-warning/12 text-amber-600", bar: "border-l-warning", accent: "" },
+    { label: "Ort. Satış", value: formatPrice(avgSale), icon: Coins, tone: "bg-primary/10 text-primary", bar: "border-l-primary", accent: "" },
+    { label: "Tahsilat", value: formatPrice(periodCollected), icon: Banknote, tone: "bg-positive/10 text-positive", bar: "border-l-positive", accent: "text-positive" },
+    { label: "Kalan Alacak", value: formatPrice(openReceivable), icon: Scale, tone: "bg-danger/10 text-danger", bar: "border-l-danger", accent: openReceivable > 0 ? "text-danger" : "" },
+    { label: "Ödeme Bekleyen", value: String(pendingCount), icon: Hourglass, tone: "bg-danger/10 text-danger", bar: "border-l-danger", accent: "", sub: "paket satışı" },
   ];
 
   const empty = sales.length === 0 && payments.length === 0;
@@ -165,7 +165,7 @@ export default async function SatislarPage({
             {kpis.map((c) => {
               const Icon = c.icon;
               return (
-                <Card key={c.label}>
+                <Card key={c.label} className={cn("border-l-4", c.bar)}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-xs font-medium text-muted-foreground">{c.label}</CardTitle>
                     <span className={cn("flex size-8 items-center justify-center rounded-lg", c.tone)}>

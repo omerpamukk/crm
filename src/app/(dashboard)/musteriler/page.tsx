@@ -105,9 +105,9 @@ export default async function MusterilerPage() {
   const newThisMonth = newThisMonthRes.count ?? 0;
 
   const kpis = [
-    { label: "Aktif Müşteri", value: activeCount.toLocaleString("tr-TR"), icon: Users, tone: "bg-primary/10 text-primary", trend: newThisMonth > 0 ? `+${newThisMonth} bu ay` : null },
-    { label: "Bu Ay Seans", value: monthSessions.toLocaleString("tr-TR"), icon: CalendarCheck, tone: "bg-positive/10 text-positive", trend: null },
-    { label: "Bu Ay Yeni Müşteri", value: `+${newThisMonth}`, icon: TrendingUp, tone: "bg-primary/10 text-primary", trend: null },
+    { label: "Aktif Müşteri", value: activeCount.toLocaleString("tr-TR"), icon: Users, tone: "bg-primary/10 text-primary", bar: "border-l-primary", trend: newThisMonth > 0 ? `+${newThisMonth} bu ay` : null },
+    { label: "Bu Ay Seans", value: monthSessions.toLocaleString("tr-TR"), icon: CalendarCheck, tone: "bg-positive/10 text-positive", bar: "border-l-positive", trend: null },
+    { label: "Bu Ay Yeni Müşteri", value: `+${newThisMonth}`, icon: TrendingUp, tone: "bg-primary/10 text-primary", bar: "border-l-primary", trend: null },
   ];
 
   return (
@@ -130,7 +130,7 @@ export default async function MusterilerPage() {
             {kpis.map((kpi) => {
               const Icon = kpi.icon;
               return (
-                <Card key={kpi.label}>
+                <Card key={kpi.label} className={`border-l-4 ${kpi.bar}`}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
                     <span className={`flex size-9 items-center justify-center rounded-lg ${kpi.tone}`}>
