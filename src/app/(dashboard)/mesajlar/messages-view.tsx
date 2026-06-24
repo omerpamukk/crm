@@ -115,6 +115,16 @@ const FILTERS: { key: "all" | Channel; label: string }[] = [
   { key: "tiktok", label: "TikTok" },
 ];
 
+/** Segmented kontrol ikon renkleri (kanal markası). */
+const FILTER_COLOR: Record<"all" | Channel, string> = {
+  all: "text-primary",
+  instagram: "text-[#d62976]",
+  whatsapp: "text-[#25D366]",
+  messenger: "text-[#0084FF]",
+  tiktok: "text-foreground",
+  email: "text-muted-foreground",
+};
+
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
@@ -203,34 +213,38 @@ export function MessagesView({
         {/* Sol: kanal filtreleri + sohbet listesi */}
         <aside className="flex w-full shrink-0 flex-col overflow-hidden rounded-xl border bg-card shadow-xs max-md:max-h-72 md:w-80">
           <div className="border-b p-3">
-            <div className="mb-2 flex items-center gap-2">
-              <Inbox className="size-4 text-primary" />
-              <span className="text-sm font-semibold">Gelen Kutusu</span>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Inbox className="size-4 text-primary" />
+                <span className="text-sm font-semibold">
+                  {filter === "all" ? "Gelen Kutusu" : CHANNEL_THEME[filter].label}
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground">{filtered.length} sohbet</span>
             </div>
-            <div className="flex flex-wrap gap-1">
+            {/* Kanal seçici — tek satır segmented kontrol */}
+            <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1">
               {FILTERS.map((f) => {
                 const active = filter === f.key;
+                const Icon = f.key === "all" ? Inbox : CHANNEL_THEME[f.key].icon;
                 const n = counts[f.key];
                 return (
                   <button
                     key={f.key}
                     type="button"
+                    title={f.label}
+                    aria-label={f.label}
                     onClick={() => setFilter(f.key)}
                     className={cn(
-                      "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                      active
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-muted/70"
+                      "relative flex flex-1 items-center justify-center rounded-lg py-2 transition-colors",
+                      active ? "bg-card shadow-sm" : "hover:bg-card/60"
                     )}
                   >
-                    {f.label}
+                    <Icon
+                      className={cn("size-[18px]", FILTER_COLOR[f.key], !active && "opacity-60")}
+                    />
                     {n > 0 && (
-                      <span
-                        className={cn(
-                          "flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold",
-                          active ? "bg-primary-foreground/20" : "bg-danger text-white"
-                        )}
-                      >
+                      <span className="absolute right-1 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
                         {n}
                       </span>
                     )}
