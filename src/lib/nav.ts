@@ -23,6 +23,7 @@ import {
   Crown,
   Link2,
   Inbox,
+  CalendarClock,
   type LucideIcon,
 } from "lucide-react";
 
@@ -32,6 +33,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Canlı sayaç rozeti anahtarı (layout'tan beslenir). */
   badge?: string;
+  /** Sabit metin etiketi (ör. "AI", "YENİ"). */
+  tag?: string;
 }
 
 export interface NavSection {
@@ -93,8 +96,10 @@ export const NAV_SECTIONS: NavSection[] = [
     key: "pazarlama",
     label: "Pazarlama",
     icon: Megaphone,
-    items: [],
-    comingSoon: true,
+    items: [
+      { href: "/reklamlar", label: "Reklamlar", icon: Megaphone, tag: "AI" },
+      { href: "/icerik", label: "İçerik Planlayıcı", icon: CalendarClock, tag: "AI" },
+    ],
   },
   {
     key: "akis",

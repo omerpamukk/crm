@@ -74,6 +74,18 @@ export function TiktokLogo({ className }: LogoProps) {
   );
 }
 
+export function FacebookLogo({ className }: LogoProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="10" fill="#1877F2" />
+      <path
+        fill="#fff"
+        d="M13.6 12.9h2l.4-2.5h-2.4V8.7c0-.7.3-1.4 1.4-1.4h1.1V5.2s-1-.2-2-.2c-2 0-3.3 1.2-3.3 3.4v1.9H8.5v2.5h2.3V19h2.8v-6.1Z"
+      />
+    </svg>
+  );
+}
+
 export function EmailLogo({ className }: LogoProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">

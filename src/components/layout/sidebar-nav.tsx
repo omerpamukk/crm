@@ -142,6 +142,18 @@ export function SidebarNav({
                               >
                                 <Icon className="size-4 shrink-0" />
                                 <span className="flex-1">{item.label}</span>
+                                {item.tag && (
+                                  <span
+                                    className={cn(
+                                      "rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+                                      active
+                                        ? "bg-primary-foreground/20 text-primary-foreground"
+                                        : "bg-gradient-to-br from-primary to-violet-500 text-white"
+                                    )}
+                                  >
+                                    {item.tag}
+                                  </span>
+                                )}
                                 {badgeCount > 0 && (
                                   <span
                                     className={cn(
