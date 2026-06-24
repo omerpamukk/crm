@@ -194,51 +194,52 @@ export function MessagesView({
         </Button>
       </div>
 
+      {/* Kanal sekmeleri — tam genişlik, eşit bölünür (kaydırma yok) */}
+      <div className="flex gap-1 rounded-xl border bg-card p-1 shadow-xs">
+        {FILTERS.map((f) => {
+          const active = filter === f.key;
+          const Logo = f.key === "all" ? null : CHANNEL_THEME[f.key].icon;
+          const n = counts[f.key];
+          return (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setFilter(f.key)}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-2 rounded-lg px-2 py-2 text-sm font-medium transition-colors",
+                active
+                  ? "bg-primary/10 text-foreground ring-1 ring-primary/20"
+                  : "text-muted-foreground hover:bg-muted"
+              )}
+            >
+              {Logo ? <Logo className="size-5" /> : <Inbox className="size-[18px] text-primary" />}
+              <span className="truncate max-sm:hidden">{f.label}</span>
+              {n > 0 && (
+                <span
+                  className={cn(
+                    "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold",
+                    active ? "bg-primary text-primary-foreground" : "bg-danger text-white"
+                  )}
+                >
+                  {n}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="flex min-h-0 flex-1 flex-col gap-4 md:flex-row">
         {/* Sol: kanal filtreleri + sohbet listesi */}
         <aside className="flex w-full shrink-0 flex-col overflow-hidden rounded-xl border bg-card shadow-xs max-md:max-h-72 md:w-80">
-          <div className="border-b p-3">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Inbox className="size-4 text-primary" />
-                <span className="text-sm font-semibold">Gelen Kutusu</span>
-              </div>
-              <span className="text-xs text-muted-foreground">{filtered.length} sohbet</span>
+          <div className="flex items-center justify-between gap-2 border-b p-3">
+            <div className="flex items-center gap-2">
+              <Inbox className="size-4 text-primary" />
+              <span className="text-sm font-semibold">
+                {filter === "all" ? "Gelen Kutusu" : CHANNEL_THEME[filter].label}
+              </span>
             </div>
-            {/* Kanal seçici — logo + etiketli, tek satır (yatay kaydırmalı) */}
-            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {FILTERS.map((f) => {
-                const active = filter === f.key;
-                const Logo = f.key === "all" ? null : CHANNEL_THEME[f.key].icon;
-                const n = counts[f.key];
-                return (
-                  <button
-                    key={f.key}
-                    type="button"
-                    onClick={() => setFilter(f.key)}
-                    className={cn(
-                      "flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors",
-                      active
-                        ? "border-primary/30 bg-primary/10 text-foreground"
-                        : "border-transparent bg-muted text-muted-foreground hover:bg-muted/70"
-                    )}
-                  >
-                    {Logo ? <Logo className="size-4" /> : <Inbox className="size-3.5 text-primary" />}
-                    {f.label}
-                    {n > 0 && (
-                      <span
-                        className={cn(
-                          "flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold",
-                          active ? "bg-primary text-primary-foreground" : "bg-danger text-white"
-                        )}
-                      >
-                        {n}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            <span className="text-xs text-muted-foreground">{filtered.length} sohbet</span>
           </div>
 
           <ul className="flex-1 divide-y overflow-y-auto">
