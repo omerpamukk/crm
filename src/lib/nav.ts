@@ -27,6 +27,7 @@ import {
   Zap,
   Bell,
   Mail,
+  PenLine,
   type LucideIcon,
 } from "lucide-react";
 
@@ -101,7 +102,8 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: Megaphone,
     items: [
       { href: "/reklamlar", label: "Reklamlar", icon: Megaphone, tag: "AI" },
-      { href: "/icerik", label: "İçerik Planlayıcı", icon: CalendarClock, tag: "AI" },
+      { href: "/sosyal-medya", label: "Sosyal Medya Planlamaları", icon: CalendarClock },
+      { href: "/metin-yazici", label: "Metin Yazıcı", icon: PenLine, tag: "AI" },
     ],
   },
   {
