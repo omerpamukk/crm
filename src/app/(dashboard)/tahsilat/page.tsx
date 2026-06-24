@@ -1,48 +1,62 @@
-import { ShoppingBag, Wallet, Banknote, Scale } from "lucide-react";
+import { ShoppingBag, Banknote, Scale, ListChecks, Coins, Hourglass, TrendingUp } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { NewPaymentButton } from "./new-payment-button";
+import { SalesRange } from "./sales-range";
 import { SalesTabs, type SaleRow, type PaymentRow } from "./sales-tabs";
+import { SalesBarChart } from "../raporlar/charts";
+
+const MONTH_NAMES = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
 function pickOne<T>(v: T | T[] | null): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : v;
 }
 
-export default async function SatislarPage() {
+function rangeStart(range: string, now: Date): Date {
+  switch (range) {
+    case "bugun": return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    case "3ay": return new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+    case "1yil": return new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+    default: return new Date(now.getFullYear(), now.getMonth(), 1); // buay
+  }
+}
+
+export default async function SatislarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
+  const { range = "buay" } = await searchParams;
   const supabase = await createClient();
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const start = rangeStart(range, now);
 
   const [paymentsRes, packagesRes, apptRes, customersRes] = await Promise.all([
     supabase.from("payments").select("*, customer:customers(full_name)").order("created_at", { ascending: false }),
-    supabase.from("packages").select("id, customer_id, service_name, price, payment_status, purchased_at, created_at, customer:customers(full_name)"),
-    supabase.from("appointments").select("id, price, starts_at, service:services(name), customer:customers(full_name)").eq("status", "completed").is("package_id", null).not("price", "is", null),
+    supabase.from("packages").select("id, customer_id, service_name, price, paid_amount, payment_status, purchased_at, created_at, customer:customers(full_name)"),
+    supabase.from("appointments").select("id, customer_id, price, starts_at, service:services(name), customer:customers(full_name)").eq("status", "completed").is("package_id", null).not("price", "is", null),
     supabase.from("customers").select("id, full_name").eq("is_lead", false).order("full_name"),
   ]);
 
   // Tahsilatlar
-  const paymentsRaw = (paymentsRes.data ?? []) as unknown as (PaymentRow & {
+  const paymentsRaw = (paymentsRes.data ?? []) as unknown as {
+    id: string; created_at: string; amount: number | null; method: string; related_type: string | null; note: string | null;
     customer: { full_name: string } | { full_name: string }[] | null;
-  })[];
+  }[];
   const payments: PaymentRow[] = paymentsRaw.map((p) => ({
-    id: p.id,
-    created_at: p.created_at,
-    customer: pickOne(p.customer)?.full_name ?? "—",
-    amount: p.amount,
-    method: p.method,
-    related_type: p.related_type,
-    note: p.note,
+    id: p.id, created_at: p.created_at, customer: pickOne(p.customer)?.full_name ?? "—",
+    amount: p.amount, method: p.method, related_type: p.related_type, note: p.note,
   }));
 
   // Satışlar — paketler
   const pkgs = (packagesRes.data ?? []) as {
-    id: string; customer_id: string | null; service_name: string | null; price: number | null;
+    id: string; customer_id: string | null; service_name: string | null; price: number | null; paid_amount: number | null;
     payment_status: string | null; purchased_at: string | null; created_at: string;
     customer: { full_name: string } | { full_name: string }[] | null;
   }[];
@@ -51,50 +65,71 @@ export default async function SatislarPage() {
     .map((p) => ({
       id: `pkg-${p.id}`,
       date: p.purchased_at ?? p.created_at,
+      customerId: p.customer_id,
       customer: pickOne(p.customer)?.full_name ?? "—",
       item: p.service_name ?? "Paket",
       amount: p.price ?? 0,
       kind: "Paket" as const,
       status: p.payment_status,
+      packageId: p.id,
+      remaining: Math.max((p.price ?? 0) - (p.paid_amount ?? 0), 0),
     }));
 
   // Satışlar — pakete bağlı olmayan tamamlanmış hizmetler
   const appts = (apptRes.data ?? []) as {
-    id: string; price: number | null; starts_at: string;
+    id: string; customer_id: string | null; price: number | null; starts_at: string;
     service: { name: string } | { name: string }[] | null;
     customer: { full_name: string } | { full_name: string }[] | null;
   }[];
   const serviceSales: SaleRow[] = appts.map((a) => ({
     id: `appt-${a.id}`,
     date: a.starts_at,
+    customerId: a.customer_id,
     customer: pickOne(a.customer)?.full_name ?? "—",
     item: pickOne(a.service)?.name ?? "Hizmet",
     amount: a.price ?? 0,
     kind: "Hizmet" as const,
     status: null,
+    packageId: null,
+    remaining: 0,
   }));
 
-  const sales = [...packageSales, ...serviceSales].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  const sales = [...packageSales, ...serviceSales].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // Özet
-  const totalSales = sales.reduce((s, x) => s + x.amount, 0);
-  const totalCollected = payments.reduce((s, x) => s + (x.amount ?? 0), 0);
-  const remaining = totalSales - totalCollected;
-  const monthCollected = paymentsRaw.reduce(
-    (s, p) => (new Date(p.created_at).getTime() >= startOfMonth.getTime() ? s + (p.amount ?? 0) : s),
-    0
-  );
+  // Dönem KPI'ları
+  const inPeriod = (d: string) => new Date(d).getTime() >= start.getTime();
+  const periodSales = sales.filter((s) => inPeriod(s.date));
+  const periodSalesTotal = periodSales.reduce((s, x) => s + x.amount, 0);
+  const periodCount = periodSales.length;
+  const avgSale = periodCount > 0 ? periodSalesTotal / periodCount : 0;
+  const periodCollected = paymentsRaw.reduce((s, p) => (inPeriod(p.created_at) ? s + (p.amount ?? 0) : s), 0);
+  const openReceivable = packageSales.reduce((s, x) => s + x.remaining, 0);
+  const pendingCount = packageSales.filter((x) => x.remaining > 0).length;
+
+  // 6 aylık satış trendi
+  const buckets: { key: string; label: string; value: number }[] = [];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+    buckets.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: MONTH_NAMES[d.getMonth()], value: 0 });
+  }
+  const idx = new Map(buckets.map((b, i) => [b.key, i]));
+  for (const s of sales) {
+    const d = new Date(s.date);
+    const i = idx.get(`${d.getFullYear()}-${d.getMonth()}`);
+    if (i !== undefined) buckets[i].value += s.amount;
+  }
+  const trendData = buckets.map(({ label, value }) => ({ label, value }));
 
   const customers = customersRes.data ?? [];
   const packagesForForm = pkgs.map((p) => ({ id: p.id, customer_id: p.customer_id, service_name: p.service_name }));
 
-  const cards = [
-    { label: "Toplam Satış (Ciro)", value: formatPrice(totalSales), icon: ShoppingBag, bar: "border-l-primary", tone: "bg-primary/10 text-primary", accent: "" },
-    { label: "Toplam Tahsilat", value: formatPrice(totalCollected), icon: Banknote, bar: "border-l-positive", tone: "bg-positive/10 text-positive", accent: "text-positive" },
-    { label: "Kalan Alacak", value: formatPrice(Math.max(remaining, 0)), icon: Scale, bar: "border-l-danger", tone: "bg-danger/10 text-danger", accent: remaining > 0 ? "text-danger" : "" },
-    { label: "Bu Ay Tahsilat", value: formatPrice(monthCollected), icon: Wallet, bar: "border-l-positive", tone: "bg-positive/10 text-positive", accent: "" },
+  const kpis = [
+    { label: "Toplam Satış (Ciro)", value: formatPrice(periodSalesTotal), icon: ShoppingBag, tone: "bg-primary/10 text-primary", accent: "" },
+    { label: "İşlem Sayısı", value: String(periodCount), icon: ListChecks, tone: "bg-warning/12 text-amber-600", accent: "" },
+    { label: "Ort. Satış", value: formatPrice(avgSale), icon: Coins, tone: "bg-primary/10 text-primary", accent: "" },
+    { label: "Tahsilat", value: formatPrice(periodCollected), icon: Banknote, tone: "bg-positive/10 text-positive", accent: "text-positive" },
+    { label: "Kalan Alacak", value: formatPrice(openReceivable), icon: Scale, tone: "bg-danger/10 text-danger", accent: openReceivable > 0 ? "text-danger" : "" },
+    { label: "Ödeme Bekleyen", value: String(pendingCount), icon: Hourglass, tone: "bg-danger/10 text-danger", accent: "", sub: "paket satışı" },
   ];
 
   const empty = sales.length === 0 && payments.length === 0;
@@ -103,7 +138,7 @@ export default async function SatislarPage() {
     <div className="space-y-6">
       <PageHeader
         title="Satışlar"
-        description="Yapılan satışlar (ciro) ve tahsil edilen ödemeler tek ekranda."
+        description="Yapılan satışlar (ciro), tahsilatlar ve bekleyen alacaklar tek ekranda."
       >
         <NewPaymentButton customers={customers} packages={packagesForForm} />
       </PageHeader>
@@ -112,34 +147,58 @@ export default async function SatislarPage() {
         <EmptyState
           icon={ShoppingBag}
           title="Henüz satış veya tahsilat yok"
-          description="Paket sat, fiyatlı randevu tamamla ya da “Ödeme al” ile tahsilat gir; burada satış cirosu ve nakit akışın oluşacak."
+          description="Paket sat, fiyatlı randevu tamamla ya da “Ödeme al” ile tahsilat gir; satış cironu ve nakit akışını burada gör."
           action={customers.length > 0 ? <NewPaymentButton customers={customers} packages={packagesForForm} /> : undefined}
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {cards.map((c) => {
+          {/* Dönem seçici */}
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-lg font-semibold">
+              <TrendingUp className="size-5 text-primary" /> Satış İstatistikleri
+            </h2>
+            <SalesRange />
+          </div>
+
+          {/* 6 KPI */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
+            {kpis.map((c) => {
               const Icon = c.icon;
               return (
-                <Card key={c.label} className={cn("border-l-4", c.bar)}>
+                <Card key={c.label}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">{c.label}</CardTitle>
-                    <span className={cn("flex size-9 items-center justify-center rounded-lg", c.tone)}>
-                      <Icon className="size-5" />
+                    <CardTitle className="text-xs font-medium text-muted-foreground">{c.label}</CardTitle>
+                    <span className={cn("flex size-8 items-center justify-center rounded-lg", c.tone)}>
+                      <Icon className="size-4" />
                     </span>
                   </CardHeader>
                   <CardContent>
-                    <div className={cn("text-2xl font-bold", c.accent)}>{c.value}</div>
+                    <div className={cn("text-xl font-bold tracking-tight", c.accent)}>{c.value}</div>
+                    {c.sub && <p className="mt-0.5 text-xs text-muted-foreground">{c.sub}</p>}
                   </CardContent>
                 </Card>
               );
             })}
           </div>
 
+          {/* Satış trendi */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <TrendingUp className="size-4 text-primary" /> Aylık Satış Trendi
+              </CardTitle>
+              <CardDescription>Son 6 ayda yapılan satışların (ciro) seyri.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SalesBarChart data={trendData} />
+            </CardContent>
+          </Card>
+
           <p className="rounded-lg border border-dashed bg-card px-3 py-2 text-xs text-muted-foreground">
             <strong className="text-foreground">Satışlar</strong> = ne sattın (ciro; tahsil edilmese de) ·{" "}
-            <strong className="text-foreground">Tahsilatlar</strong> = eline geçen para. Aradaki fark{" "}
-            <strong className="text-foreground">Kalan Alacak</strong>.
+            <strong className="text-foreground">Tahsilatlar</strong> = eline geçen para · fark ={" "}
+            <strong className="text-foreground">Kalan Alacak</strong>. Satır sonundaki{" "}
+            <strong className="text-foreground">Tahsil Et</strong> ile ödenmemiş paket satışını anında tahsil edebilirsin.
           </p>
 
           <SalesTabs sales={sales} payments={payments} />

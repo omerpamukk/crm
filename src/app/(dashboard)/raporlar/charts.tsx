@@ -169,6 +169,30 @@ export function RevenueExpenseChart({
   );
 }
 
+export function SalesBarChart({
+  data,
+}: {
+  data: { label: string; value: number }[];
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <BarChart data={data} margin={{ left: 4, right: 8, top: 8 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+        <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
+        <YAxis
+          tickLine={false}
+          axisLine={false}
+          fontSize={12}
+          width={52}
+          tickFormatter={(v) => `₺${(Number(v) / 1000).toFixed(0)}k`}
+        />
+        <Tooltip formatter={(v) => tl(Number(v))} cursor={{ fill: "#f1f5f9" }} />
+        <Bar dataKey="value" name="Satış" fill="#5B5BD6" radius={[6, 6, 0, 0]} maxBarSize={48} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
 export function ServiceBarChart({
   data,
 }: {

@@ -34,11 +34,13 @@ export interface PackageOption {
 export function PaymentForm({
   customers,
   packages,
+  initial,
   onSuccess,
   onCancel,
 }: {
   customers: CustomerOption[];
   packages: PackageOption[];
+  initial?: { customer_id?: string; package_id?: string; amount?: string };
   onSuccess: () => void;
   onCancel: () => void;
 }) {
@@ -54,10 +56,10 @@ export function PaymentForm({
   } = useForm<PaymentInput>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
-      customer_id: "",
-      amount: "",
+      customer_id: initial?.customer_id ?? "",
+      amount: initial?.amount ?? "",
       method: "nakit",
-      package_id: NONE,
+      package_id: initial?.package_id ?? NONE,
       note: "",
     },
   });
