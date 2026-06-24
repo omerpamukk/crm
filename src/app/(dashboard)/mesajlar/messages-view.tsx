@@ -1,29 +1,23 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  Camera,
-  MessageCircle,
-  MessagesSquare,
-  Music,
-  Mail,
-  Send,
-  Paperclip,
-  Smile,
-  Search,
-  UserPlus,
-  Inbox,
-  type LucideIcon,
-} from "lucide-react";
+import { Send, Paperclip, Smile, Search, UserPlus, Inbox } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { Channel, DemoConversation, DemoMessage } from "./demo-data";
+import {
+  InstagramLogo,
+  WhatsappLogo,
+  MessengerLogo,
+  TiktokLogo,
+  EmailLogo,
+} from "./channel-icons";
 
 type ChannelTheme = {
   label: string;
-  icon: LucideIcon;
+  icon: React.ComponentType<{ className?: string }>;
   /** Sohbet listesi avatar karesi */
   avatar: string;
   /** Sağ panel başlık şeridi */
@@ -42,7 +36,7 @@ type ChannelTheme = {
 const CHANNEL_THEME: Record<Channel, ChannelTheme> = {
   instagram: {
     label: "Instagram",
-    icon: Camera,
+    icon: InstagramLogo,
     avatar: "bg-pink-100 text-[#d62976]",
     header: "bg-card text-foreground border-b",
     chat: "bg-muted/20",
@@ -55,7 +49,7 @@ const CHANNEL_THEME: Record<Channel, ChannelTheme> = {
   },
   whatsapp: {
     label: "WhatsApp",
-    icon: MessageCircle,
+    icon: WhatsappLogo,
     avatar: "bg-green-100 text-[#25D366]",
     header: "bg-[#075E54] text-white",
     chat: "bg-[#E5DDD5]",
@@ -68,7 +62,7 @@ const CHANNEL_THEME: Record<Channel, ChannelTheme> = {
   },
   messenger: {
     label: "Messenger",
-    icon: MessagesSquare,
+    icon: MessengerLogo,
     avatar: "bg-blue-100 text-[#0084FF]",
     header: "bg-[#0084FF] text-white",
     chat: "bg-card",
@@ -81,7 +75,7 @@ const CHANNEL_THEME: Record<Channel, ChannelTheme> = {
   },
   tiktok: {
     label: "TikTok",
-    icon: Music,
+    icon: TiktokLogo,
     avatar: "bg-zinc-900 text-white",
     header: "bg-black text-white",
     chat: "bg-black",
@@ -94,7 +88,7 @@ const CHANNEL_THEME: Record<Channel, ChannelTheme> = {
   },
   email: {
     label: "E-posta",
-    icon: Mail,
+    icon: EmailLogo,
     avatar: "bg-muted text-muted-foreground",
     header: "bg-card text-foreground border-b",
     chat: "bg-muted/20",
@@ -114,16 +108,6 @@ const FILTERS: { key: "all" | Channel; label: string }[] = [
   { key: "messenger", label: "Messenger" },
   { key: "tiktok", label: "TikTok" },
 ];
-
-/** Segmented kontrol ikon renkleri (kanal markası). */
-const FILTER_COLOR: Record<"all" | Channel, string> = {
-  all: "text-primary",
-  instagram: "text-[#d62976]",
-  whatsapp: "text-[#25D366]",
-  messenger: "text-[#0084FF]",
-  tiktok: "text-foreground",
-  email: "text-muted-foreground",
-};
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -191,6 +175,7 @@ export function MessagesView({
   }
 
   const theme = selected ? CHANNEL_THEME[selected.channel] : CHANNEL_THEME.instagram;
+  const ChannelLogo = theme.icon;
   const messages = selected ? threads[selected.id] ?? [] : [];
 
   return (
@@ -216,35 +201,37 @@ export function MessagesView({
             <div className="mb-2 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Inbox className="size-4 text-primary" />
-                <span className="text-sm font-semibold">
-                  {filter === "all" ? "Gelen Kutusu" : CHANNEL_THEME[filter].label}
-                </span>
+                <span className="text-sm font-semibold">Gelen Kutusu</span>
               </div>
               <span className="text-xs text-muted-foreground">{filtered.length} sohbet</span>
             </div>
-            {/* Kanal seçici — tek satır segmented kontrol */}
-            <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1">
+            {/* Kanal seçici — logo + etiketli, tek satır (yatay kaydırmalı) */}
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {FILTERS.map((f) => {
                 const active = filter === f.key;
-                const Icon = f.key === "all" ? Inbox : CHANNEL_THEME[f.key].icon;
+                const Logo = f.key === "all" ? null : CHANNEL_THEME[f.key].icon;
                 const n = counts[f.key];
                 return (
                   <button
                     key={f.key}
                     type="button"
-                    title={f.label}
-                    aria-label={f.label}
                     onClick={() => setFilter(f.key)}
                     className={cn(
-                      "relative flex flex-1 items-center justify-center rounded-lg py-2 transition-colors",
-                      active ? "bg-card shadow-sm" : "hover:bg-card/60"
+                      "flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                      active
+                        ? "border-primary/30 bg-primary/10 text-foreground"
+                        : "border-transparent bg-muted text-muted-foreground hover:bg-muted/70"
                     )}
                   >
-                    <Icon
-                      className={cn("size-[18px]", FILTER_COLOR[f.key], !active && "opacity-60")}
-                    />
+                    {Logo ? <Logo className="size-4" /> : <Inbox className="size-3.5 text-primary" />}
+                    {f.label}
                     {n > 0 && (
-                      <span className="absolute right-1 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
+                      <span
+                        className={cn(
+                          "flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold",
+                          active ? "bg-primary text-primary-foreground" : "bg-danger text-white"
+                        )}
+                      >
                         {n}
                       </span>
                     )}
@@ -275,8 +262,8 @@ export function MessagesView({
                         active ? "bg-primary/5" : "hover:bg-muted/40"
                       )}
                     >
-                      <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-lg", ct.avatar)}>
-                        <ChIcon className="size-5" />
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-card">
+                        <ChIcon className="size-6" />
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
@@ -306,8 +293,13 @@ export function MessagesView({
             {/* Başlık şeridi */}
             <div className={cn("flex items-center justify-between gap-3 px-4 py-3", theme.header)}>
               <div className="flex min-w-0 items-center gap-3">
-                <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold", theme.avatar)}>
-                  {initials(selected.name)}
+                <span className="relative shrink-0">
+                  <span className={cn("flex size-9 items-center justify-center rounded-full text-xs font-semibold", theme.avatar)}>
+                    {initials(selected.name)}
+                  </span>
+                  <span className="absolute -bottom-1 -right-1 flex size-[18px] items-center justify-center rounded-full bg-white shadow-sm">
+                    <ChannelLogo className="size-3.5" />
+                  </span>
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold leading-tight">
