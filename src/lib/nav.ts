@@ -28,6 +28,8 @@ export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  /** Canlı sayaç rozeti anahtarı (layout'tan beslenir). */
+  badge?: string;
 }
 
 export interface NavSection {
@@ -62,7 +64,7 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: ShoppingCart,
     items: [
       { href: "/tahsilat", label: "Tahsilat", icon: Banknote },
-      { href: "/cari", label: "Cari Hesap", icon: Scale },
+      { href: "/cari", label: "Cari Hesap", icon: Scale, badge: "overdueCari" },
       { href: "/giderler", label: "Giderler", icon: Receipt },
       { href: "/paketler", label: "Paketler", icon: Package },
     ],

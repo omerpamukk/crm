@@ -16,10 +16,12 @@ export function MobileNav({
   businessName,
   displayName,
   roleLabel,
+  badges,
 }: {
   businessName: string;
   displayName: string;
   roleLabel: string;
+  badges?: Record<string, number>;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -37,6 +39,7 @@ export function MobileNav({
           businessName={businessName}
           displayName={displayName}
           roleLabel={roleLabel}
+          badges={badges}
           onNavigate={() => setOpen(false)}
         />
       </SheetContent>

@@ -1,7 +1,10 @@
 import { getAccountContext } from "@/lib/supabase/account";
+import { createClient } from "@/lib/supabase/server";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Toaster } from "@/components/ui/sonner";
+
+const DAY = 86_400_000;
 
 export default async function DashboardLayout({
   children,
@@ -12,6 +15,23 @@ export default async function DashboardLayout({
     await getAccountContext();
   const displayName = fullName ?? email ?? "Kullanıcı";
 
+  // Menü rozeti: gecikmiş (30 gün+) ödemesi olan müşteri sayısı
+  const supabase = await createClient();
+  const { data: pkgs } = await supabase
+    .from("packages")
+    .select("customer_id, price, paid_amount, purchased_at");
+  const now = new Date().getTime();
+  const overdue = new Set<string>();
+  for (const p of (pkgs ?? []) as {
+    customer_id: string | null; price: number | null; paid_amount: number | null; purchased_at: string | null;
+  }[]) {
+    const debt = (p.price ?? 0) - (p.paid_amount ?? 0);
+    if (p.customer_id && debt > 0 && p.purchased_at && now - new Date(p.purchased_at).getTime() > 30 * DAY) {
+      overdue.add(p.customer_id);
+    }
+  }
+  const badges = { overdueCari: overdue.size };
+
   return (
     <div className="flex min-h-svh">
       {/* Masaüstü yan menü (sticky, tam boy) */}
@@ -20,6 +40,7 @@ export default async function DashboardLayout({
           businessName={businessName}
           displayName={displayName}
           roleLabel={roleLabel}
+          badges={badges}
         />
       </aside>
 
@@ -31,6 +52,7 @@ export default async function DashboardLayout({
             businessName={businessName}
             displayName={displayName}
             roleLabel={roleLabel}
+            badges={badges}
           />
           <span className="font-semibold">{businessName}</span>
         </header>

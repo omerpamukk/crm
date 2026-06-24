@@ -1,112 +1,75 @@
-import {
-  Scale,
-  TrendingDown,
-  Banknote,
-  Wallet,
-} from "lucide-react";
+import { Scale, TrendingDown, Banknote, Wallet, AlarmClock } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-type Row = {
-  id: string;
-  name: string;
-  charges: number;
-  payments: number;
-  balance: number;
-};
+import { CariView, type CariRow } from "./cari-view";
+
+const DAY = 86_400_000;
 
 export default async function CariPage() {
   const supabase = await createClient();
+  const now = new Date().getTime();
 
   const [customersRes, packagesRes, apptRes, paymentsRes] = await Promise.all([
-    supabase
-      .from("customers")
-      .select("id, full_name")
-      .eq("is_lead", false)
-      .order("full_name"),
-    supabase.from("packages").select("customer_id, price"),
-    supabase
-      .from("appointments")
-      .select("customer_id, price, package_id")
-      .eq("status", "completed")
-      .not("price", "is", null),
-    supabase.from("payments").select("customer_id, amount"),
+    supabase.from("customers").select("id, full_name, phone").eq("is_lead", false).order("full_name"),
+    supabase.from("packages").select("customer_id, price, paid_amount, purchased_at"),
+    supabase.from("appointments").select("customer_id, price, package_id").eq("status", "completed").not("price", "is", null),
+    supabase.from("payments").select("customer_id, amount, created_at"),
   ]);
 
-  const customers = (customersRes.data ?? []) as {
-    id: string;
-    full_name: string;
-  }[];
+  const customers = (customersRes.data ?? []) as { id: string; full_name: string; phone: string | null }[];
 
-  // Müşteri bazında borçlandırma ve tahsilat birikimi
   const charges = new Map<string, number>();
   const payments = new Map<string, number>();
+  const lastPayment = new Map<string, string>();
+  const overdueSet = new Set<string>();
 
   const addCharge = (id: string | null, amount: number) => {
     if (!id || !amount) return;
     charges.set(id, (charges.get(id) ?? 0) + amount);
   };
 
-  // 1) Paket alımları → borçlandırma
   for (const p of (packagesRes.data ?? []) as {
-    customer_id: string | null;
-    price: number | null;
+    customer_id: string | null; price: number | null; paid_amount: number | null; purchased_at: string | null;
   }[]) {
     addCharge(p.customer_id, p.price ?? 0);
+    const debt = (p.price ?? 0) - (p.paid_amount ?? 0);
+    if (p.customer_id && debt > 0 && p.purchased_at && now - new Date(p.purchased_at).getTime() > 30 * DAY) {
+      overdueSet.add(p.customer_id);
+    }
   }
 
-  // 2) Pakete bağlı OLMAYAN tamamlanmış randevular → borçlandırma
-  //    (pakete bağlı randevu zaten paket fiyatında sayıldı, çift saymayalım)
   for (const a of (apptRes.data ?? []) as {
-    customer_id: string | null;
-    price: number | null;
-    package_id: string | null;
+    customer_id: string | null; price: number | null; package_id: string | null;
   }[]) {
     if (a.package_id) continue;
     addCharge(a.customer_id, a.price ?? 0);
   }
 
-  // 3) Tüm tahsilatlar
   for (const pay of (paymentsRes.data ?? []) as {
-    customer_id: string | null;
-    amount: number | null;
+    customer_id: string | null; amount: number | null; created_at: string;
   }[]) {
     if (!pay.customer_id) continue;
-    payments.set(
-      pay.customer_id,
-      (payments.get(pay.customer_id) ?? 0) + (pay.amount ?? 0)
-    );
+    payments.set(pay.customer_id, (payments.get(pay.customer_id) ?? 0) + (pay.amount ?? 0));
+    const prev = lastPayment.get(pay.customer_id);
+    if (!prev || pay.created_at > prev) lastPayment.set(pay.customer_id, pay.created_at);
   }
 
-  const rows: Row[] = customers
+  const rows: CariRow[] = customers
     .map((c) => {
       const ch = charges.get(c.id) ?? 0;
       const pa = payments.get(c.id) ?? 0;
+      const balance = ch - pa;
       return {
-        id: c.id,
-        name: c.full_name,
-        charges: ch,
-        payments: pa,
-        balance: ch - pa,
+        id: c.id, name: c.full_name, phone: c.phone,
+        charges: ch, payments: pa, balance,
+        lastPaymentAt: lastPayment.get(c.id) ?? null,
+        overdue: balance > 0 && overdueSet.has(c.id),
       };
     })
     .filter((r) => r.charges !== 0 || r.payments !== 0)
@@ -114,17 +77,23 @@ export default async function CariPage() {
 
   const totalCharges = rows.reduce((s, r) => s + r.charges, 0);
   const totalPayments = rows.reduce((s, r) => s + r.payments, 0);
-  const totalReceivable = rows.reduce(
-    (s, r) => (r.balance > 0 ? s + r.balance : s),
-    0
-  );
+  const totalReceivable = rows.reduce((s, r) => (r.balance > 0 ? s + r.balance : s), 0);
+  const overdueAmount = rows.reduce((s, r) => (r.overdue ? s + r.balance : s), 0);
+  const overdueCount = rows.filter((r) => r.overdue).length;
   const debtorCount = rows.filter((r) => r.balance > 0).length;
+
+  const cards = [
+    { label: "Toplam Borçlandırma", value: formatPrice(totalCharges), icon: TrendingDown, bar: "border-l-primary", tone: "bg-primary/10 text-primary", accent: "" },
+    { label: "Toplam Tahsilat", value: formatPrice(totalPayments), icon: Banknote, bar: "border-l-positive", tone: "bg-positive/10 text-positive", accent: "text-positive" },
+    { label: "Toplam Alacak", value: formatPrice(totalReceivable), icon: Wallet, bar: "border-l-danger", tone: "bg-danger/10 text-danger", accent: "text-danger", sub: `${debtorCount} borçlu müşteri` },
+    { label: "Gecikmiş", value: formatPrice(overdueAmount), icon: AlarmClock, bar: "border-l-danger", tone: "bg-danger/10 text-danger", accent: "text-danger", sub: `${overdueCount} müşteri · 30 gün+` },
+  ];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Cari Hesap"
-        description="Müşteri bazında borçlandırma, tahsilat ve kalan bakiye takibi."
+        description="Her müşterinin satış, tahsilat, alacak ve ödeme takibi tek ekranda."
       />
 
       {rows.length === 0 ? (
@@ -135,113 +104,27 @@ export default async function CariPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Card className="border-l-4 border-l-primary">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Toplam Borçlandırma
-                </CardTitle>
-                <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <TrendingDown className="size-5" />
-                </span>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatPrice(totalCharges)}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-positive">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Toplam Tahsilat
-                </CardTitle>
-                <span className="flex size-9 items-center justify-center rounded-lg bg-positive/10 text-positive">
-                  <Banknote className="size-5" />
-                </span>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-positive">
-                  {formatPrice(totalPayments)}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-danger">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Toplam Alacak
-                </CardTitle>
-                <span className="flex size-9 items-center justify-center rounded-lg bg-danger/10 text-danger">
-                  <Wallet className="size-5" />
-                </span>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-danger">
-                  {formatPrice(totalReceivable)}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {debtorCount} borçlu müşteri
-                </p>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {cards.map((c) => {
+              const Icon = c.icon;
+              return (
+                <Card key={c.label} className={cn("border-l-4", c.bar)}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">{c.label}</CardTitle>
+                    <span className={cn("flex size-9 items-center justify-center rounded-lg", c.tone)}>
+                      <Icon className="size-5" />
+                    </span>
+                  </CardHeader>
+                  <CardContent>
+                    <div className={cn("text-2xl font-bold", c.accent)}>{c.value}</div>
+                    {c.sub && <p className="mt-1 text-xs text-muted-foreground">{c.sub}</p>}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
-          <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead>Müşteri</TableHead>
-                  <TableHead className="text-right">Borçlandırma</TableHead>
-                  <TableHead className="text-right">Tahsilat</TableHead>
-                  <TableHead className="text-right">Bakiye</TableHead>
-                  <TableHead className="text-right">Durum</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => {
-                  const owes = r.balance > 0;
-                  const credit = r.balance < 0;
-                  return (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.name}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatPrice(r.charges)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-positive">
-                        {formatPrice(r.payments)}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          "text-right font-semibold tabular-nums",
-                          owes && "text-danger",
-                          credit && "text-primary"
-                        )}
-                      >
-                        {formatPrice(Math.abs(r.balance))}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {owes ? (
-                          <Badge variant="danger">Borçlu</Badge>
-                        ) : credit ? (
-                          <Badge variant="info">Alacaklı</Badge>
-                        ) : (
-                          <Badge variant="positive">Kapalı</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-
-          <p className="text-xs text-muted-foreground">
-            Bakiye = (paket alımları + pakete bağlı olmayan tamamlanmış
-            randevular) − toplam tahsilat. &quot;Alacaklı&quot;, müşterinin fazla/avans
-            ödemesi olduğunu gösterir.
-          </p>
+          <CariView rows={rows} />
         </>
       )}
     </div>

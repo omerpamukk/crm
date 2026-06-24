@@ -20,11 +20,13 @@ export function SidebarNav({
   businessName,
   displayName,
   roleLabel,
+  badges,
   onNavigate,
 }: {
   businessName: string;
   displayName: string;
   roleLabel: string;
+  badges?: Record<string, number>;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -125,6 +127,7 @@ export function SidebarNav({
                             pathname === item.href ||
                             pathname.startsWith(`${item.href}/`);
                           const Icon = item.icon;
+                          const badgeCount = item.badge ? badges?.[item.badge] ?? 0 : 0;
                           return (
                             <li key={item.href}>
                               <Link
@@ -138,7 +141,17 @@ export function SidebarNav({
                                 )}
                               >
                                 <Icon className="size-4 shrink-0" />
-                                {item.label}
+                                <span className="flex-1">{item.label}</span>
+                                {badgeCount > 0 && (
+                                  <span
+                                    className={cn(
+                                      "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold",
+                                      active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-danger text-white"
+                                    )}
+                                  >
+                                    {badgeCount}
+                                  </span>
+                                )}
                               </Link>
                             </li>
                           );
