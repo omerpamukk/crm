@@ -24,6 +24,9 @@ import {
   Link2,
   Inbox,
   CalendarClock,
+  Zap,
+  Bell,
+  Mail,
   type LucideIcon,
 } from "lucide-react";
 
@@ -105,8 +108,11 @@ export const NAV_SECTIONS: NavSection[] = [
     key: "akis",
     label: "İş Akışları",
     icon: Workflow,
-    items: [],
-    comingSoon: true,
+    items: [
+      { href: "/otomasyonlar", label: "Otomasyonlar", icon: Zap, badge: "automations" },
+      { href: "/hatirlaticilar", label: "Hatırlatıcılar", icon: Bell },
+      { href: "/eposta-sms", label: "E-posta & SMS", icon: Mail },
+    ],
   },
   {
     key: "web",

@@ -31,8 +31,8 @@ export default async function DashboardLayout({
       overdue.add(p.customer_id);
     }
   }
-  // msgAll: omnichannel gelen kutusu okunmamış sayısı (şimdilik DEMO)
-  const badges = { overdueCari: overdue.size, msgAll: DEMO_UNREAD_TOTAL };
+  // msgAll / automations: şimdilik DEMO sayaçlar (entegrasyon bağlanınca gerçeğe döner)
+  const badges = { overdueCari: overdue.size, msgAll: DEMO_UNREAD_TOTAL, automations: 5 };
 
   return (
     <div className="flex min-h-svh">
