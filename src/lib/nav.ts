@@ -7,7 +7,7 @@ import {
   CalendarRange,
   Package,
   Sparkles,
-  Banknote,
+  ShoppingBag,
   BarChart3,
   Scale,
   Receipt,
@@ -63,7 +63,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Satış & Tahsilat",
     icon: ShoppingCart,
     items: [
-      { href: "/tahsilat", label: "Tahsilat", icon: Banknote },
+      { href: "/tahsilat", label: "Satışlar", icon: ShoppingBag },
       { href: "/cari", label: "Cari Hesap", icon: Scale, badge: "overdueCari" },
       { href: "/giderler", label: "Giderler", icon: Receipt },
       { href: "/paketler", label: "Paketler", icon: Package },
