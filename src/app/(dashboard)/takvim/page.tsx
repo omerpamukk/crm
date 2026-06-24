@@ -1,17 +1,26 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, CalendarRange } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarRange, Clock, CalendarPlus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatTime } from "@/lib/format";
-import { appointmentStatusLabel } from "@/lib/constants";
+import { appointmentStatusLabel, appointmentStatusVariant } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Appointment } from "@/types/database";
+import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 
 type CalAppointment = Appointment & {
   customer: { full_name: string } | null;
-  service: { name: string } | null;
+  service: { name: string; duration_min: number | null } | null;
+};
+
+// Durum → sol kenarlık rengi (Bugünün Programı paneli)
+const STATUS_BORDER: Record<string, string> = {
+  completed: "border-l-positive",
+  cancelled: "border-l-danger",
+  no_show: "border-l-muted-foreground/40",
+  planned: "border-l-primary",
 };
 
 const WEEKDAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
@@ -68,17 +77,29 @@ export default async function TakvimPage({
   const gridEnd = new Date(gridStart);
   gridEnd.setDate(gridEnd.getDate() + 42);
 
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("appointments")
-    .select(
-      "*, customer:customers(full_name), service:services(name)"
-    )
-    .gte("starts_at", gridStart.toISOString())
-    .lt("starts_at", gridEnd.toISOString())
-    .order("starts_at", { ascending: true });
+  // Bugünün programı her zaman GERÇEK bugüne ait (hangi ay görüntülenirse görüntülensin)
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfToday = new Date(startOfToday);
+  endOfToday.setDate(endOfToday.getDate() + 1);
 
-  const appointments = (data ?? []) as unknown as CalAppointment[];
+  const supabase = await createClient();
+  const [gridRes, todayRes] = await Promise.all([
+    supabase
+      .from("appointments")
+      .select("*, customer:customers(full_name), service:services(name, duration_min)")
+      .gte("starts_at", gridStart.toISOString())
+      .lt("starts_at", gridEnd.toISOString())
+      .order("starts_at", { ascending: true }),
+    supabase
+      .from("appointments")
+      .select("*, customer:customers(full_name), service:services(name, duration_min)")
+      .gte("starts_at", startOfToday.toISOString())
+      .lt("starts_at", endOfToday.toISOString())
+      .order("starts_at", { ascending: true }),
+  ]);
+
+  const appointments = (gridRes.data ?? []) as unknown as CalAppointment[];
+  const todayAppointments = (todayRes.data ?? []) as unknown as CalAppointment[];
 
   // Güne göre grupla
   const byDay = new Map<string, CalAppointment[]>();
@@ -137,106 +158,164 @@ export default async function TakvimPage({
         </div>
       </PageHeader>
 
-      <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <CalendarRange className="size-5 text-primary" />
-          {MONTH_NAMES[month]} {year}
-        </h2>
-        <span className="text-sm text-muted-foreground">
-          {monthTotal} randevu
-        </span>
-      </div>
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        {/* Sol kolon: aylık takvim */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-lg font-semibold">
+              <CalendarRange className="size-5 text-primary" />
+              {MONTH_NAMES[month]} {year}
+            </h2>
+            <span className="text-sm text-muted-foreground">
+              {monthTotal} randevu
+            </span>
+          </div>
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
-        {/* Hafta günü başlıkları */}
-        <div className="grid grid-cols-7 border-b bg-muted/40">
-          {WEEKDAYS.map((d) => (
-            <div
-              key={d}
-              className="px-2 py-2 text-center text-xs font-semibold text-muted-foreground"
-            >
-              {d}
+          <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+            {/* Hafta günü başlıkları */}
+            <div className="grid grid-cols-7 border-b bg-muted/40">
+              {WEEKDAYS.map((d) => (
+                <div
+                  key={d}
+                  className="px-2 py-2 text-center text-xs font-semibold text-muted-foreground"
+                >
+                  {d}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* Gün hücreleri */}
-        <div className="grid grid-cols-7">
-          {cells.map((d, i) => {
-            const key = dateKey(d);
-            const inMonth = d.getMonth() === month;
-            const isToday = key === todayKey;
-            const items = byDay.get(key) ?? [];
-            return (
-              <div
-                key={key}
-                className={cn(
-                  "min-h-24 border-b border-r p-1.5 last:border-r-0 [&:nth-child(7n)]:border-r-0",
-                  i >= 35 && "border-b-0",
-                  !inMonth && "bg-muted/20"
-                )}
-              >
-                <div className="mb-1 flex justify-end">
-                  <span
+            {/* Gün hücreleri */}
+            <div className="grid grid-cols-7">
+              {cells.map((d, i) => {
+                const key = dateKey(d);
+                const inMonth = d.getMonth() === month;
+                const isToday = key === todayKey;
+                const items = byDay.get(key) ?? [];
+                return (
+                  <div
+                    key={key}
                     className={cn(
-                      "flex size-6 items-center justify-center rounded-full text-xs",
-                      isToday
-                        ? "bg-primary font-semibold text-primary-foreground"
-                        : inMonth
-                          ? "text-foreground"
-                          : "text-muted-foreground/50"
+                      "min-h-24 border-b border-r p-1.5 transition-colors last:border-r-0 [&:nth-child(7n)]:border-r-0",
+                      i >= 35 && "border-b-0",
+                      !inMonth ? "bg-muted/20" : "hover:bg-muted/30",
+                      isToday && "bg-primary/[0.04]"
                     )}
                   >
-                    {d.getDate()}
-                  </span>
-                </div>
-                <div className="space-y-0.5">
-                  {items.slice(0, 3).map((a) => (
-                    <div
-                      key={a.id}
-                      title={`${formatTime(a.starts_at)} · ${
-                        a.customer?.full_name ?? "—"
-                      }${a.service?.name ? ` · ${a.service.name}` : ""} · ${appointmentStatusLabel(
-                        a.status
-                      )}`}
-                      className={cn(
-                        "truncate rounded px-1 py-0.5 text-[11px] leading-tight",
-                        STATUS_CHIP[a.status ?? "planned"] ??
-                          "bg-primary/10 text-primary"
+                    <div className="mb-1 flex justify-end">
+                      <span
+                        className={cn(
+                          "flex size-6 items-center justify-center rounded-full text-xs",
+                          isToday
+                            ? "bg-primary font-semibold text-primary-foreground"
+                            : inMonth
+                              ? "text-foreground"
+                              : "text-muted-foreground/50"
+                        )}
+                      >
+                        {d.getDate()}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      {items.slice(0, 3).map((a) => (
+                        <div
+                          key={a.id}
+                          title={`${formatTime(a.starts_at)} · ${
+                            a.customer?.full_name ?? "—"
+                          }${a.service?.name ? ` · ${a.service.name}` : ""} · ${appointmentStatusLabel(
+                            a.status
+                          )}`}
+                          className={cn(
+                            "truncate rounded px-1 py-0.5 text-[11px] leading-tight",
+                            STATUS_CHIP[a.status ?? "planned"] ??
+                              "bg-primary/10 text-primary"
+                          )}
+                        >
+                          <span className="tabular-nums font-medium">
+                            {formatTime(a.starts_at)}
+                          </span>{" "}
+                          {a.customer?.full_name ?? "—"}
+                        </div>
+                      ))}
+                      {items.length > 3 && (
+                        <div className="px-1 text-[11px] text-muted-foreground">
+                          +{items.length - 3} daha
+                        </div>
                       )}
-                    >
-                      <span className="tabular-nums font-medium">
-                        {formatTime(a.starts_at)}
-                      </span>{" "}
-                      {a.customer?.full_name ?? "—"}
                     </div>
-                  ))}
-                  {items.length > 3 && (
-                    <div className="px-1 text-[11px] text-muted-foreground">
-                      +{items.length - 3} daha
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-      {/* Açıklama (legend) */}
-      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="size-2.5 rounded-full bg-primary" /> Planlandı
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="size-2.5 rounded-full bg-positive" /> Tamamlandı
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="size-2.5 rounded-full bg-danger" /> İptal
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="size-2.5 rounded-full bg-muted-foreground/40" /> Gelmedi
-        </span>
+          {/* Açıklama (legend) */}
+          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-primary" /> Planlandı
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-positive" /> Tamamlandı
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-danger" /> İptal
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-muted-foreground/40" /> Gelmedi
+            </span>
+          </div>
+        </div>
+
+        {/* Sağ kolon: Bugünün Programı (her zaman gerçek bugüne ait) */}
+        <aside className="overflow-hidden rounded-xl border bg-card shadow-xs lg:sticky lg:top-6">
+          <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Clock className="size-4 text-primary" />
+              Bugünün Programı
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              {now.getDate()} {MONTH_NAMES[now.getMonth()]}
+            </span>
+          </div>
+
+          <div className="p-3">
+            {todayAppointments.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-10 text-center">
+                <CalendarPlus className="size-7 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  Bugün için planlanmış randevu yok.
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {todayAppointments.map((a) => (
+                  <li
+                    key={a.id}
+                    className={cn(
+                      "rounded-lg border border-l-4 bg-card p-2.5 shadow-xs",
+                      STATUS_BORDER[a.status ?? "planned"] ?? "border-l-primary"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="tabular-nums text-sm font-semibold text-primary">
+                        {formatTime(a.starts_at)}
+                      </span>
+                      <Badge variant={appointmentStatusVariant(a.status)}>
+                        {appointmentStatusLabel(a.status)}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 truncate text-sm font-medium leading-tight">
+                      {a.customer?.full_name ?? "—"}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {a.service?.name ?? "Hizmet belirtilmedi"}
+                      {a.service?.duration_min ? ` · ${a.service.duration_min} dk` : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </aside>
       </div>
     </div>
   );

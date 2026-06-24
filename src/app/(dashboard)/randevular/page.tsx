@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { CalendarDays, List, LayoutList, Globe } from "lucide-react";
+import { CalendarDays, List, LayoutList, Globe, Clock } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatTime } from "@/lib/format";
 import { appointmentStatusLabel, appointmentStatusVariant } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Appointment } from "@/types/database";
@@ -21,12 +21,41 @@ import {
 
 import { NewAppointmentButton } from "./new-appointment-button";
 import { AppointmentRowActions } from "./appointment-row-actions";
+import { AppointmentReminder } from "./appointment-reminder";
+
+const MONTH_SHORT = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+
+/** Bucket'a göre tarih/saat metni: bugün/yarın → saat; diğer → "12 May · 14:30". */
+function whenText(iso: string, bucket: BucketKey): string {
+  if (bucket === "today" || bucket === "tomorrow") return formatTime(iso);
+  const d = new Date(iso);
+  return `${d.getDate()} ${MONTH_SHORT[d.getMonth()]} · ${formatTime(iso)}`;
+}
 
 type AppointmentRow = Appointment & {
-  customer: { full_name: string } | null;
-  service: { name: string } | null;
+  customer: { full_name: string; phone: string | null } | null;
+  service: { name: string; duration_min: number | null } | null;
   staff_member: { full_name: string } | null;
 };
+
+const AVATAR_TONES = [
+  "bg-primary/10 text-primary",
+  "bg-positive/10 text-positive",
+  "bg-amber-500/10 text-amber-600",
+  "bg-sky-500/10 text-sky-600",
+  "bg-rose-500/10 text-rose-600",
+  "bg-violet-500/10 text-violet-600",
+];
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return (((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase()) || "?";
+}
+
+function toneFor(name: string): string {
+  const sum = [...name].reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return AVATAR_TONES[sum % AVATAR_TONES.length];
+}
 
 type BucketKey = "today" | "tomorrow" | "week" | "later" | "past";
 
@@ -46,7 +75,7 @@ export default async function RandevularPage({
   searchParams: Promise<{ view?: string }>;
 }) {
   const { view } = await searchParams;
-  const isList = view === "list";
+  const isTable = view === "table";
   const supabase = await createClient();
 
   const [appointmentsRes, customersRes, servicesRes, staffRes, packagesRes] =
@@ -54,7 +83,7 @@ export default async function RandevularPage({
       supabase
         .from("appointments")
         .select(
-          "*, customer:customers(full_name), service:services(name), staff_member:staff(full_name)"
+          "*, customer:customers(full_name, phone), service:services(name, duration_min), staff_member:staff(full_name)"
         )
         .order("starts_at", { ascending: true }),
       supabase.from("customers").select("id, full_name").order("full_name"),
@@ -105,13 +134,15 @@ export default async function RandevularPage({
   for (const a of appointments) buckets[bucketOf(a)].push(a);
   buckets.past.reverse();
 
-  const groups: { key: BucketKey; label: string }[] = [
-    { key: "today", label: "Bugün" },
-    { key: "tomorrow", label: "Yarın" },
-    { key: "week", label: "Bu Hafta" },
-    { key: "later", label: "Daha Sonra" },
-    { key: "past", label: "Geçmiş" },
+  const groups: { key: BucketKey; label: string; accent: string }[] = [
+    { key: "today", label: "Bugün", accent: "text-primary" },
+    { key: "tomorrow", label: "Yarın", accent: "text-sky-600" },
+    { key: "week", label: "Bu Hafta", accent: "text-amber-600" },
+    { key: "later", label: "Daha Sonra", accent: "text-muted-foreground" },
+    { key: "past", label: "Geçmiş", accent: "text-muted-foreground" },
   ];
+
+  const upcomingCount = buckets.today.length + buckets.tomorrow.length + buckets.week.length;
 
   // Tablo görünümü en yeni üstte
   const tableRows = [...appointments].reverse();
@@ -120,7 +151,7 @@ export default async function RandevularPage({
     <div className="space-y-6">
       <PageHeader
         title="Randevular"
-        description="Tüm randevularını tablo halinde gör ya da gün gün takip et."
+        description="Randevularını gün gün takip et, WhatsApp'tan hatırlat ya da tablo halinde gör."
       >
         <NewAppointmentButton
           customers={customers}
@@ -154,88 +185,111 @@ export default async function RandevularPage({
         />
       ) : (
         <>
-          {/* Görünüm geçişi: Tablo / Liste */}
-          <div className="flex items-center rounded-lg border p-0.5 w-fit">
-            <Link
-              href="/randevular"
-              className={cn(
-                buttonVariants({
-                  variant: isList ? "ghost" : "secondary",
-                  size: "sm",
-                }),
-                "gap-1.5"
-              )}
-            >
-              <LayoutList className="size-4" />
-              Tablo
-            </Link>
-            <Link
-              href="/randevular?view=list"
-              className={cn(
-                buttonVariants({
-                  variant: isList ? "secondary" : "ghost",
-                  size: "sm",
-                }),
-                "gap-1.5"
-              )}
-            >
-              <List className="size-4" />
-              Liste
-            </Link>
+          {/* Özet + görünüm geçişi */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Yaklaşan <span className="font-semibold text-foreground">{upcomingCount}</span> randevu
+              {" · "}toplam <span className="font-semibold text-foreground">{appointments.length}</span>
+            </p>
+            <div className="flex items-center rounded-lg border p-0.5 w-fit">
+              <Link
+                href="/randevular"
+                className={cn(
+                  buttonVariants({ variant: isTable ? "ghost" : "secondary", size: "sm" }),
+                  "gap-1.5"
+                )}
+              >
+                <List className="size-4" />
+                Gün Gün
+              </Link>
+              <Link
+                href="/randevular?view=table"
+                className={cn(
+                  buttonVariants({ variant: isTable ? "secondary" : "ghost", size: "sm" }),
+                  "gap-1.5"
+                )}
+              >
+                <LayoutList className="size-4" />
+                Tablo
+              </Link>
+            </div>
           </div>
 
-          {isList ? (
-            <div className="space-y-6">
+          {!isTable ? (
+            <div className="space-y-5">
               {groups.map((group) => {
                 const items = buckets[group.key];
                 if (items.length === 0) return null;
+                const GroupIcon = group.key === "today" ? Clock : CalendarDays;
                 return (
-                  <section key={group.key} className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-sm font-semibold text-muted-foreground">
+                  <section
+                    key={group.key}
+                    className="overflow-hidden rounded-xl border bg-card shadow-xs"
+                  >
+                    <header className="flex items-center justify-between gap-2 border-b bg-muted/30 px-4 py-2.5">
+                      <h2 className="flex items-center gap-2 text-sm font-semibold">
+                        <GroupIcon className={cn("size-4", group.accent)} />
                         {group.label}
                       </h2>
-                      <Badge variant="secondary">{items.length}</Badge>
-                    </div>
-                    <div className="space-y-2">
-                      {items.map((a) => (
-                        <div
-                          key={a.id}
-                          className="flex items-center justify-between gap-3 rounded-lg border bg-card p-3 shadow-xs"
-                        >
-                          <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex flex-col items-center justify-center rounded-md bg-primary/10 px-3 py-1.5 text-primary">
-                              <CalendarDays className="size-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="flex items-center gap-1.5 truncate font-medium leading-tight">
-                                {a.customer?.full_name ?? "—"}
+                      <Badge variant="secondary">{items.length} randevu</Badge>
+                    </header>
+                    <ul className="divide-y">
+                      {items.map((a) => {
+                        const name = a.customer?.full_name ?? "—";
+                        return (
+                          <li
+                            key={a.id}
+                            className="flex items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/30 sm:px-4"
+                          >
+                            <span
+                              className={cn(
+                                "flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                                toneFor(name)
+                              )}
+                            >
+                              {initials(name)}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="flex items-center gap-1.5 truncate text-sm font-medium leading-tight">
+                                {name}
                                 {a.booked_online && <OnlineBadge />}
                               </p>
-                              <p className="truncate text-xs text-muted-foreground">
-                                {formatDateTime(a.starts_at)}
+                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                <span className="font-medium text-foreground/80">
+                                  {whenText(a.starts_at, group.key)}
+                                </span>
                                 {a.service?.name ? ` · ${a.service.name}` : ""}
-                                {a.staff_member?.full_name
-                                  ? ` · ${a.staff_member.full_name}`
-                                  : ""}
+                                {a.service?.duration_min ? ` · ${a.service.duration_min} dk` : ""}
+                                {a.staff_member?.full_name ? ` · ${a.staff_member.full_name}` : ""}
                               </p>
                             </div>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <Badge variant={appointmentStatusVariant(a.status)}>
+                            <Badge
+                              variant={appointmentStatusVariant(a.status)}
+                              className="hidden shrink-0 sm:inline-flex"
+                            >
                               {appointmentStatusLabel(a.status)}
                             </Badge>
-                            <AppointmentRowActions
-                              appointment={a}
-                              customers={customers}
-                              services={services}
-                              staff={staff}
-                              packages={packages}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                            <div className="flex shrink-0 items-center gap-0.5">
+                              <span className="hidden sm:inline-flex">
+                                <AppointmentReminder
+                                  phone={a.customer?.phone ?? null}
+                                  customerName={name}
+                                  startsAt={a.starts_at}
+                                  serviceName={a.service?.name ?? null}
+                                />
+                              </span>
+                              <AppointmentRowActions
+                                appointment={a}
+                                customers={customers}
+                                services={services}
+                                staff={staff}
+                                packages={packages}
+                              />
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </section>
                 );
               })}
@@ -248,6 +302,7 @@ export default async function RandevularPage({
                     <TableHead>Tarih / Saat</TableHead>
                     <TableHead>Müşteri</TableHead>
                     <TableHead>Hizmet</TableHead>
+                    <TableHead>Süre</TableHead>
                     <TableHead>Personel</TableHead>
                     <TableHead>Durum</TableHead>
                     <TableHead className="w-12" />
@@ -266,6 +321,9 @@ export default async function RandevularPage({
                         </span>
                       </TableCell>
                       <TableCell>{a.service?.name ?? "—"}</TableCell>
+                      <TableCell className="tabular-nums text-muted-foreground">
+                        {a.service?.duration_min ? `${a.service.duration_min} dk` : "—"}
+                      </TableCell>
                       <TableCell>{a.staff_member?.full_name ?? "—"}</TableCell>
                       <TableCell>
                         <Badge variant={appointmentStatusVariant(a.status)}>
