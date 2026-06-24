@@ -48,7 +48,6 @@ const STEPS = [
 
 export function BookingFlow({ token, config }: { token: string; config: BookingConfig }) {
   const services = config.services ?? [];
-  const workDays = config.work_days ?? [1, 2, 3, 4, 5];
   const slot = config.slot_minutes ?? 30;
   const startTime = config.start_time ?? "09:00";
   const endTime = config.end_time ?? "18:00";
@@ -67,6 +66,7 @@ export function BookingFlow({ token, config }: { token: string; config: BookingC
 
   // Önümüzdeki 21 günden çalışma günlerine denk gelenler
   const dates = useMemo(() => {
+    const workDays = config.work_days ?? [1, 2, 3, 4, 5];
     const out: Date[] = [];
     const base = new Date();
     base.setHours(0, 0, 0, 0);
@@ -76,7 +76,7 @@ export function BookingFlow({ token, config }: { token: string; config: BookingC
       if (workDays.includes(isoWeekday(d))) out.push(d);
     }
     return out;
-  }, [workDays]);
+  }, [config.work_days]);
 
   // Açılış-kapanış arası slot saatleri
   const times = useMemo(() => {

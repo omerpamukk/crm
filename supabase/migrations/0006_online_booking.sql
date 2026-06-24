@@ -95,6 +95,7 @@ declare
   s public.booking_settings%rowtype;
   b uuid;
   cust_id uuid;
+  first_stage uuid;
 begin
   select * into s from public.booking_settings
   where token = p_token and is_active = true limit 1;
@@ -111,8 +112,12 @@ begin
   where business_id = b and phone = trim(p_phone) limit 1;
 
   if cust_id is null then
-    insert into public.customers (business_id, full_name, phone, is_lead, source, status)
-    values (b, trim(p_name), trim(p_phone), true, 'Online Randevu', 'new')
+    -- Yeni lead'i pipeline'ın ilk aşamasına yerleştir ki Lead'ler panosunda görünsün
+    select id into first_stage from public.pipeline_stages
+    where business_id = b order by position asc limit 1;
+
+    insert into public.customers (business_id, full_name, phone, is_lead, source, status, pipeline_stage_id)
+    values (b, trim(p_name), trim(p_phone), true, 'Online Randevu', 'new', first_stage)
     returning id into cust_id;
   end if;
 

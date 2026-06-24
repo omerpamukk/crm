@@ -1,4 +1,4 @@
-import { Link2, CalendarPlus, CheckCircle2, XCircle, Percent } from "lucide-react";
+import { CalendarPlus, CheckCircle2, XCircle, Percent } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import type { Service } from "@/types/database";
