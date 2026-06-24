@@ -22,6 +22,7 @@ import {
   Settings,
   Crown,
   Link2,
+  Inbox,
   type LucideIcon,
 } from "lucide-react";
 
@@ -84,8 +85,9 @@ export const NAV_SECTIONS: NavSection[] = [
     key: "mesajlasma",
     label: "Mesajlaşma",
     icon: MessageSquare,
-    items: [],
-    comingSoon: true,
+    items: [
+      { href: "/mesajlar", label: "Tüm Mesajlar", icon: Inbox, badge: "msgAll" },
+    ],
   },
   {
     key: "pazarlama",

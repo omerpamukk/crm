@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Toaster } from "@/components/ui/sonner";
+import { DEMO_UNREAD_TOTAL } from "./mesajlar/demo-data";
 
 const DAY = 86_400_000;
 
@@ -30,7 +31,8 @@ export default async function DashboardLayout({
       overdue.add(p.customer_id);
     }
   }
-  const badges = { overdueCari: overdue.size };
+  // msgAll: omnichannel gelen kutusu okunmamış sayısı (şimdilik DEMO)
+  const badges = { overdueCari: overdue.size, msgAll: DEMO_UNREAD_TOTAL };
 
   return (
     <div className="flex min-h-svh">
