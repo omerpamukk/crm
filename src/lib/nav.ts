@@ -31,6 +31,9 @@ import {
   LayoutGrid,
   Newspaper,
   Gauge,
+  Boxes,
+  MapPin,
+  FileSignature,
   type LucideIcon,
 } from "lucide-react";
 
@@ -77,7 +80,6 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/tahsilat", label: "Satışlar", icon: ShoppingBag },
       { href: "/cari", label: "Cari Hesap", icon: Scale, badge: "overdueCari" },
-      { href: "/giderler", label: "Giderler", icon: Receipt },
       { href: "/paketler", label: "Paketler", icon: Package },
     ],
   },
@@ -135,8 +137,12 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "İşletme",
     icon: Building2,
     items: [
-      { href: "/hizmetler", label: "Hizmetler", icon: Scissors },
+      { href: "/hizmetler", label: "Hizmetler & Fiyatlar", icon: Scissors },
       { href: "/personel", label: "Personel", icon: UserCog },
+      { href: "/stok", label: "Stok Yönetimi", icon: Boxes },
+      { href: "/giderler", label: "Gider Yönetimi", icon: Receipt },
+      { href: "/yorumlar", label: "Google Maps & Yorumlar", icon: MapPin },
+      { href: "/belgeler", label: "Belge İmzalama", icon: FileSignature },
     ],
   },
   {
