@@ -32,7 +32,7 @@ export default async function DashboardLayout({
     }
   }
   // msgAll / automations: şimdilik DEMO sayaçlar (entegrasyon bağlanınca gerçeğe döner)
-  const badges = { overdueCari: overdue.size, msgAll: DEMO_UNREAD_TOTAL, automations: 5 };
+  const badges = { overdueCari: overdue.size, msgAll: DEMO_UNREAD_TOTAL, automations: 5, tasks: 3 };
 
   return (
     <div className="flex min-h-svh">

@@ -34,6 +34,8 @@ import {
   Boxes,
   MapPin,
   FileSignature,
+  ListTodo,
+  FileBarChart,
   type LucideIcon,
 } from "lucide-react";
 
@@ -149,8 +151,10 @@ export const NAV_SECTIONS: NavSection[] = [
     key: "sistem",
     label: "Sistem",
     icon: Settings,
-    items: [],
-    comingSoon: true,
+    items: [
+      { href: "/gorevler", label: "Görev Sistemi", icon: ListTodo, badge: "tasks" },
+      { href: "/raporlama", label: "Rapor Oluştur", icon: FileBarChart },
+    ],
   },
 ];
 
