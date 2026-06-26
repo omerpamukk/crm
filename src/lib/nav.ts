@@ -36,6 +36,7 @@ import {
   FileSignature,
   ListTodo,
   FileBarChart,
+  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -153,6 +154,7 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: Settings,
     items: [
       { href: "/gorevler", label: "Görev Sistemi", icon: ListTodo, badge: "tasks" },
+      { href: "/ayarlar", label: "Ayarlar", icon: SlidersHorizontal },
       { href: "/raporlama", label: "Rapor Oluştur", icon: FileBarChart },
     ],
   },

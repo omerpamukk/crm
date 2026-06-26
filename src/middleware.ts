@@ -28,6 +28,7 @@ const PROTECTED_PREFIXES = [
   "/belgeler",
   "/gorevler",
   "/raporlama",
+  "/ayarlar",
   "/firsatlar",
   "/paketler",
   "/tahsilat",
