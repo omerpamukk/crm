@@ -28,6 +28,9 @@ import {
   Bell,
   Mail,
   PenLine,
+  LayoutGrid,
+  Newspaper,
+  Gauge,
   type LucideIcon,
 } from "lucide-react";
 
@@ -120,8 +123,12 @@ export const NAV_SECTIONS: NavSection[] = [
     key: "web",
     label: "Web Sitesi Yönetimi",
     icon: Globe,
-    items: [],
-    comingSoon: true,
+    items: [
+      { href: "/sayfalar", label: "Sayfalar", icon: LayoutGrid },
+      { href: "/blog", label: "Blog", icon: Newspaper },
+      { href: "/seo", label: "SEO", icon: Gauge },
+      { href: "/bulten", label: "Bülten", icon: Mail },
+    ],
   },
   {
     key: "isletme",
