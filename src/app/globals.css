@@ -41,6 +41,8 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-danger: var(--danger);
   --color-danger-foreground: var(--danger-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -55,12 +57,13 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* Nötrler hafif soğuk (indigo) tonlu — premium, jenerik gri değil */
+  --background: oklch(0.995 0.0015 275);
+  --foreground: oklch(0.22 0.025 275);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.22 0.025 275);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.22 0.025 275);
   --primary: #5b5bd6;
   --primary-foreground: #ffffff;
   --positive: #16a34a;
@@ -69,16 +72,21 @@
   --warning-foreground: #1c1917;
   --danger: #e11d48;
   --danger-foreground: #ffffff;
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --info: #3b82f6;
+  --info-foreground: #ffffff;
+  --secondary: oklch(0.965 0.006 275);
+  --secondary-foreground: oklch(0.28 0.025 275);
+  --muted: oklch(0.968 0.006 275);
+  --muted-foreground: oklch(0.55 0.022 275);
+  --accent: oklch(0.965 0.006 275);
+  --accent-foreground: oklch(0.28 0.025 275);
   --destructive: #e11d48;
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  --border: oklch(0.922 0.008 275);
+  --input: oklch(0.922 0.008 275);
   --ring: #5b5bd6;
+  /* Yumuşak elevation (ağır border yerine) */
+  --shadow-soft: 0 1px 2px rgba(26, 26, 46, 0.04), 0 6px 16px -10px rgba(26, 26, 46, 0.12);
+  --shadow-soft-lg: 0 2px 4px rgba(26, 26, 46, 0.05), 0 12px 28px -12px rgba(26, 26, 46, 0.16);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -110,7 +118,11 @@
   --warning-foreground: #1c1917;
   --danger: #e11d48;
   --danger-foreground: #ffffff;
-  --secondary: oklch(0.269 0 0);
+  --info: #3b82f6;
+  --info-foreground: #ffffff;
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --shadow-soft-lg: 0 2px 6px rgba(0, 0, 0, 0.35), 0 16px 36px -14px rgba(0, 0, 0, 0.6);
+  --secondary: oklch(0.269 0.012 275);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
@@ -152,5 +164,26 @@
   h5,
   h6 {
     @apply font-heading tracking-tight;
+  }
+  /* Sayılar/para/tablo hücreleri hizalı (tabular) figürlerle */
+  .tabular-nums,
+  th,
+  td,
+  [data-slot="table-cell"] {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  /* Premium yumuşak elevation — ağır border yerine */
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  .shadow-soft-lg {
+    box-shadow: var(--shadow-soft-lg);
+  }
+  /* İmza motifi: sol kenarı renkli aksiyon kartı */
+  .card-accent {
+    border-left-width: 4px;
   }
 }
