@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { ShoppingBag, Wallet, Search } from "lucide-react";
 
 import { formatDate, formatPrice } from "@/lib/format";
@@ -146,7 +147,11 @@ export function SalesTabs({ sales, payments }: { sales: SaleRow[]; payments: Pay
                           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
                             {s.customer.slice(0, 2).toLocaleUpperCase("tr")}
                           </span>
-                          <span className="truncate font-medium">{s.customer}</span>
+                          {s.customerId ? (
+                            <Link href={`/musteriler/${s.customerId}`} className="truncate font-medium hover:text-primary hover:underline">{s.customer}</Link>
+                          ) : (
+                            <span className="truncate font-medium">{s.customer}</span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

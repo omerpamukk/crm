@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Package } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
@@ -86,7 +87,11 @@ export default async function PaketlerPage() {
               {packages.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">
-                    {p.customer?.full_name ?? "—"}
+                    {p.customer_id ? (
+                      <Link href={`/musteriler/${p.customer_id}`} className="hover:text-primary hover:underline">{p.customer?.full_name ?? "—"}</Link>
+                    ) : (
+                      p.customer?.full_name ?? "—"
+                    )}
                   </TableCell>
                   <TableCell>{p.service_name ?? "—"}</TableCell>
                   <TableCell>
