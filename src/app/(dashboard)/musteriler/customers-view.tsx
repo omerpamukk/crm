@@ -35,6 +35,7 @@ export type EnrichedCustomer = Customer & {
   remaining: number | null;
   total: number | null;
   totalValue: number;
+  openDebt: number;
   lastContactAt: string | null;
   lastContactType: string | null;
   nextApptAt: string | null;
@@ -141,7 +142,7 @@ export function CustomersView({
   }, [customers, tab, q, service, kalan, deger, iletisim, tag, nowMs]);
 
   function exportCsv() {
-    const headers = ["Ad Soyad", "Telefon", "E-posta", "Hizmet", "Kalan Seans", "Toplam Değer", "Son İletişim", "Durum"];
+    const headers = ["Ad Soyad", "Telefon", "E-posta", "Hizmet", "Kalan Seans", "Toplam Değer", "Açık Borç", "Son İletişim", "Durum"];
     const lines = filtered.map((c) =>
       [
         c.full_name,
@@ -150,6 +151,7 @@ export function CustomersView({
         c.service ?? "",
         c.remaining != null && c.total != null ? `${c.total - c.remaining}/${c.total}` : "",
         c.totalValue,
+        c.openDebt,
         relTime(c.lastContactAt, nowMs),
         customerStatusLabel(c.status),
       ].map(csvCell).join(",")
@@ -247,6 +249,7 @@ export function CustomersView({
               <TableHead>Kalan Seans</TableHead>
               <TableHead>Sıradaki Randevu</TableHead>
               <TableHead className="text-right">Toplam Değer</TableHead>
+              <TableHead className="text-right">Açık Borç</TableHead>
               <TableHead>Son İletişim</TableHead>
               <TableHead>Durum</TableHead>
               <TableHead className="w-12" />
@@ -255,7 +258,7 @@ export function CustomersView({
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-12 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={9} className="py-12 text-center text-sm text-muted-foreground">
                   Bu filtrelerle eşleşen müşteri yok.
                 </TableCell>
               </TableRow>
@@ -317,6 +320,9 @@ export function CustomersView({
                     </TableCell>
                     <TableCell className="text-right font-semibold tabular-nums text-positive">
                       {c.totalValue > 0 ? formatPrice(c.totalValue) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {c.openDebt > 0 ? <span className="font-semibold text-danger">{formatPrice(c.openDebt)}</span> : <span className="text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell>
                       <p className="text-sm">{relTime(c.lastContactAt, nowMs)}</p>

@@ -1,6 +1,7 @@
-import { Users, CalendarCheck, TrendingUp } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, Wallet } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { formatPrice } from "@/lib/format";
 import type { Customer } from "@/types/database";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -25,7 +26,7 @@ export default async function MusterilerPage() {
     newThisMonthRes,
   ] = await Promise.all([
     supabase.from("customers").select("*").eq("is_lead", false).order("created_at", { ascending: false }),
-    supabase.from("packages").select("customer_id, service_name, total_sessions, remaining_sessions, purchased_at"),
+    supabase.from("packages").select("customer_id, service_name, total_sessions, remaining_sessions, purchased_at, price, paid_amount"),
     supabase.from("payments").select("customer_id, amount"),
     supabase.from("interactions").select("customer_id, created_at, type").order("created_at", { ascending: false }),
     supabase.from("appointments").select("customer_id, starts_at").gte("starts_at", now.toISOString()).order("starts_at", { ascending: true }),
@@ -64,6 +65,14 @@ export default async function MusterilerPage() {
     valueByCustomer.set(p.customer_id, (valueByCustomer.get(p.customer_id) ?? 0) + (p.amount ?? 0));
   }
 
+  // Müşteri başına açık borç (paketlerdeki fiyat - ödenen)
+  const debtByCustomer = new Map<string, number>();
+  for (const p of (packagesRes.data ?? []) as { customer_id: string | null; price: number | null; paid_amount: number | null }[]) {
+    if (!p.customer_id) continue;
+    const debt = (p.price ?? 0) - (p.paid_amount ?? 0);
+    if (debt > 0) debtByCustomer.set(p.customer_id, (debtByCustomer.get(p.customer_id) ?? 0) + debt);
+  }
+
   // interactions desc sıralı → ilk görülen = en son
   const lastContactByCustomer = new Map<string, { at: string; type: string }>();
   for (const it of (interactionsRes.data ?? []) as { customer_id: string | null; created_at: string; type: string }[]) {
@@ -87,6 +96,7 @@ export default async function MusterilerPage() {
       remaining: pkg?.remaining ?? null,
       total: pkg?.total ?? null,
       totalValue: valueByCustomer.get(c.id) ?? 0,
+      openDebt: debtByCustomer.get(c.id) ?? 0,
       lastContactAt: lc?.at ?? c.last_visit_at ?? null,
       lastContactType: lc?.type ?? null,
       nextApptAt: nextApptByCustomer.get(c.id) ?? null,
@@ -103,11 +113,14 @@ export default async function MusterilerPage() {
   const activeCount = enriched.filter((c) => c.status !== "passive" && c.status !== "archived").length;
   const monthSessions = monthSessionsRes.count ?? 0;
   const newThisMonth = newThisMonthRes.count ?? 0;
+  const totalOpenDebt = enriched.reduce((s, c) => s + c.openDebt, 0);
+  const debtorCount = enriched.filter((c) => c.openDebt > 0).length;
 
   const kpis = [
-    { label: "Aktif Müşteri", value: activeCount.toLocaleString("tr-TR"), icon: Users, tone: "bg-primary/10 text-primary", bar: "border-l-primary", trend: newThisMonth > 0 ? `+${newThisMonth} bu ay` : null },
-    { label: "Bu Ay Seans", value: monthSessions.toLocaleString("tr-TR"), icon: CalendarCheck, tone: "bg-positive/10 text-positive", bar: "border-l-positive", trend: null },
-    { label: "Bu Ay Yeni Müşteri", value: `+${newThisMonth}`, icon: TrendingUp, tone: "bg-primary/10 text-primary", bar: "border-l-primary", trend: null },
+    { label: "Aktif Müşteri", value: activeCount.toLocaleString("tr-TR"), icon: Users, tone: "bg-primary/10 text-primary", bar: "border-l-primary", trend: newThisMonth > 0 ? `+${newThisMonth} bu ay` : null, sub: null as string | null, accent: "" },
+    { label: "Bu Ay Seans", value: monthSessions.toLocaleString("tr-TR"), icon: CalendarCheck, tone: "bg-positive/10 text-positive", bar: "border-l-positive", trend: null, sub: null as string | null, accent: "" },
+    { label: "Bu Ay Yeni Müşteri", value: `+${newThisMonth}`, icon: TrendingUp, tone: "bg-primary/10 text-primary", bar: "border-l-primary", trend: null, sub: null as string | null, accent: "" },
+    { label: "Açık Alacak", value: formatPrice(totalOpenDebt), icon: Wallet, tone: "bg-danger/10 text-danger", bar: "border-l-danger", trend: null, sub: debtorCount > 0 ? `${debtorCount} borçlu müşteri` : null, accent: totalOpenDebt > 0 ? "text-danger" : "" },
   ];
 
   return (
@@ -126,7 +139,7 @@ export default async function MusterilerPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {kpis.map((kpi) => {
               const Icon = kpi.icon;
               return (
@@ -138,13 +151,14 @@ export default async function MusterilerPage() {
                     </span>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold tracking-tight">{kpi.value}</div>
+                    <div className={`text-2xl font-bold tracking-tight tabular-nums ${kpi.accent}`}>{kpi.value}</div>
                     {kpi.trend && (
                       <p className="mt-1 flex items-center gap-1 text-xs font-medium text-positive">
                         <TrendingUp className="size-3" />
                         {kpi.trend}
                       </p>
                     )}
+                    {kpi.sub && <p className="mt-1 text-xs text-muted-foreground">{kpi.sub}</p>}
                   </CardContent>
                 </Card>
               );
