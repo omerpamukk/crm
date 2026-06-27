@@ -8,6 +8,7 @@ import {
   Target,
   UserCog,
   PieChart as PieIcon,
+  PiggyBank,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import {
   RevenueAreaChart,
+  RevenueExpenseChart,
   ServiceBarChart,
   SourcePieChart,
 } from "./charts";
@@ -71,6 +73,7 @@ export default async function RaporlarPage() {
     apptCountRes,
     completedCountRes,
     staffRes,
+    expensesRes,
   ] = await Promise.all([
     // 1) Son 6 ay tahsilatları (aylık ciro)
     supabase
@@ -101,6 +104,8 @@ export default async function RaporlarPage() {
       .eq("status", "completed"),
     // 5) Personel (komisyon oranlarıyla)
     supabase.from("staff").select("id, full_name, commission_rate"),
+    // 6) Son 6 ay giderleri (kâr-zarar)
+    supabase.from("expenses").select("amount, spent_at").gte("spent_at", sixMonthsAgo.toISOString().slice(0, 10)),
   ]);
 
   // --- Aylık ciro (son 6 ay) ---
@@ -134,6 +139,21 @@ export default async function RaporlarPage() {
     label,
     value,
   }));
+
+  // --- Kâr & Zarar (gelir - gider, son 6 ay) ---
+  const expenseBuckets = monthBuckets.map(() => 0);
+  let totalExpense = 0;
+  for (const e of (expensesRes.data ?? []) as { amount: number | null; spent_at: string }[]) {
+    const d = new Date(e.spent_at);
+    const idx = bucketIndex.get(`${d.getFullYear()}-${d.getMonth()}`);
+    if (idx !== undefined) {
+      expenseBuckets[idx] += e.amount ?? 0;
+      totalExpense += e.amount ?? 0;
+    }
+  }
+  const profitData = monthBuckets.map((b, i) => ({ label: b.label, gelir: b.value, gider: expenseBuckets[i] }));
+  const netProfit = totalRevenue - totalExpense;
+  const margin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
 
   // --- Hizmet + personel bazlı ciro ---
   const completedAppts = (completedApptRes.data ?? []) as {
@@ -326,6 +346,34 @@ export default async function RaporlarPage() {
             </CardHeader>
             <CardContent>
               <RevenueAreaChart data={revenueData} />
+            </CardContent>
+          </Card>
+
+          {/* Kâr & Zarar — Gelir vs Gider */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <PiggyBank className="size-4 text-primary" />
+                Kâr & Zarar (Son 6 Ay)
+              </CardTitle>
+              <CardDescription>Gelir (tahsilat) ile gider karşılaştırması ve net kâr.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-xl border border-l-4 border-l-positive bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Gelir</p>
+                  <p className="text-lg font-bold tabular-nums text-positive">{formatPrice(totalRevenue)}</p>
+                </div>
+                <div className="rounded-xl border border-l-4 border-l-danger bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Gider</p>
+                  <p className="text-lg font-bold tabular-nums text-danger">{formatPrice(totalExpense)}</p>
+                </div>
+                <div className={`rounded-xl border border-l-4 bg-card p-3 ${netProfit >= 0 ? "border-l-positive" : "border-l-danger"}`}>
+                  <p className="text-xs text-muted-foreground">Net Kâr · %{margin} marj</p>
+                  <p className={`text-lg font-bold tabular-nums ${netProfit >= 0 ? "text-positive" : "text-danger"}`}>{formatPrice(netProfit)}</p>
+                </div>
+              </div>
+              <RevenueExpenseChart data={profitData} />
             </CardContent>
           </Card>
 
