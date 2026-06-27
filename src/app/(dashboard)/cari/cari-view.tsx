@@ -135,7 +135,7 @@ export function CariView({ rows }: { rows: CariRow[] }) {
                           {r.name.slice(0, 2).toLocaleUpperCase("tr")}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate font-medium leading-tight">{r.name}</p>
+                          <Link href={`/musteriler/${r.id}`} className="block truncate font-medium leading-tight hover:text-primary hover:underline">{r.name}</Link>
                           <p className="truncate text-xs text-muted-foreground">{r.phone ?? "—"}</p>
                         </div>
                       </div>

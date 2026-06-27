@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Search, Download, Users, UserX, Archive, UserPlus } from "lucide-react";
 
 import { customerStatusLabel, customerStatusVariant } from "@/lib/constants";
@@ -28,7 +29,6 @@ import {
 
 import { CustomerRowActions } from "./customer-row-actions";
 import { CustomerInlineForm } from "./customer-inline-form";
-import { CustomerDetailSheet } from "./customer-detail-sheet";
 
 export type EnrichedCustomer = Customer & {
   service: string | null;
@@ -82,7 +82,6 @@ export function CustomersView({
 }) {
   const [nowMs] = useState(() => Date.now());
   const [addOpen, setAddOpen] = useState(false);
-  const [detailCustomer, setDetailCustomer] = useState<EnrichedCustomer | null>(null);
   const [tab, setTab] = useState<"aktif" | "pasif" | "arsiv">("aktif");
   const [q, setQ] = useState("");
   const [service, setService] = useState("all");
@@ -273,13 +272,12 @@ export function CustomersView({
                           {c.full_name.slice(0, 2).toLocaleUpperCase("tr")}
                         </span>
                         <div className="min-w-0">
-                          <button
-                            type="button"
-                            onClick={() => setDetailCustomer(c)}
+                          <Link
+                            href={`/musteriler/${c.id}`}
                             className="block max-w-full truncate text-left font-medium leading-tight hover:text-primary hover:underline"
                           >
                             {c.full_name}
-                          </button>
+                          </Link>
                           <p className="truncate text-xs text-muted-foreground">{c.phone ?? "—"}</p>
                         </div>
                       </div>
@@ -347,14 +345,6 @@ export function CustomersView({
       <p className="text-xs text-muted-foreground">
         {filtered.length} müşteri gösteriliyor
       </p>
-
-      {detailCustomer && (
-        <CustomerDetailSheet
-          customer={detailCustomer}
-          open
-          onOpenChange={(o) => !o && setDetailCustomer(null)}
-        />
-      )}
     </div>
   );
 }

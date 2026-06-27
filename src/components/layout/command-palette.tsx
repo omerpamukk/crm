@@ -9,11 +9,13 @@ import {
   CalendarPlus,
   Banknote,
   Columns3,
+  User,
   type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS } from "@/lib/nav";
+import { searchCustomers, type CustomerHit } from "./search-actions";
 
 type Item = { id: string; label: string; hint?: string; icon: LucideIcon; href: string; group: string };
 
@@ -45,17 +47,39 @@ function Palette({ onClose }: { onClose: () => void }) {
   );
 
   const all = useMemo(() => [...QUICK_ACTIONS, ...navItems], [navItems]);
+  const [hits, setHits] = useState<CustomerHit[]>([]);
 
-  const results = useMemo(() => {
+  const staticResults = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");
     if (!q) return all;
     return all.filter((i) => i.label.toLocaleLowerCase("tr").includes(q));
   }, [all, query]);
 
+  // Müşteri sonuçlarını öne al (en alakalı)
+  const customerItems: Item[] = hits.map((h) => ({
+    id: `c-${h.id}`,
+    label: h.full_name,
+    hint: h.phone ?? (h.is_lead ? "lead" : "müşteri"),
+    icon: User,
+    href: `/musteriler/${h.id}`,
+    group: "Müşteriler",
+  }));
+  const results = [...customerItems, ...staticResults];
+
   // Yalnızca odaklama (setState yok)
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Müşteri araması (debounce) — setState yalnızca timeout callback'inde
+  useEffect(() => {
+    const q = query.trim();
+    const t = window.setTimeout(() => {
+      if (q.length < 2) setHits([]);
+      else searchCustomers(q).then(setHits);
+    }, 180);
+    return () => window.clearTimeout(t);
+  }, [query]);
 
   function go(item: Item) {
     onClose();

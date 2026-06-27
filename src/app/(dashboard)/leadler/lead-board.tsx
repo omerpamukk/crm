@@ -44,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Link from "next/link";
 import { CustomerDetailSheet } from "../musteriler/customer-detail-sheet";
 
 import {
@@ -389,9 +390,13 @@ export function LeadBoard({
                       )}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <span className="font-medium leading-tight">
+                        <Link
+                          href={`/musteriler/${lead.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-medium leading-tight hover:text-primary hover:underline"
+                        >
                           {lead.full_name}
-                        </span>
+                        </Link>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button

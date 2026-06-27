@@ -251,7 +251,11 @@ export default async function RandevularPage({
                             </span>
                             <div className="min-w-0 flex-1">
                               <p className="flex items-center gap-1.5 truncate text-sm font-medium leading-tight">
-                                {name}
+                                {a.customer_id ? (
+                                  <Link href={`/musteriler/${a.customer_id}`} className="hover:text-primary hover:underline">{name}</Link>
+                                ) : (
+                                  name
+                                )}
                                 {a.booked_online && <OnlineBadge />}
                               </p>
                               <p className="mt-0.5 truncate text-xs text-muted-foreground">
@@ -316,7 +320,11 @@ export default async function RandevularPage({
                       </TableCell>
                       <TableCell>
                         <span className="flex items-center gap-1.5">
-                          {a.customer?.full_name ?? "—"}
+                          {a.customer_id ? (
+                            <Link href={`/musteriler/${a.customer_id}`} className="hover:text-primary hover:underline">{a.customer?.full_name ?? "—"}</Link>
+                          ) : (
+                            (a.customer?.full_name ?? "—")
+                          )}
                           {a.booked_online && <OnlineBadge />}
                         </span>
                       </TableCell>
