@@ -18,6 +18,8 @@ import {
   CalendarPlus,
   CalendarCheck,
   CheckCircle2,
+  MessageCircle,
+  Lightbulb,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
@@ -36,14 +38,18 @@ const DAY = 86_400_000;
 const MONTH_NAMES = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
 type TodayAppointment = {
-  id: string;
-  starts_at: string;
-  status: string | null;
-  customer_id: string | null;
-  customer: { full_name: string } | null;
-  service: { name: string } | null;
+  id: string; starts_at: string; status: string | null; customer_id: string | null;
+  customer: { full_name: string } | null; service: { name: string } | null;
 };
 type RecentCustomer = { id: string; full_name: string; created_at: string };
+
+const PERIODS = [
+  { key: "bugun", label: "Bugün", comp: "düne göre" },
+  { key: "hafta", label: "Bu Hafta", comp: "geçen haftaya göre" },
+  { key: "ay", label: "Bu Ay", comp: "geçen aya göre" },
+  { key: "yil", label: "Bu Yıl", comp: "geçen yıla göre" },
+] as const;
+type PeriodKey = (typeof PERIODS)[number]["key"];
 
 function pickOne<T>(value: T | T[] | null): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
@@ -56,36 +62,58 @@ function daysUntilBirthday(birthday: string, today: Date): number | null {
   if (next.getTime() < todayMid.getTime()) next = new Date(today.getFullYear() + 1, m - 1, d);
   return Math.round((next.getTime() - todayMid.getTime()) / DAY);
 }
+function waLink(phone: string) {
+  const d = phone.replace(/\D/g, "");
+  const n = d.startsWith("90") ? d : d.startsWith("0") ? `90${d.slice(1)}` : `90${d}`;
+  return `https://wa.me/${n}`;
+}
 
-export default async function PanelPage() {
+function resolvePeriod(d: PeriodKey, now: Date) {
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfToday = new Date(startOfToday); endOfToday.setDate(endOfToday.getDate() + 1);
+  if (d === "bugun") {
+    const prevStart = new Date(startOfToday); prevStart.setDate(prevStart.getDate() - 1);
+    return { start: startOfToday, end: endOfToday, prevStart, prevEnd: startOfToday };
+  }
+  if (d === "hafta") {
+    const start = new Date(startOfToday); start.setDate(start.getDate() - 6);
+    const prevStart = new Date(start); prevStart.setDate(prevStart.getDate() - 7);
+    return { start, end: endOfToday, prevStart, prevEnd: start };
+  }
+  if (d === "yil") {
+    const start = new Date(now.getFullYear(), 0, 1);
+    return { start, end: new Date(now.getFullYear() + 1, 0, 1), prevStart: new Date(now.getFullYear() - 1, 0, 1), prevEnd: start };
+  }
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  return { start, end: new Date(now.getFullYear(), now.getMonth() + 1, 1), prevStart: new Date(now.getFullYear(), now.getMonth() - 1, 1), prevEnd: start };
+}
+
+export default async function PanelPage({ searchParams }: { searchParams: Promise<{ d?: string }> }) {
+  const { d: dParam } = await searchParams;
+  const period = (PERIODS.find((p) => p.key === dParam)?.key ?? "ay") as PeriodKey;
+  const periodMeta = PERIODS.find((p) => p.key === period)!;
+
   const { fullName, email } = await getAccountContext();
   const displayName = (fullName ?? email ?? "").split(" ")[0] || "👋";
   const supabase = await createClient();
 
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endOfToday = new Date(startOfToday);
-  endOfToday.setDate(endOfToday.getDate() + 1);
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const endOfToday = new Date(startOfToday); endOfToday.setDate(endOfToday.getDate() + 1);
   const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-  const fourteenDaysAgo = new Date(startOfToday);
-  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13);
-  const ninetyDaysAgo = new Date(now);
-  ninetyDaysAgo.setDate(now.getDate() - 90);
+  const fourteenDaysAgo = new Date(startOfToday); fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13);
+  const ninetyDaysAgo = new Date(now); ninetyDaysAgo.setDate(now.getDate() - 90);
+  const { start: pStart, end: pEnd, prevStart, prevEnd } = resolvePeriod(period, now);
 
   const [
-    customersCount, newMonthCount, monthPayRes, lastMonthPayRes, pendingCount,
-    todayRes, packagesRes, birthdayRes, inactiveCount, recentRes,
+    customersCount, pendingCount, todayRes, packagesRes, birthdayRes, inactiveCount, recentRes,
     sixMonthPayRes, leadsCount, fourteenPayRes, completedTodayRes,
+    periodPayRes, prevPayRes, periodApptRes, periodNewCustRes,
   ] = await Promise.all([
     supabase.from("customers").select("*", { count: "exact", head: true }).eq("is_lead", false),
-    supabase.from("customers").select("*", { count: "exact", head: true }).eq("is_lead", false).gte("created_at", startOfMonth.toISOString()),
-    supabase.from("payments").select("amount").gte("created_at", startOfMonth.toISOString()),
-    supabase.from("payments").select("amount").gte("created_at", startOfLastMonth.toISOString()).lt("created_at", startOfMonth.toISOString()),
     supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "planned").gte("starts_at", now.toISOString()),
     supabase.from("appointments").select("id, starts_at, status, customer_id, customer:customers(full_name), service:services(name)").gte("starts_at", startOfToday.toISOString()).lt("starts_at", endOfToday.toISOString()).order("starts_at", { ascending: true }),
-    supabase.from("packages").select("customer_id, price, paid_amount, remaining_sessions, purchased_at, customer:customers(full_name)"),
+    supabase.from("packages").select("customer_id, price, paid_amount, remaining_sessions, purchased_at, customer:customers(full_name, phone)"),
     supabase.from("customers").select("id, full_name, birthday").not("birthday", "is", null),
     supabase.from("customers").select("*", { count: "exact", head: true }).not("last_visit_at", "is", null).lte("last_visit_at", ninetyDaysAgo.toISOString()),
     supabase.from("customers").select("id, full_name, created_at").eq("is_lead", false).order("created_at", { ascending: false }).limit(5),
@@ -93,23 +121,25 @@ export default async function PanelPage() {
     supabase.from("customers").select("*", { count: "exact", head: true }).eq("is_lead", true),
     supabase.from("payments").select("amount, created_at").gte("created_at", fourteenDaysAgo.toISOString()),
     supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "completed").gte("starts_at", startOfToday.toISOString()).lt("starts_at", endOfToday.toISOString()),
+    supabase.from("payments").select("amount").gte("created_at", pStart.toISOString()).lt("created_at", pEnd.toISOString()),
+    supabase.from("payments").select("amount").gte("created_at", prevStart.toISOString()).lt("created_at", prevEnd.toISOString()),
+    supabase.from("appointments").select("*", { count: "exact", head: true }).gte("starts_at", pStart.toISOString()).lt("starts_at", pEnd.toISOString()),
+    supabase.from("customers").select("*", { count: "exact", head: true }).eq("is_lead", false).gte("created_at", pStart.toISOString()).lt("created_at", pEnd.toISOString()),
   ]);
 
   const todayAppointments = (todayRes.data ?? []) as unknown as TodayAppointment[];
   const recentCustomers = (recentRes.data ?? []) as RecentCustomer[];
 
-  // Ciro (bu ay / geçen ay)
-  const monthRevenue = ((monthPayRes.data ?? []) as { amount: number | null }[]).reduce((s, p) => s + (p.amount ?? 0), 0);
-  const lastMonthRevenue = ((lastMonthPayRes.data ?? []) as { amount: number | null }[]).reduce((s, p) => s + (p.amount ?? 0), 0);
-  const revenuePct = lastMonthRevenue > 0 ? Math.round(((monthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100) : null;
+  // Dönem performansı
+  const periodRevenue = ((periodPayRes.data ?? []) as { amount: number | null }[]).reduce((s, p) => s + (p.amount ?? 0), 0);
+  const prevRevenue = ((prevPayRes.data ?? []) as { amount: number | null }[]).reduce((s, p) => s + (p.amount ?? 0), 0);
+  const periodPct = prevRevenue > 0 ? Math.round(((periodRevenue - prevRevenue) / prevRevenue) * 100) : null;
+  const periodAppts = periodApptRes.count ?? 0;
+  const periodNewCust = periodNewCustRes.count ?? 0;
 
-  // Son 14 gün → günlük seri (son 7 gün sparkline) + bugün cirosu + hafta karşılaştırması
+  // Son 14 gün → sparkline + bugün cirosu
   const dayBuckets = new Map<string, number>();
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(fourteenDaysAgo);
-    d.setDate(d.getDate() + i);
-    dayBuckets.set(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`, 0);
-  }
+  for (let i = 0; i < 14; i++) { const d = new Date(fourteenDaysAgo); d.setDate(d.getDate() + i); dayBuckets.set(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`, 0); }
   let todayRevenue = 0;
   for (const p of (fourteenPayRes.data ?? []) as { amount: number | null; created_at: string }[]) {
     const d = new Date(p.created_at);
@@ -117,22 +147,19 @@ export default async function PanelPage() {
     if (dayBuckets.has(key)) dayBuckets.set(key, (dayBuckets.get(key) ?? 0) + (p.amount ?? 0));
     if (d >= startOfToday) todayRevenue += p.amount ?? 0;
   }
-  const dailyValues = [...dayBuckets.values()];
-  const sparkData = dailyValues.slice(7).map((value) => ({ value }));
-  const thisWeekRev = dailyValues.slice(7).reduce((s, v) => s + v, 0);
-  const lastWeekRev = dailyValues.slice(0, 7).reduce((s, v) => s + v, 0);
-  const weekPct = lastWeekRev > 0 ? Math.round(((thisWeekRev - lastWeekRev) / lastWeekRev) * 100) : null;
+  const sparkData = [...dayBuckets.values()].slice(7).map((value) => ({ value }));
 
-  // Borç / tahsil edilecek (paketlerden, müşteri bazında)
-  type Debtor = { id: string; name: string; debt: number; overdue: boolean };
+  // Borç
+  type Debtor = { id: string; name: string; phone: string | null; debt: number; overdue: boolean };
   const debtorMap = new Map<string, Debtor>();
-  for (const p of (packagesRes.data ?? []) as { customer_id: string | null; price: number | null; paid_amount: number | null; purchased_at: string | null; customer: { full_name: string } | { full_name: string }[] | null }[]) {
+  for (const p of (packagesRes.data ?? []) as { customer_id: string | null; price: number | null; paid_amount: number | null; purchased_at: string | null; customer: { full_name: string; phone: string | null } | { full_name: string; phone: string | null }[] | null }[]) {
     const debt = (p.price ?? 0) - (p.paid_amount ?? 0);
     if (debt <= 0 || !p.customer_id) continue;
     const overdue = !!p.purchased_at && now.getTime() - new Date(p.purchased_at).getTime() > 30 * DAY;
+    const c = pickOne(p.customer);
     const existing = debtorMap.get(p.customer_id);
     if (existing) { existing.debt += debt; existing.overdue = existing.overdue || overdue; }
-    else debtorMap.set(p.customer_id, { id: p.customer_id, name: pickOne(p.customer)?.full_name ?? "—", debt, overdue });
+    else debtorMap.set(p.customer_id, { id: p.customer_id, name: c?.full_name ?? "—", phone: c?.phone ?? null, debt, overdue });
   }
   const debtors = [...debtorMap.values()].sort((a, b) => b.debt - a.debt);
   const totalDebt = debtors.reduce((s, d) => s + d.debt, 0);
@@ -148,32 +175,36 @@ export default async function PanelPage() {
   const inactive90 = inactiveCount.count ?? 0;
   const oppTotal = endingCount + inactive90 + birthdayWeek.length;
 
-  // Aylık gelir grafiği (son 6 ay)
+  // Aylık gelir grafiği
   const buckets: { key: string; label: string; value: number }[] = [];
-  for (let i = 0; i < 6; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
-    buckets.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: MONTH_NAMES[d.getMonth()], value: 0 });
-  }
+  for (let i = 0; i < 6; i++) { const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1); buckets.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: MONTH_NAMES[d.getMonth()], value: 0 }); }
   const bucketIdx = new Map(buckets.map((b, i) => [b.key, i]));
   for (const p of (sixMonthPayRes.data ?? []) as { amount: number | null; created_at: string }[]) {
-    const d = new Date(p.created_at);
-    const idx = bucketIdx.get(`${d.getFullYear()}-${d.getMonth()}`);
+    const d = new Date(p.created_at); const idx = bucketIdx.get(`${d.getFullYear()}-${d.getMonth()}`);
     if (idx !== undefined) buckets[idx].value += p.amount ?? 0;
   }
   const revenueData = buckets.map(({ label, value }) => ({ label, value }));
 
   const customerTotal = customersCount.count ?? 0;
-  const newThisMonth = newMonthCount.count ?? 0;
   const pendingAppt = pendingCount.count ?? 0;
   const leadTotal = leadsCount.count ?? 0;
   const completedToday = completedTodayRes.count ?? 0;
+  const completionPct = todayAppointments.length > 0 ? Math.round((completedToday / todayAppointments.length) * 100) : 0;
+  const monthRevenue = ((periodPayRes.data ?? []) as { amount: number | null }[]).reduce((s, p) => s + (p.amount ?? 0), 0);
 
-  // KPI'lar
+  // Akıllı günün özeti
+  const summaryParts: string[] = [];
+  summaryParts.push(todayAppointments.length > 0 ? `Bugün **${todayAppointments.length} randevu**, ${completedToday} tamamlandı` : "Bugün planlı randevu yok");
+  if (todayRevenue > 0) summaryParts.push(`**${formatPrice(todayRevenue)}** tahsilat`);
+  if (overdueDebtors.length > 0) summaryParts.push(`${overdueDebtors.length} gecikmiş ödeme — en acil **${overdueDebtors[0].name}** (${formatPrice(overdueDebtors[0].debt)})`);
+  if (birthdayToday.length > 0) summaryParts.push(`🎂 ${birthdayToday.length} doğum günü`);
+  const summary = summaryParts.join(" · ") + ".";
+
   const kpis = [
-    { label: "Bu Ay Ciro", value: formatPrice(monthRevenue), icon: Banknote, tone: "bg-positive/10 text-positive", bar: "border-l-positive", trend: revenuePct !== null ? { up: revenuePct >= 0, text: `geçen aya göre %${Math.abs(revenuePct)}` } : null, href: "/tahsilat", spark: sparkData },
+    { label: "Bu Ay Ciro", value: formatPrice(monthRevenue), icon: Banknote, tone: "bg-positive/10 text-positive", bar: "border-l-positive", trend: periodPct !== null ? { up: periodPct >= 0, text: `${periodMeta.comp} %${Math.abs(periodPct)}` } : null, href: "/tahsilat", spark: sparkData },
     { label: "Bekleyen Randevu", value: pendingAppt.toLocaleString("tr-TR"), icon: CalendarDays, tone: "bg-warning/12 text-amber-600", bar: "border-l-warning", sub: `Bugün ${todayAppointments.length} randevu`, href: "/randevular" },
     { label: "Tahsil Edilecek", value: formatPrice(totalDebt), icon: Wallet, tone: "bg-danger/10 text-danger", bar: "border-l-danger", sub: `${debtors.length} müşteri · ${overdueDebtors.length} gecikmiş`, href: "/cari", accent: totalDebt > 0 ? "text-danger" : "" },
-    { label: "Toplam Müşteri", value: customerTotal.toLocaleString("tr-TR"), icon: Users, tone: "bg-primary/10 text-primary", bar: "border-l-primary", trend: newThisMonth > 0 ? { up: true, text: `+${newThisMonth} bu ay` } : null, href: "/musteriler" },
+    { label: "Toplam Müşteri", value: customerTotal.toLocaleString("tr-TR"), icon: Users, tone: "bg-primary/10 text-primary", bar: "border-l-primary", sub: `${leadTotal} aktif lead`, href: "/musteriler" },
   ];
 
   const priorities = [
@@ -194,30 +225,43 @@ export default async function PanelPage() {
   ];
 
   const todayLabel = now.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
-  const heroStats = [
-    { label: "Bugün Ciro", value: formatPrice(todayRevenue), icon: Banknote, tone: "text-positive" },
-    { label: "Bugünkü Randevu", value: String(todayAppointments.length), icon: CalendarDays, tone: "text-primary" },
-    { label: "Tamamlanan", value: String(completedToday), icon: CalendarCheck, tone: "text-positive" },
+  const periodStats = [
+    { label: "Dönem Ciro", value: formatPrice(periodRevenue), icon: Banknote, tone: "text-positive" },
+    { label: "Dönem Randevu", value: String(periodAppts), icon: CalendarDays, tone: "text-primary" },
+    { label: "Yeni Müşteri", value: `+${periodNewCust}`, icon: UserPlus, tone: "text-primary" },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Karşılama bandı + hızlı işlemler + bugün özeti */}
+      {/* Karşılama bandı + dönem seçici + akıllı özet + dönem performansı */}
       <div className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/[0.08] via-card to-card p-5 shadow-soft">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{todayLabel}</p>
             <h1 className="mt-0.5 text-2xl font-bold">Merhaba {displayName} 👋</h1>
-            <p className="text-sm text-muted-foreground">İşletmenin bugünkü durumu bir bakışta.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center rounded-lg border bg-card p-0.5">
+              {PERIODS.map((p) => (
+                <Link key={p.key} href={p.key === "ay" ? "/panel" : `/panel?d=${p.key}`} className={cn(buttonVariants({ variant: period === p.key ? "secondary" : "ghost", size: "sm" }))}>
+                  {p.label}
+                </Link>
+              ))}
+            </div>
             <NewCustomerButton />
-            <Link href="/randevular" className={cn(buttonVariants({ variant: "outline" }))}><CalendarPlus className="size-4" />Randevu</Link>
-            <Link href="/tahsilat" className={cn(buttonVariants({ variant: "outline" }))}><Banknote className="size-4" />Ödeme Al</Link>
+            <Link href="/tahsilat" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}><Banknote className="size-4" />Ödeme Al</Link>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          {heroStats.map((s) => {
+
+        {/* Akıllı özet */}
+        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/[0.04] p-3">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Lightbulb className="size-4" /></span>
+          <p className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: summary.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
+        </div>
+
+        {/* Dönem performansı */}
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          {periodStats.map((s) => {
             const Icon = s.icon;
             return (
               <div key={s.label} className="flex items-center gap-2.5 rounded-xl border bg-card/70 p-3">
@@ -247,16 +291,11 @@ export default async function PanelPage() {
                   <div className={cn("text-2xl font-bold tracking-tight tabular-nums", kpi.accent)}>{kpi.value}</div>
                   {kpi.trend && (
                     <p className={cn("mt-1 flex items-center gap-1 text-xs font-medium", kpi.trend.up ? "text-positive" : "text-danger")}>
-                      {kpi.trend.up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-                      {kpi.trend.text}
+                      {kpi.trend.up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}{kpi.trend.text}
                     </p>
                   )}
                   {kpi.sub && <p className="mt-1 text-xs text-muted-foreground">{kpi.sub}</p>}
-                  {kpi.spark && (
-                    <div className="-mb-2 mt-2">
-                      <Sparkline data={kpi.spark} />
-                    </div>
-                  )}
+                  {kpi.spark && <div className="-mb-2 mt-2"><Sparkline data={kpi.spark} /></div>}
                 </CardContent>
               </Card>
             </Link>
@@ -268,16 +307,18 @@ export default async function PanelPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Clock className="size-4 text-primary" />
-              Bugünün Programı
+            <CardTitle className="flex items-center gap-2 text-base"><Clock className="size-4 text-primary" />Bugünün Programı</CardTitle>
+            <div className="flex items-center gap-3">
               {todayAppointments.length > 0 && (
-                <span className="rounded-full bg-positive/12 px-2 py-0.5 text-xs font-medium text-positive">
-                  {completedToday}/{todayAppointments.length} tamamlandı
-                </span>
+                <div className="flex items-center gap-2">
+                  <div className="relative size-9 rounded-full" style={{ background: `conic-gradient(#16A34A ${completionPct * 3.6}deg, var(--muted) 0deg)` }}>
+                    <div className="absolute inset-[3px] flex items-center justify-center rounded-full bg-card text-[10px] font-bold">{completionPct}%</div>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{completedToday}/{todayAppointments.length}</span>
+                </div>
               )}
-            </CardTitle>
-            <Link href="/takvim" className="text-sm text-primary hover:underline">Takvim →</Link>
+              <Link href="/takvim" className="text-sm text-primary hover:underline">Takvim →</Link>
+            </div>
           </CardHeader>
           <CardContent>
             {todayAppointments.length === 0 ? (
@@ -295,24 +336,19 @@ export default async function PanelPage() {
                       <div className="min-w-0">
                         {a.customer_id ? (
                           <Link href={`/musteriler/${a.customer_id}`} className="block truncate text-sm font-medium leading-tight hover:text-primary hover:underline">{a.customer?.full_name ?? "—"}</Link>
-                        ) : (
-                          <p className="truncate text-sm font-medium leading-tight">{a.customer?.full_name ?? "—"}</p>
-                        )}
+                        ) : (<p className="truncate text-sm font-medium leading-tight">{a.customer?.full_name ?? "—"}</p>)}
                         <p className="truncate text-xs text-muted-foreground">{a.service?.name ?? "Hizmet belirtilmedi"}</p>
                       </div>
                     </div>
                     <Badge variant={appointmentStatusVariant(a.status)}>{appointmentStatusLabel(a.status)}</Badge>
                   </li>
                 ))}
-                {todayAppointments.length > 6 && (
-                  <li className="pt-2.5"><Link href="/randevular" className="text-sm text-primary hover:underline">+{todayAppointments.length - 6} randevu daha →</Link></li>
-                )}
+                {todayAppointments.length > 6 && (<li className="pt-2.5"><Link href="/randevular" className="text-sm text-primary hover:underline">+{todayAppointments.length - 6} randevu daha →</Link></li>)}
               </ul>
             )}
           </CardContent>
         </Card>
 
-        {/* Fırsatlar — imza aksiyon kartı */}
         <Card className="card-accent border-l-primary">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="flex items-center gap-2 text-base"><Sparkles className="size-4 text-primary" />Para Kazandıracak Fırsatlar</CardTitle>
@@ -323,10 +359,7 @@ export default async function PanelPage() {
               const Icon = o.icon;
               return (
                 <Link key={o.label} href="/firsatlar" className="flex items-center justify-between gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-muted">
-                  <span className="flex items-center gap-2 text-sm">
-                    <span className={cn("flex size-8 items-center justify-center rounded-lg", o.tone)}><Icon className="size-4" /></span>
-                    {o.label}
-                  </span>
+                  <span className="flex items-center gap-2 text-sm"><span className={cn("flex size-8 items-center justify-center rounded-lg", o.tone)}><Icon className="size-4" /></span>{o.label}</span>
                   <span className="text-sm font-semibold tabular-nums">{o.count} kişi</span>
                 </Link>
               );
@@ -335,24 +368,14 @@ export default async function PanelPage() {
         </Card>
       </div>
 
-      {/* Aylık gelir grafiği + tahsil edilecek */}
+      {/* Gelir trendi + tahsil edilecek */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-start justify-between space-y-0">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-base"><TrendingUp className="size-4 text-primary" />Gelir Trendi</CardTitle>
-              <CardDescription>Son 6 ayda tahsil edilen ödemeler.</CardDescription>
-            </div>
-            {weekPct !== null && (
-              <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium", weekPct >= 0 ? "bg-positive/12 text-positive" : "bg-danger/10 text-danger")}>
-                {weekPct >= 0 ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />}
-                Bu hafta %{Math.abs(weekPct)}
-              </span>
-            )}
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><TrendingUp className="size-4 text-primary" />Gelir Trendi</CardTitle>
+            <CardDescription>Son 6 ayda tahsil edilen ödemeler.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <RevenueAreaChart data={revenueData} />
-          </CardContent>
+          <CardContent><RevenueAreaChart data={revenueData} /></CardContent>
         </Card>
 
         <Card>
@@ -366,14 +389,19 @@ export default async function PanelPage() {
             ) : (
               <ul className="space-y-1">
                 {debtors.slice(0, 5).map((d) => (
-                  <li key={d.id}>
-                    <Link href={`/musteriler/${d.id}`} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted">
+                  <li key={d.id} className="flex items-center gap-1.5">
+                    <Link href={`/musteriler/${d.id}`} className="flex flex-1 items-center justify-between gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted">
                       <span className="truncate text-sm font-medium">{d.name}</span>
                       <span className="flex shrink-0 items-center gap-2">
                         <span className="text-sm font-medium tabular-nums text-danger">{formatPrice(d.debt)}</span>
                         {d.overdue && <Badge variant="danger">Gecikmiş</Badge>}
                       </span>
                     </Link>
+                    {d.phone && (
+                      <a href={waLink(d.phone)} target="_blank" rel="noopener noreferrer" title="WhatsApp'tan hatırlat" className="flex size-7 shrink-0 items-center justify-center rounded-md text-positive transition-colors hover:bg-positive/10">
+                        <MessageCircle className="size-4" />
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>
