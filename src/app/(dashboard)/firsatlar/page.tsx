@@ -28,9 +28,8 @@ type Cust = {
   is_lead: boolean;
 };
 
-// ⚠️ GEÇİCİ: Sayfanın tam dolu halini görmek için demo veri.
-// Gerçek veriye dönmek için DEMO = false yap (ya da bu bloğu sil).
-const DEMO = true;
+// Gerçek veri kullanılır. (Demo blok yalnızca geçici önizleme içindi.)
+const DEMO = false;
 const it = (
   name: string, phone: string, meta: string, value: number | null,
   call = false
@@ -124,7 +123,7 @@ export default async function FirsatlarPage() {
     .filter((x): x is { c: Cust; days: number } => x.days !== null && x.days >= 90)
     .sort((a, b) => b.days - a.days)
     .map(({ c, days }) => ({
-      id: c.id, name: c.full_name, phone: c.phone,
+      id: c.id, customerId: c.id, name: c.full_name, phone: c.phone,
       meta: `${days} gün`, value: ltv.get(c.id) ?? null,
       waMsg: `Merhaba ${c.full_name}, sizi özledik! Size özel bir fırsatımız var, tekrar bekleriz. 💜`,
       call: false,
@@ -140,7 +139,7 @@ export default async function FirsatlarPage() {
     .map((p, i) => {
       const cust = pickOne(p.customer);
       return {
-        id: p.customer_id ?? `ending-${i}`,
+        id: p.customer_id ?? `ending-${i}`, customerId: p.customer_id,
         name: cust?.full_name ?? "—", phone: cust?.phone ?? null,
         meta: `Son ${p.remaining_sessions} seans`, value: p.price ?? null,
         waMsg: `Merhaba ${cust?.full_name ?? ""}, paketinizde son seanslarınız kaldı. Yenileme için size özel fırsatımız var!`,
@@ -157,7 +156,7 @@ export default async function FirsatlarPage() {
       const cust = pickOne(a.customer);
       const d = daysSince(a.starts_at) ?? 0;
       return {
-        id: `${a.customer_id}-${a.starts_at}`,
+        id: `${a.customer_id}-${a.starts_at}`, customerId: a.customer_id,
         name: cust?.full_name ?? "—", phone: cust?.phone ?? null,
         meta: d <= 0 ? "Bugün" : d === 1 ? "Dün" : `${d} gün önce`, value: null,
         waMsg: `Merhaba ${cust?.full_name ?? ""}, kaçırdığınız randevunuz için yeni bir tarih ayarlayalım mı?`,
@@ -171,7 +170,7 @@ export default async function FirsatlarPage() {
     .map((c) => ({ c, days: daysSince(c.created_at) ?? 0 }))
     .sort((a, b) => b.days - a.days)
     .map(({ c, days }) => ({
-      id: c.id, name: c.full_name, phone: c.phone,
+      id: c.id, customerId: c.id, name: c.full_name, phone: c.phone,
       meta: `${days} gün önce`, value: null,
       waMsg: `Merhaba ${c.full_name}, görüşmemizin ardından size özel bir teklif hazırladık!`,
       call: true,
@@ -183,7 +182,7 @@ export default async function FirsatlarPage() {
     .filter((x): x is { c: Cust; d: number } => x.d !== null && x.d <= 30)
     .sort((a, b) => a.d - b.d)
     .map(({ c, d }) => ({
-      id: c.id, name: c.full_name, phone: c.phone,
+      id: c.id, customerId: c.id, name: c.full_name, phone: c.phone,
       meta: d === 0 ? "Bugün 🎉" : `${d} gün sonra`, value: null,
       waMsg: `İyi ki doğdunuz ${c.full_name}! 🎉 Size özel bir hediyemiz var, bekleriz.`,
       call: false,
@@ -195,7 +194,7 @@ export default async function FirsatlarPage() {
     .filter((x): x is { c: Cust; days: number } => x.days !== null && x.days >= 28 && x.days < 90)
     .sort((a, b) => b.days - a.days)
     .map(({ c, days }) => ({
-      id: c.id, name: c.full_name, phone: c.phone,
+      id: c.id, customerId: c.id, name: c.full_name, phone: c.phone,
       meta: `${serviceByCustomer.get(c.id) ?? "Bakım"} · ${Math.floor(days / 7)} hafta`, value: null,
       waMsg: `Merhaba ${c.full_name}, bakım zamanınız geldi! Randevunuzu birlikte oluşturalım mı?`,
       call: false,
@@ -218,7 +217,7 @@ export default async function FirsatlarPage() {
   const debtors = [...debtMap.entries()].sort((a, b) => b[1].debt - a[1].debt);
   const totalDebt = debtors.reduce((s, [, d]) => s + d.debt, 0);
   const debtItems: OppItem[] = debtors.map(([id, d]) => ({
-    id, name: d.name, phone: d.phone,
+    id, customerId: id, name: d.name, phone: d.phone,
     meta: d.overdue ? "Gecikmiş" : "", value: d.debt,
     waMsg: `Merhaba ${d.name}, ödemenizle ilgili bir hatırlatma yapmak istedik. Detaylar için bize ulaşabilirsiniz.`,
     call: true,

@@ -56,6 +56,8 @@ export type OppItem = {
   value: number | null;
   waMsg: string;
   call: boolean;
+  /** 360 sayfası bağlantısı için gerçek müşteri id'si (varsa). */
+  customerId?: string | null;
 };
 
 export type OppCategory = {
@@ -230,7 +232,11 @@ export function OpportunitiesView({ categories }: { categories: OppCategory[] })
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
             {item.name.slice(0, 2).toLocaleUpperCase("tr")}
           </span>
-          <span className="truncate text-sm font-medium">{item.name}</span>
+          {item.customerId ? (
+            <Link href={`/musteriler/${item.customerId}`} className="truncate text-sm font-medium hover:text-primary hover:underline">{item.name}</Link>
+          ) : (
+            <span className="truncate text-sm font-medium">{item.name}</span>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {item.meta && <span className="text-xs text-muted-foreground">{item.meta}</span>}
