@@ -33,6 +33,27 @@ export interface Business {
   created_at: string;
   name: string;
   sector: string | null;
+  logo_url?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  email?: string | null;
+  currency?: string;
+  timezone?: string;
+  working_hours?: Record<string, unknown>;
+  slug?: string | null;
+  updated_at?: string | null;
+}
+
+/** customer_summary view (0007) — müşteri başına özet metrikler. */
+export interface CustomerSummary {
+  customer_id: string;
+  business_id: string;
+  full_name: string;
+  total_paid: number;
+  open_debt: number;
+  appointment_count: number;
+  completed_count: number;
+  last_visit_at: string | null;
 }
 
 export interface Profile {

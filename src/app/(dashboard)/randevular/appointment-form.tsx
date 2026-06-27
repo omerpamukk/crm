@@ -53,6 +53,7 @@ export function AppointmentForm({
   services,
   staff,
   packages,
+  presetCustomerId,
   onSuccess,
   onCancel,
 }: {
@@ -61,6 +62,7 @@ export function AppointmentForm({
   services: ServiceOption[];
   staff: StaffOption[];
   packages: PackageOption[];
+  presetCustomerId?: string;
   onSuccess: () => void;
   onCancel: () => void;
 }) {
@@ -77,7 +79,7 @@ export function AppointmentForm({
   } = useForm<AppointmentInput>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
-      customer_id: appointment?.customer_id ?? "",
+      customer_id: appointment?.customer_id ?? presetCustomerId ?? "",
       service_id: appointment?.service_id ?? NONE,
       staff_member_id: appointment?.staff_member_id ?? NONE,
       package_id: appointment?.package_id ?? NONE,
