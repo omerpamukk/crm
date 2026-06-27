@@ -1,23 +1,21 @@
-import { Plus } from "lucide-react";
+import { Mail } from "lucide-react";
 
-import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
-
-import { CampaignsView } from "./campaigns-view";
+import { ComingSoon } from "@/components/shared/coming-soon";
 
 export default function EpostaSmsPage() {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="E-posta & SMS"
-        description="Toplu e-posta ve SMS kampanyalarını yönet, performansını takip et."
-      >
-        <Button disabled>
-          <Plus className="size-4" />
-          Yeni Kampanya
-        </Button>
-      </PageHeader>
-      <CampaignsView />
-    </div>
+    <ComingSoon
+      title="E-posta & SMS"
+      pageDescription="Toplu e-posta ve SMS kampanyaları."
+      icon={Mail}
+      tagline="Kampanya & Toplu Gönderim"
+      description="Hedef kitleye toplu e-posta ve SMS gönder; açılma/tıklanma performansını izle."
+      features={[
+        "E-posta ve SMS kampanya yönetimi",
+        "Hedef kitle segmentasyonu",
+        "Açılma, tıklanma ve teslim raporları",
+        "Otomatik tetiklenen seriler",
+      ]}
+    />
   );
 }

@@ -1,18 +1,21 @@
-import { DEMO_CONVERSATIONS, type Channel } from "./demo-data";
-import { MessagesView } from "./messages-view";
+import { MessageSquare } from "lucide-react";
 
-const CHANNELS: Channel[] = ["instagram", "whatsapp", "messenger", "tiktok", "email"];
+import { ComingSoon } from "@/components/shared/coming-soon";
 
-export default async function MesajlarPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ kanal?: string }>;
-}) {
-  const { kanal } = await searchParams;
-  const initialChannel =
-    kanal && CHANNELS.includes(kanal as Channel) ? (kanal as Channel) : "all";
-
+export default function MesajlarPage() {
   return (
-    <MessagesView conversations={DEMO_CONVERSATIONS} initialChannel={initialChannel} />
+    <ComingSoon
+      title="Tüm Mesajlar"
+      pageDescription="Instagram, WhatsApp, Messenger ve TikTok mesajları tek gelen kutusunda."
+      icon={MessageSquare}
+      tagline="Omnichannel Gelen Kutusu"
+      description="Tüm sosyal ve mesajlaşma kanallarındaki yazışmaları tek ekrandan yönet, müşteriye dönüştür."
+      features={[
+        "Instagram DM, WhatsApp, Messenger ve TikTok tek kutuda",
+        "Kanal bazlı filtre ve okunmamış sayaçları",
+        "Sohbetten tek tıkla potansiyel müşteriye ekleme",
+        "Hazır yanıt şablonları ve ekibe atama",
+      ]}
+    />
   );
 }

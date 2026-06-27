@@ -4,7 +4,6 @@ import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { TopBar, type AppNotification } from "@/components/layout/top-bar";
 import { Toaster } from "@/components/ui/sonner";
-import { DEMO_UNREAD_TOTAL } from "./mesajlar/demo-data";
 
 const DAY = 86_400_000;
 
@@ -55,8 +54,8 @@ export default async function DashboardLayout({
     notifications.push({ id: "n-debt", icon: "debt", title: `${overdue.size} müşteride gecikmiş ödeme`, detail: "Cari hesabı incele ve hatırlat", href: "/cari" });
   }
 
-  // msgAll / automations: şimdilik DEMO sayaçlar (entegrasyon bağlanınca gerçeğe döner)
-  const badges = { overdueCari: overdue.size, msgAll: DEMO_UNREAD_TOTAL, automations: 5, tasks: 3 };
+  // Yalnızca gerçek veriden gelen rozet: gecikmiş ödemeli müşteri sayısı
+  const badges = { overdueCari: overdue.size };
 
   return (
     <div className="flex min-h-svh">

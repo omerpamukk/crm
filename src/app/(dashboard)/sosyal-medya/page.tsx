@@ -1,23 +1,21 @@
-import { Plus } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 
-import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
-
-import { PlannerView } from "./planner-view";
+import { ComingSoon } from "@/components/shared/coming-soon";
 
 export default function SosyalMedyaPage() {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Sosyal Medya Planlamaları"
-        description="Instagram, WhatsApp, e-posta ve SMS içeriklerini takvimle planla ve takip et."
-      >
-        <Button disabled>
-          <Plus className="size-4" />
-          İçerik Ekle
-        </Button>
-      </PageHeader>
-      <PlannerView />
-    </div>
+    <ComingSoon
+      title="Sosyal Medya Planlamaları"
+      pageDescription="İçeriklerini takvimle planla ve yayınla."
+      icon={CalendarClock}
+      tagline="İçerik Takvimi & Otomatik Paylaşım"
+      description="Instagram, WhatsApp, e-posta ve SMS içeriklerini önceden planla; doğru zamanda otomatik yayınlansın."
+      features={[
+        "Sürükle-bırak içerik takvimi",
+        "Çok kanallı planlama (Instagram, WhatsApp, e-posta, SMS)",
+        "Zamanlanmış otomatik paylaşım",
+        "Bekleyen/yayınlanan içerik takibi",
+      ]}
+    />
   );
 }

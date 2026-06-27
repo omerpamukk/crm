@@ -31,9 +31,7 @@ import {
   LayoutGrid,
   Newspaper,
   Gauge,
-  Boxes,
   MapPin,
-  FileSignature,
   ListTodo,
   FileBarChart,
   SlidersHorizontal,
@@ -101,7 +99,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Mesajlaşma",
     icon: MessageSquare,
     items: [
-      { href: "/mesajlar", label: "Tüm Mesajlar", icon: Inbox, badge: "msgAll" },
+      { href: "/mesajlar", label: "Tüm Mesajlar", icon: Inbox },
     ],
   },
   {
@@ -119,7 +117,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "İş Akışları",
     icon: Workflow,
     items: [
-      { href: "/otomasyonlar", label: "Otomasyonlar", icon: Zap, badge: "automations" },
+      { href: "/otomasyonlar", label: "Otomasyonlar", icon: Zap },
       { href: "/hatirlaticilar", label: "Hatırlatıcılar", icon: Bell },
       { href: "/eposta-sms", label: "E-posta & SMS", icon: Mail },
     ],
@@ -142,10 +140,8 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/hizmetler", label: "Hizmetler & Fiyatlar", icon: Scissors },
       { href: "/personel", label: "Personel", icon: UserCog },
-      { href: "/stok", label: "Stok Yönetimi", icon: Boxes },
       { href: "/giderler", label: "Gider Yönetimi", icon: Receipt },
       { href: "/yorumlar", label: "Google Maps & Yorumlar", icon: MapPin },
-      { href: "/belgeler", label: "Belge İmzalama", icon: FileSignature },
     ],
   },
   {
@@ -153,7 +149,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Sistem",
     icon: Settings,
     items: [
-      { href: "/gorevler", label: "Görev Sistemi", icon: ListTodo, badge: "tasks" },
+      { href: "/gorevler", label: "Görev Sistemi", icon: ListTodo },
       { href: "/ayarlar", label: "Ayarlar", icon: SlidersHorizontal },
       { href: "/raporlama", label: "Rapor Oluştur", icon: FileBarChart },
     ],
