@@ -33,7 +33,6 @@ import {
   Gauge,
   MapPin,
   ListTodo,
-  FileBarChart,
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
@@ -151,7 +150,6 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/gorevler", label: "Görev Sistemi", icon: ListTodo },
       { href: "/ayarlar", label: "Ayarlar", icon: SlidersHorizontal },
-      { href: "/raporlama", label: "Rapor Oluştur", icon: FileBarChart },
     ],
   },
 ];

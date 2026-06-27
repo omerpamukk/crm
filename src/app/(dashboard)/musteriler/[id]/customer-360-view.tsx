@@ -11,7 +11,6 @@ import {
   CalendarPlus,
   Banknote,
   Package as PackageIcon,
-  StickyNote,
   Wallet,
   CalendarCheck,
   Coins,
