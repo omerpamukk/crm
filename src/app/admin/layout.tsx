@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 
-import { AdminLogout } from "./admin-logout";
+import { AdminUserMenu } from "./admin-logout";
 
 /**
  * Süper-admin (ajans) paneli kabuğu.
@@ -49,13 +49,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <Plus className="size-4" />
               Yeni Firma
             </Link>
-            <div className="ml-1 hidden items-center gap-2 rounded-full border bg-muted/40 py-1 pl-1 pr-3 sm:flex">
-              <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                {(user.email ?? "AD").slice(0, 2).toLocaleUpperCase("tr")}
-              </span>
-              <span className="max-w-40 truncate text-xs font-medium text-muted-foreground">{user.email}</span>
-            </div>
-            <AdminLogout />
+            <AdminUserMenu email={user.email ?? ""} />
           </div>
         </div>
       </header>
