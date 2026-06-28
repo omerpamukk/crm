@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -57,14 +56,35 @@ export default function GirisPage() {
       return;
     }
 
-    // İşletme kurulmuş mu kontrol et → yoksa onboarding, varsa panel.
+    // Yönlendirme: süper-admin → /admin · işletmesi yok → /hesap-yok
+    // · aboneliği askıda/iptal → /askida · normal → /panel
+    const { data: isAdmin } = await supabase.rpc("is_super_admin");
+    if (isAdmin) {
+      router.push("/admin");
+      router.refresh();
+      return;
+    }
+
     const { data: profile } = await supabase
       .from("profiles")
       .select("business_id")
       .eq("id", data.user.id)
       .single();
 
-    router.push(profile?.business_id ? "/panel" : "/isletme-kur");
+    if (!profile?.business_id) {
+      router.push("/hesap-yok");
+      router.refresh();
+      return;
+    }
+
+    const { data: sub } = await supabase
+      .from("subscriptions")
+      .select("status")
+      .eq("business_id", profile.business_id)
+      .maybeSingle();
+
+    const suspended = sub?.status === "suspended" || sub?.status === "cancelled";
+    router.push(suspended ? "/askida" : "/panel");
     router.refresh();
   }
 
@@ -109,11 +129,8 @@ export default function GirisPage() {
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Giriş yapılıyor..." : "Giriş yap"}
           </Button>
-          <p className="text-sm text-muted-foreground">
-            Hesabınız yok mu?{" "}
-            <Link href="/kayit" className="text-primary hover:underline">
-              Kayıt ol
-            </Link>
+          <p className="text-center text-xs text-muted-foreground">
+            Hesabın yalnızca işletme yöneticin tarafından oluşturulur.
           </p>
         </CardFooter>
       </form>

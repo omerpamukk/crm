@@ -15,7 +15,8 @@ export interface AccountContext {
 
 /**
  * Giriş yapmış kullanıcının profil + işletme bağlamını döndürür.
- * Oturum yoksa /giris'e, işletmesi yoksa /isletme-kur'a yönlendirir.
+ * Oturum yoksa /giris'e; süper-admin /admin'e; işletmesi yoksa /hesap-yok'a;
+ * aboneliği askıdaysa /askida'ya yönlendirir.
  * Dashboard server component'lerinde kullanılır.
  */
 export async function getAccountContext(): Promise<AccountContext> {
@@ -28,6 +29,12 @@ export async function getAccountContext(): Promise<AccountContext> {
     redirect("/giris");
   }
 
+  // Süper-admin firma paneline değil, /admin'e gider.
+  const { data: isAdmin } = await supabase.rpc("is_super_admin");
+  if (isAdmin) {
+    redirect("/admin");
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("full_name, business_id, role, businesses(name)")
@@ -35,7 +42,17 @@ export async function getAccountContext(): Promise<AccountContext> {
     .single();
 
   if (!profile?.business_id) {
-    redirect("/isletme-kur");
+    redirect("/hesap-yok");
+  }
+
+  // Abonelik askıda/iptal ise firma paneline erişilemez.
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("status")
+    .eq("business_id", profile.business_id)
+    .maybeSingle();
+  if (sub?.status === "suspended" || sub?.status === "cancelled") {
+    redirect("/askida");
   }
 
   const business = (

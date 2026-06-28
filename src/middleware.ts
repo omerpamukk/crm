@@ -35,10 +35,13 @@ const PROTECTED_PREFIXES = [
   "/cari",
   "/giderler",
   "/personel",
-  "/isletme-kur",
+  // Süper-admin paneli + hesap durum ekranları (giriş gerektirir)
+  "/admin",
+  "/askida",
+  "/hesap-yok",
 ];
-// Yalnızca giriş yapmamış kullanıcıların görebileceği yollar
-const AUTH_ONLY_PATHS = ["/giris", "/kayit"];
+// Yalnızca giriş yapmamış kullanıcıların görebileceği yollar (açık kayıt kapandı)
+const AUTH_ONLY_PATHS = ["/giris"];
 
 function redirectTo(request: NextRequest, pathname: string) {
   const url = request.nextUrl.clone();
