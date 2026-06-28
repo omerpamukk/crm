@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertPerm } from "@/lib/supabase/admin-context";
+import { logAdminAction } from "@/lib/supabase/audit";
 
 export interface ProvisionInput {
   businessName: string;
@@ -98,6 +99,7 @@ export async function provisionBusiness(input: ProvisionInput): Promise<Result> 
   // 7) Varsayılan pipeline sütunları
   await admin.from("pipeline_stages").insert(DEFAULT_STAGES.map((s) => ({ ...s, business_id: businessId })));
 
+  await logAdminAction("firma_olustur", { businessId, businessName, detail: email });
   revalidatePath("/admin");
   return { ok: true, credentials: { email, password } };
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertPerm } from "@/lib/supabase/admin-context";
+import { logAdminAction } from "@/lib/supabase/audit";
 
 type Result = { ok: boolean; error?: string; password?: string; credentials?: { email: string; password: string } };
 
@@ -44,7 +45,8 @@ export async function updateBusinessInfo(id: string, patch: BusinessInfoPatch): 
     updated_at: new Date().toISOString(),
   }).eq("id", id);
   if (error) return { ok: false, error: error.message.includes("slug") ? "Bu web adresi (slug) başka firmada kullanılıyor." : error.message };
-  revalidatePath(`/admin/firma/${id}`);
+await logAdminAction("firma_duzenle", { businessId: id, businessName: patch.name });
+    revalidatePath(`/admin/firma/${id}`);
   return { ok: true };
 }
 
@@ -71,7 +73,8 @@ export async function updateSubscription(businessId: string, patch: Subscription
     updated_at: new Date().toISOString(),
   }).eq("business_id", businessId);
   if (error) return { ok: false, error: error.message };
-  revalidatePath(`/admin/firma/${businessId}`);
+await logAdminAction("abonelik_guncelle", { businessId, detail: `${patch.plan} · ${patch.status}` });
+    revalidatePath(`/admin/firma/${businessId}`);
   return { ok: true };
 }
 
@@ -81,7 +84,8 @@ export async function setSubscriptionStatus(businessId: string, status: "active"
   const admin = createAdminClient();
   const { error } = await admin.from("subscriptions").update({ status, updated_at: new Date().toISOString() }).eq("business_id", businessId);
   if (error) return { ok: false, error: error.message };
-  revalidatePath(`/admin/firma/${businessId}`);
+await logAdminAction(status === "suspended" ? "abonelik_askiya" : "abonelik_aktive", { businessId });
+    revalidatePath(`/admin/firma/${businessId}`);
   return { ok: true };
 }
 
@@ -113,7 +117,8 @@ export async function addUserToBusiness(
     await admin.auth.admin.deleteUser(created.user.id);
     return { ok: false, error: `Profil bağlanamadı: ${pErr.message}` };
   }
-  revalidatePath(`/admin/firma/${businessId}`);
+await logAdminAction("kullanici_ekle", { businessId, detail: email });
+    revalidatePath(`/admin/firma/${businessId}`);
   return { ok: true, credentials: { email, password } };
 }
 
@@ -123,7 +128,8 @@ export async function changeUserRole(businessId: string, userId: string, role: "
   const admin = createAdminClient();
   const { error } = await admin.from("profiles").update({ role }).eq("id", userId);
   if (error) return { ok: false, error: error.message };
-  revalidatePath(`/admin/firma/${businessId}`);
+await logAdminAction("kullanici_rol", { businessId, detail: role });
+    revalidatePath(`/admin/firma/${businessId}`);
   return { ok: true };
 }
 
@@ -135,7 +141,8 @@ export async function resetUserPassword(businessId: string, userId: string, cust
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(userId, { password });
   if (error) return { ok: false, error: error.message };
-  revalidatePath(`/admin/firma/${businessId}`);
+await logAdminAction("kullanici_sifre", { businessId });
+    revalidatePath(`/admin/firma/${businessId}`);
   return { ok: true, password };
 }
 
@@ -146,7 +153,8 @@ export async function setUserActive(businessId: string, userId: string, active: 
   // ban_duration ile pasifleştir (giriş engellenir) / "none" ile aktive et
   const { error } = await admin.auth.admin.updateUserById(userId, { ban_duration: active ? "none" : "876600h" });
   if (error) return { ok: false, error: error.message };
-  revalidatePath(`/admin/firma/${businessId}`);
+await logAdminAction(active ? "kullanici_aktive" : "kullanici_pasif", { businessId });
+    revalidatePath(`/admin/firma/${businessId}`);
   return { ok: true };
 }
 
@@ -156,6 +164,7 @@ export async function removeUser(businessId: string, userId: string): Promise<Re
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) return { ok: false, error: error.message };
-  revalidatePath(`/admin/firma/${businessId}`);
+await logAdminAction("kullanici_sil", { businessId });
+    revalidatePath(`/admin/firma/${businessId}`);
   return { ok: true };
 }

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Building2, ShieldCheck, Plus, Users } from "lucide-react";
+import { Building2, ShieldCheck, Plus, Users, History } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/supabase/admin-context";
@@ -45,10 +45,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 Firmalar
               </Link>
               {ctx?.isOwner && (
-                <Link href="/admin/ekip" className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-                  <Users className="size-4" />
-                  Ekip
-                </Link>
+                <>
+                  <Link href="/admin/ekip" className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                    <Users className="size-4" />
+                    Ekip
+                  </Link>
+                  <Link href="/admin/gunluk" className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                    <History className="size-4" />
+                    Günlük
+                  </Link>
+                </>
               )}
             </nav>
           </div>

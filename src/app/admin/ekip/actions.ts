@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertOwner } from "@/lib/supabase/admin-context";
+import { logAdminAction } from "@/lib/supabase/audit";
 
 type Result = { ok: boolean; error?: string; password?: string; credentials?: { email: string; password: string } };
 
@@ -49,6 +50,7 @@ export async function addAdmin(input: { fullName: string; email: string; phone?:
     await admin.auth.admin.deleteUser(created.user.id);
     return { ok: false, error: `Admin kaydı oluşturulamadı: ${aErr.message}` };
   }
+  await logAdminAction("admin_ekle", { detail: `${fullName} (${email})` });
   revalidatePath("/admin/ekip");
   return { ok: true, credentials: { email, password } };
 }
@@ -58,8 +60,10 @@ export async function updateAdminPerms(userId: string, perms: string[]): Promise
   if (err) return { ok: false, error: err };
   const admin = createAdminClient();
   if (await targetIsOwner(admin, userId)) return { ok: false, error: "Kurucu yöneticinin yetkileri düzenlenemez." };
+  const { data: tgt } = await admin.from("platform_admins").select("full_name").eq("user_id", userId).maybeSingle();
   const { error } = await admin.from("platform_admins").update({ permissions: perms }).eq("user_id", userId);
   if (error) return { ok: false, error: error.message };
+  await logAdminAction("admin_yetki", { detail: `${(tgt as { full_name: string | null } | null)?.full_name ?? "admin"} → ${perms.join(", ") || "(yetkisiz)"}` });
   revalidatePath("/admin/ekip");
   return { ok: true };
 }
@@ -109,8 +113,10 @@ export async function removeAdmin(userId: string): Promise<Result> {
   if (me?.id === userId) return { ok: false, error: "Kendinizi silemezsiniz." };
   const admin = createAdminClient();
   if (await targetIsOwner(admin, userId)) return { ok: false, error: "Kurucu yönetici silinemez." };
+  const { data: tgt } = await admin.from("platform_admins").select("full_name").eq("user_id", userId).maybeSingle();
   const { error } = await admin.auth.admin.deleteUser(userId); // platform_admins cascade
   if (error) return { ok: false, error: error.message };
+  await logAdminAction("admin_sil", { detail: (tgt as { full_name: string | null } | null)?.full_name ?? userId });
   revalidatePath("/admin/ekip");
   return { ok: true };
 }

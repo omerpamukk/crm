@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { ACTING_COOKIE, ACTING_MODE_COOKIE } from "@/lib/supabase/server";
 import { assertPerm } from "@/lib/supabase/admin-context";
+import { logAdminAction } from "@/lib/supabase/audit";
 
 export type ActingMode = "view" | "manage";
 
@@ -13,6 +14,8 @@ export async function enterViewAs(businessId: string, mode: ActingMode = "view")
   // view → "goruntule", manage → "yonet" yetkisi gerekir
   const err = await assertPerm(mode === "manage" ? "yonet" : "goruntule");
   if (err) redirect("/admin");
+
+  if (mode === "manage") await logAdminAction("yonetici_giris", { businessId });
 
   const c = await cookies();
   const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 8 };
