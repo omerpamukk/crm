@@ -32,7 +32,7 @@ export default async function AdminHomePage() {
 
   const [bizRes, subRes, profRes, custRes, payRes, apptRes] = await Promise.all([
     supabase.from("businesses").select("id, name, sector, created_at").order("created_at", { ascending: false }),
-    supabase.from("subscriptions").select("business_id, status, plan, price"),
+    supabase.from("subscriptions").select("business_id, status, plan, price, expires_at"),
     supabase.from("profiles").select("business_id"),
     supabase.from("customers").select("business_id"),
     supabase.from("payments").select("business_id, created_at"),
@@ -40,7 +40,10 @@ export default async function AdminHomePage() {
   ]);
 
   const businesses = (bizRes.data ?? []) as { id: string; name: string; sector: string | null; created_at: string }[];
-  const subs = new Map((((subRes.data ?? []) as { business_id: string; status: SubscriptionStatus; plan: string; price: number }[]).map((s) => [s.business_id, s])));
+  const subList = (subRes.data ?? []) as { business_id: string; status: SubscriptionStatus; plan: string; price: number; expires_at: string | null }[];
+  const subs = new Map(subList.map((s) => [s.business_id, s]));
+  const isExpired = (s?: { status: SubscriptionStatus; expires_at: string | null }) =>
+    !!s && (s.status === "active" || s.status === "trial") && !!s.expires_at && new Date(s.expires_at).getTime() < nowMs;
 
   const count = (rows: { business_id: string | null }[]) => {
     const m = new Map<string, number>();
@@ -59,10 +62,10 @@ export default async function AdminHomePage() {
   for (const p of (payRes.data ?? []) as { business_id: string | null; created_at: string }[]) bump(p.business_id, p.created_at);
   for (const a of (apptRes.data ?? []) as { business_id: string | null; starts_at: string }[]) bump(a.business_id, a.starts_at);
 
-  const isActive = (s?: SubscriptionStatus) => s === "active" || s === "trial";
-  const activeCount = businesses.filter((b) => isActive(subs.get(b.id)?.status)).length;
-  const suspendedCount = businesses.filter((b) => { const s = subs.get(b.id)?.status; return s === "suspended" || s === "cancelled"; }).length;
-  const mrr = businesses.reduce((sum, b) => { const s = subs.get(b.id); return sum + (s && isActive(s.status) ? (s.price ?? 0) : 0); }, 0);
+  const liveActive = (b: { id: string }) => { const s = subs.get(b.id); return !!s && (s.status === "active" || s.status === "trial") && !isExpired(s); };
+  const activeCount = businesses.filter(liveActive).length;
+  const suspendedCount = businesses.filter((b) => { const s = subs.get(b.id); return s?.status === "suspended" || s?.status === "cancelled" || isExpired(s); }).length;
+  const mrr = businesses.reduce((sum, b) => sum + (liveActive(b) ? (subs.get(b.id)?.price ?? 0) : 0), 0);
 
   const rows: FirmRow[] = businesses.map((b) => {
     const s = subs.get(b.id);
@@ -70,6 +73,7 @@ export default async function AdminHomePage() {
       id: b.id, name: b.name, sector: b.sector, createdLabel: formatDate(b.created_at),
       userCount: userCount.get(b.id) ?? 0, custCount: custCount.get(b.id) ?? 0,
       status: s?.status ?? "active", plan: s?.plan ?? "trial",
+      expired: isExpired(s),
       lastActivityLabel: relTime(lastActivity.get(b.id) ?? null, nowMs),
     };
   });

@@ -16,6 +16,7 @@ export type FirmRow = {
   custCount: number;
   status: SubscriptionStatus;
   plan: string;
+  expired: boolean;
   lastActivityLabel: string;
 };
 
@@ -35,7 +36,7 @@ export function AdminFirmList({ rows }: { rows: FirmRow[] }) {
     const s = q.trim().toLocaleLowerCase("tr");
     return rows.filter(
       (r) =>
-        (status === "all" || r.status === status) &&
+        (status === "all" || (status === "expired" ? r.expired : r.status === status && !r.expired)) &&
         (s === "" || r.name.toLocaleLowerCase("tr").includes(s) || (r.sector ?? "").toLocaleLowerCase("tr").includes(s))
     );
   }, [rows, q, status]);
@@ -54,6 +55,7 @@ export function AdminFirmList({ rows }: { rows: FirmRow[] }) {
           <option value="trial">Deneme</option>
           <option value="suspended">Askıda</option>
           <option value="cancelled">İptal</option>
+          <option value="expired">Süresi Doldu</option>
         </select>
       </div>
 
@@ -79,7 +81,7 @@ export function AdminFirmList({ rows }: { rows: FirmRow[] }) {
                   <span className="text-sm text-muted-foreground">{b.sector ?? "—"}</span>
                   <span className="flex items-center gap-1 text-sm tabular-nums"><Users className="size-3.5 text-muted-foreground lg:hidden" />{b.userCount}</span>
                   <span className="flex items-center gap-1 text-sm tabular-nums"><UserRound className="size-3.5 text-muted-foreground lg:hidden" />{b.custCount}</span>
-                  <span><span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", meta.cls)}>{meta.label}</span></span>
+                  <span>{b.expired ? <span className="inline-flex rounded-full bg-danger/12 px-2 py-0.5 text-xs font-medium text-danger">Süresi Doldu</span> : <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", meta.cls)}>{meta.label}</span>}</span>
                   <span className="text-sm text-muted-foreground">{b.lastActivityLabel}</span>
                   <ChevronRight className="hidden size-4 text-muted-foreground lg:block" />
                 </Link>

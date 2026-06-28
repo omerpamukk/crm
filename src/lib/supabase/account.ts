@@ -76,13 +76,15 @@ export async function getAccountContext(): Promise<AccountContext> {
     redirect("/hesap-yok");
   }
 
-  // Abonelik askıda/iptal ise firma paneline erişilemez.
+  // Abonelik askıda/iptal/süresi-dolmuş ise firma paneline erişilemez.
   const { data: sub } = await supabase
     .from("subscriptions")
-    .select("status")
+    .select("status, expires_at")
     .eq("business_id", profile.business_id)
     .maybeSingle();
-  if (sub?.status === "suspended" || sub?.status === "cancelled") {
+  const s = sub as { status: string; expires_at: string | null } | null;
+  const expired = !!s?.expires_at && new Date(s.expires_at).getTime() < Date.now();
+  if (s?.status === "suspended" || s?.status === "cancelled" || expired) {
     redirect("/askida");
   }
 
