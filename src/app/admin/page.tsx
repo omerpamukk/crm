@@ -69,12 +69,16 @@ export default async function AdminHomePage() {
 
   const rows: FirmRow[] = businesses.map((b) => {
     const s = subs.get(b.id);
+    const lastIso = lastActivity.get(b.id) ?? null;
     return {
       id: b.id, name: b.name, sector: b.sector, createdLabel: formatDate(b.created_at),
+      createdMs: new Date(b.created_at).getTime(),
       userCount: userCount.get(b.id) ?? 0, custCount: custCount.get(b.id) ?? 0,
+      price: s?.price ?? 0,
       status: s?.status ?? "active", plan: s?.plan ?? "trial",
       expired: isExpired(s),
-      lastActivityLabel: relTime(lastActivity.get(b.id) ?? null, nowMs),
+      lastActivityLabel: relTime(lastIso, nowMs),
+      lastActivityMs: lastIso ? new Date(lastIso).getTime() : 0,
     };
   });
 

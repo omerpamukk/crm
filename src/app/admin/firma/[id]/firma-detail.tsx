@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Users, CalendarCheck, Banknote, Save, UserPlus, KeyRound, Trash2, Copy, CheckCircle2, ShieldAlert,
   Play, Pause, Eye, Pencil, Phone, Mail, MapPin, Globe, Clock, Image as ImageIcon, Ban, RotateCcw, CreditCard,
-  Wallet, Package as PackageIcon, Briefcase,
+  Wallet, Package as PackageIcon, Briefcase, Building2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,6 +42,13 @@ function daysLeft(expires: string | null): number | null {
 }
 
 type Perms = { goruntule: boolean; yonet: boolean; firma_duzenle: boolean; abonelik: boolean; kullanici_yonet: boolean };
+
+const USER_TONES = ["bg-primary/10 text-primary", "bg-emerald-100 text-emerald-600", "bg-amber-100 text-amber-600", "bg-sky-100 text-sky-600", "bg-violet-100 text-violet-600", "bg-rose-100 text-rose-600"];
+function userTone(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i)) % USER_TONES.length;
+  return USER_TONES[h];
+}
 
 export type FirmStats = {
   customers: number; leads: number; appointments: number; completed: number;
@@ -151,25 +158,32 @@ export function FirmaDetail({
       <Tabs defaultValue="kullanici">
         <TabsList>
           <TabsTrigger value="kullanici"><Users className="size-4" />Kullanıcılar ({users.length})</TabsTrigger>
-          <TabsTrigger value="abonelik"><CreditCard className="size-4" />Abonelik</TabsTrigger>
-          <TabsTrigger value="genel"><Save className="size-4" />Firma Bilgileri</TabsTrigger>
+          <TabsTrigger value="abonelik"><CreditCard className="size-4" />Abonelik<span className={cn("ml-1 size-2 rounded-full", subscription?.status === "active" ? "bg-positive" : subscription?.status === "trial" ? "bg-primary" : subscription?.status === "suspended" ? "bg-amber-500" : "bg-danger")} /></TabsTrigger>
+          <TabsTrigger value="genel"><Building2 className="size-4" />Firma Bilgileri</TabsTrigger>
         </TabsList>
 
         {/* KULLANICILAR */}
         <TabsContent value="kullanici" className="mt-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base">Kullanıcılar</CardTitle>
+              <div>
+                <CardTitle className="text-base">Kullanıcılar</CardTitle>
+                <p className="mt-0.5 text-xs text-muted-foreground">{users.filter((u) => u.role === "owner").length} yönetici · {users.filter((u) => u.role === "staff").length} personel{users.some((u) => u.banned) ? ` · ${users.filter((u) => u.banned).length} pasif` : ""}</p>
+              </div>
               {perms.kullanici_yonet && <Button size="sm" onClick={() => setAddOpen(true)}><UserPlus className="size-4" />Kullanıcı Ekle</Button>}
             </CardHeader>
             <CardContent className="p-0">
               <ul className="divide-y">
                 {users.map((u) => (
-                  <li key={u.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{(u.full_name ?? "?").slice(0, 2).toLocaleUpperCase("tr")}</span>
+                  <li key={u.id} className={cn("flex flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30", u.banned && "opacity-60")}>
+                    <span className={cn("relative flex size-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold", userTone(u.id))}>
+                      {(u.full_name ?? "?").slice(0, 2).toLocaleUpperCase("tr")}
+                      <span className={cn("absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card", u.banned ? "bg-danger" : "bg-positive")} />
+                    </span>
                     <div className="min-w-0 flex-1">
                       <p className="flex items-center gap-2 truncate text-sm font-medium">
                         {u.full_name ?? "—"}
+                        <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", u.role === "owner" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>{u.role === "owner" ? "Yönetici" : "Personel"}</span>
                         {u.banned && <span className="rounded-full bg-danger/12 px-1.5 py-0.5 text-[10px] font-medium text-danger">Pasif</span>}
                       </p>
                       <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
