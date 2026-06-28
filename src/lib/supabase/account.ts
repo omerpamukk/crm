@@ -1,6 +1,7 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, ACTING_COOKIE } from "@/lib/supabase/server";
 import type { UserRole } from "@/types/database";
 
 export interface AccountContext {
@@ -11,6 +12,8 @@ export interface AccountContext {
   businessName: string;
   role: UserRole;
   roleLabel: string;
+  /** Süper-admin bu firmayı salt-okunur görüntülüyor mu? */
+  impersonating: boolean;
 }
 
 /**
@@ -29,10 +32,34 @@ export async function getAccountContext(): Promise<AccountContext> {
     redirect("/giris");
   }
 
-  // Süper-admin firma paneline değil, /admin'e gider.
+  // Süper-admin: bir firmayı "görüntüleyici" geziyorsa o firmanın bağlamını
+  // döndür (salt-okunur); aksi halde /admin'e gider.
   const { data: isAdmin } = await supabase.rpc("is_super_admin");
   if (isAdmin) {
-    redirect("/admin");
+    const cookieStore = await cookies();
+    const acting = cookieStore.get(ACTING_COOKIE)?.value;
+    if (!acting) {
+      redirect("/admin");
+    }
+    // Başlık sayesinde bu okuma yalnızca acting firmayı döndürür.
+    const { data: biz } = await supabase
+      .from("businesses")
+      .select("id, name")
+      .eq("id", acting)
+      .maybeSingle();
+    if (!biz) {
+      redirect("/admin");
+    }
+    return {
+      userId: user.id,
+      email: user.email ?? null,
+      fullName: user.email ?? null,
+      businessId: acting,
+      businessName: (biz as { name: string }).name,
+      role: "owner",
+      roleLabel: "Görüntüleyici",
+      impersonating: true,
+    };
   }
 
   const { data: profile } = await supabase
@@ -71,5 +98,6 @@ export async function getAccountContext(): Promise<AccountContext> {
     businessName: business?.name ?? "İşletmen",
     role,
     roleLabel: role === "owner" ? "Yönetici" : "Personel",
+    impersonating: false,
   };
 }

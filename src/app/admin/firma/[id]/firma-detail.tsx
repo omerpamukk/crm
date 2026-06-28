@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Users, CalendarCheck, Banknote, Save, UserPlus, KeyRound, Trash2, Copy, CheckCircle2, ShieldAlert, Play, Pause,
+  ArrowLeft, Users, CalendarCheck, Banknote, Save, UserPlus, KeyRound, Trash2, Copy, CheckCircle2, ShieldAlert, Play, Pause, Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 import { updateBusiness, updateSubscription, setSubscriptionStatus, addUserToBusiness, changeUserRole, resetUserPassword, removeUser } from "./actions";
+import { enterViewAs } from "../../view-as-actions";
 
 export type FirmaUser = { id: string; full_name: string | null; role: "owner" | "staff"; email: string };
 
@@ -81,6 +82,10 @@ export function FirmaDetail({
           </div>
           <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", STATUS_META[status].cls)}>{STATUS_META[status].label}</span>
         </div>
+        <Button variant="outline" disabled={pending} onClick={() => startTransition(() => enterViewAs(business.id))}>
+          <Eye className="size-4" />
+          Görüntüleyici Olarak Gir
+        </Button>
       </div>
 
       {/* Özet */}

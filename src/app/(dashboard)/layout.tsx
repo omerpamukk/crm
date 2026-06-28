@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { TopBar, type AppNotification } from "@/components/layout/top-bar";
+import { ViewAsBanner } from "@/components/layout/view-as-banner";
 import { Toaster } from "@/components/ui/sonner";
 
 const DAY = 86_400_000;
@@ -12,7 +13,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { fullName, email, businessName, roleLabel } =
+  const { fullName, email, businessName, roleLabel, impersonating } =
     await getAccountContext();
   const displayName = fullName ?? email ?? "Kullanıcı";
 
@@ -71,6 +72,7 @@ export default async function DashboardLayout({
 
       {/* İçerik */}
       <div className="flex min-w-0 flex-1 flex-col">
+        {impersonating && <ViewAsBanner businessName={businessName} />}
         {/* Üst bar — masaüstünde arama + bildirim, mobilde hamburger + bildirim */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b bg-card/80 px-4 backdrop-blur-md">
           <div className="flex items-center gap-2 md:hidden">
