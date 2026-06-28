@@ -130,18 +130,10 @@ create policy "profiles_update_super"
   with check (public.is_super_admin());
 
 -- =============================================================
--- 5) ⚠️ İLK SÜPER-ADMINI ATAMA
+-- 5) ⚠️ İLK SÜPER-ADMINI ATAMA  (omer.pam3@gmail.com)
 -- =============================================================
--- Bu satır olmadan hiçbir kullanıcı süper-admin OLMAZ (güvenli varsayılan).
---
--- KOLAY YOL — sadece kendi GİRİŞ E-POSTANI yaz (UUID aramana gerek yok):
--- Aşağıdaki 3 satırın yorumunu kaldır, e-postayı kendi e-postanla değiştir, çalıştır.
---
--- insert into public.platform_admins (user_id)
--- select id from auth.users where email = 'senin@eposta.com'
--- on conflict (user_id) do nothing;
---
--- (Alternatif — UUID ile: Supabase → Authentication → Users → satırındaki
---  "UID" sütunundaki uzun kodu kopyalayıp:
---  insert into public.platform_admins (user_id) values ('UUID')
---  on conflict (user_id) do nothing; )
+-- Bu hesabı süper-admin yapar. Bu satır olmadan kimse süper-admin OLMAZ.
+-- (E-postanı değiştirmek istersen aşağıdaki adresi güncelle.)
+insert into public.platform_admins (user_id)
+select id from auth.users where email = 'omer.pam3@gmail.com'
+on conflict (user_id) do nothing;
