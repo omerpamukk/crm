@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Building2, ShieldCheck, Plus } from "lucide-react";
+import { Building2, ShieldCheck, Plus, Users } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAdminContext } from "@/lib/supabase/admin-context";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
@@ -22,6 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const { data: isAdmin } = await supabase.rpc("is_super_admin");
   if (!isAdmin) redirect("/panel");
+  const ctx = await getAdminContext();
 
   return (
     <div className="min-h-svh bg-muted/30">
@@ -42,13 +44,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 <Building2 className="size-4 text-primary" />
                 Firmalar
               </Link>
+              {ctx?.isOwner && (
+                <Link href="/admin/ekip" className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                  <Users className="size-4" />
+                  Ekip
+                </Link>
+              )}
             </nav>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/admin/firma-olustur" className={cn(buttonVariants({ size: "sm" }))}>
-              <Plus className="size-4" />
-              Yeni Firma
-            </Link>
+            {(ctx?.isOwner || ctx?.perms.includes("firma_olustur")) && (
+              <Link href="/admin/firma-olustur" className={cn(buttonVariants({ size: "sm" }))}>
+                <Plus className="size-4" />
+                Yeni Firma
+              </Link>
+            )}
             <AdminUserMenu email={user.email ?? ""} />
           </div>
         </div>

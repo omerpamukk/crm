@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { assertPerm } from "@/lib/supabase/admin-context";
 
 export interface ProvisionInput {
   businessName: string;
@@ -37,12 +37,9 @@ const DEFAULT_STAGES = [
  * ⚠️ service_role yalnızca yetki doğrulandıktan SONRA kullanılır.
  */
 export async function provisionBusiness(input: ProvisionInput): Promise<Result> {
-  // 1) Yetki: çağıran gerçekten süper-admin mi?
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Oturum bulunamadı." };
-  const { data: isAdmin } = await supabase.rpc("is_super_admin");
-  if (!isAdmin) return { ok: false, error: "Bu işlem için yetkiniz yok." };
+  // 1) Yetki: "firma_olustur" yetkisi var mı?
+  const permErr = await assertPerm("firma_olustur");
+  if (permErr) return { ok: false, error: permErr };
 
   // 2) Doğrulama
   const businessName = input.businessName.trim();

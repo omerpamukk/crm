@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Building2, CheckCircle2, PauseCircle, Banknote, Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAdminContext, can } from "@/lib/supabase/admin-context";
 import { formatDate, formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { SubscriptionStatus } from "@/types/database";
@@ -24,6 +25,8 @@ function relTime(iso: string | null, nowMs: number): string {
 
 export default async function AdminHomePage() {
   const supabase = await createClient();
+  const adminCtx = await getAdminContext();
+  const canCreate = can(adminCtx, "firma_olustur");
   const now = new Date();
   const nowMs = now.getTime();
 
@@ -85,10 +88,12 @@ export default async function AdminHomePage() {
           <h1 className="text-2xl font-bold">Firmalar</h1>
           <p className="text-sm text-muted-foreground">Tüm işletmeleri görüntüle, yönet ve yeni firma oluştur.</p>
         </div>
-        <Link href="/admin/firma-olustur" className={cn(buttonVariants())}>
-          <Plus className="size-4" />
-          Yeni Firma
-        </Link>
+        {canCreate && (
+          <Link href="/admin/firma-olustur" className={cn(buttonVariants())}>
+            <Plus className="size-4" />
+            Yeni Firma
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

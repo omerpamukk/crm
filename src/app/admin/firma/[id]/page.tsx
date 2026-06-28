@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getAdminContext, can } from "@/lib/supabase/admin-context";
 import type { Business, Subscription } from "@/types/database";
 
 import { FirmaDetail, type FirmaUser } from "./firma-detail";
@@ -57,12 +58,22 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
 
   const revenue = ((payRes.data ?? []) as { amount: number | null }[]).reduce((s, p) => s + (p.amount ?? 0), 0);
 
+  const ctx = await getAdminContext();
+  const perms = {
+    goruntule: can(ctx, "goruntule"),
+    yonet: can(ctx, "yonet"),
+    firma_duzenle: can(ctx, "firma_duzenle"),
+    abonelik: can(ctx, "abonelik"),
+    kullanici_yonet: can(ctx, "kullanici_yonet"),
+  };
+
   return (
     <FirmaDetail
       business={business as Business}
       subscription={(subRes.data ?? null) as Subscription | null}
       users={users}
       stats={{ customers: custRes.count ?? 0, appointments: apptRes.count ?? 0, revenue }}
+      perms={perms}
     />
   );
 }

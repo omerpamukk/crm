@@ -40,13 +40,16 @@ function daysLeft(expires: string | null): number | null {
   return Math.ceil((new Date(expires).getTime() - Date.now()) / 86_400_000);
 }
 
+type Perms = { goruntule: boolean; yonet: boolean; firma_duzenle: boolean; abonelik: boolean; kullanici_yonet: boolean };
+
 export function FirmaDetail({
-  business, subscription, users, stats,
+  business, subscription, users, stats, perms,
 }: {
   business: Business;
   subscription: Subscription | null;
   users: FirmaUser[];
   stats: { customers: number; appointments: number; revenue: number };
+  perms: Perms;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -108,8 +111,8 @@ export function FirmaDetail({
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" disabled={pending} onClick={() => start(() => enterViewAs(business.id, "view"))}><Eye className="size-4" />Görüntüle</Button>
-          <Button disabled={pending} onClick={() => start(() => enterViewAs(business.id, "manage"))}><Pencil className="size-4" />Yönetici Olarak Gir</Button>
+          {perms.goruntule && <Button variant="outline" disabled={pending} onClick={() => start(() => enterViewAs(business.id, "view"))}><Eye className="size-4" />Görüntüle</Button>}
+          {perms.yonet && <Button disabled={pending} onClick={() => start(() => enterViewAs(business.id, "manage"))}><Pencil className="size-4" />Yönetici Olarak Gir</Button>}
         </div>
       </div>
 
@@ -142,7 +145,7 @@ export function FirmaDetail({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Kullanıcılar</CardTitle>
-              <Button size="sm" onClick={() => setAddOpen(true)}><UserPlus className="size-4" />Kullanıcı Ekle</Button>
+              {perms.kullanici_yonet && <Button size="sm" onClick={() => setAddOpen(true)}><UserPlus className="size-4" />Kullanıcı Ekle</Button>}
             </CardHeader>
             <CardContent className="p-0">
               <ul className="divide-y">
@@ -159,17 +162,23 @@ export function FirmaDetail({
                         {u.phone && <span className="inline-flex items-center gap-1"><Phone className="size-3" />{u.phone}</span>}
                       </p>
                     </div>
-                    <select value={u.role} onChange={(e) => run(() => changeUserRole(business.id, u.id, e.target.value as "owner" | "staff"), "Rol güncellendi")} disabled={pending} className="h-8 rounded-lg border border-input bg-background px-2 text-xs">
-                      <option value="owner">Yönetici</option>
-                      <option value="staff">Personel</option>
-                    </select>
-                    <Button variant="outline" size="sm" disabled={pending} onClick={() => { setPwUser(u); setPwMode("auto"); setPwValue(""); }}><KeyRound className="size-3.5" />Şifre</Button>
-                    {u.banned ? (
-                      <Button variant="outline" size="sm" className="text-positive" disabled={pending} onClick={() => run(() => setUserActive(business.id, u.id, true), "Kullanıcı aktifleştirildi")}><RotateCcw className="size-3.5" />Aktive Et</Button>
+                    {perms.kullanici_yonet ? (
+                      <>
+                        <select value={u.role} onChange={(e) => run(() => changeUserRole(business.id, u.id, e.target.value as "owner" | "staff"), "Rol güncellendi")} disabled={pending} className="h-8 rounded-lg border border-input bg-background px-2 text-xs">
+                          <option value="owner">Yönetici</option>
+                          <option value="staff">Personel</option>
+                        </select>
+                        <Button variant="outline" size="sm" disabled={pending} onClick={() => { setPwUser(u); setPwMode("auto"); setPwValue(""); }}><KeyRound className="size-3.5" />Şifre</Button>
+                        {u.banned ? (
+                          <Button variant="outline" size="sm" className="text-positive" disabled={pending} onClick={() => run(() => setUserActive(business.id, u.id, true), "Kullanıcı aktifleştirildi")}><RotateCcw className="size-3.5" />Aktive Et</Button>
+                        ) : (
+                          <Button variant="outline" size="sm" className="text-amber-600" disabled={pending} onClick={() => run(() => setUserActive(business.id, u.id, false), "Kullanıcı pasifleştirildi")}><Ban className="size-3.5" />Pasifleştir</Button>
+                        )}
+                        <Button variant="outline" size="icon-sm" className="text-danger" disabled={pending} onClick={() => setConfirmDel(u)}><Trash2 className="size-3.5" /></Button>
+                      </>
                     ) : (
-                      <Button variant="outline" size="sm" className="text-amber-600" disabled={pending} onClick={() => run(() => setUserActive(business.id, u.id, false), "Kullanıcı pasifleştirildi")}><Ban className="size-3.5" />Pasifleştir</Button>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{u.role === "owner" ? "Yönetici" : "Personel"}</span>
                     )}
-                    <Button variant="outline" size="icon-sm" className="text-danger" disabled={pending} onClick={() => setConfirmDel(u)}><Trash2 className="size-3.5" /></Button>
                   </li>
                 ))}
                 {users.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Bu firmada kullanıcı yok.</li>}
@@ -194,11 +203,11 @@ export function FirmaDetail({
                   </p>
                 </div>
               </div>
-              {suspended ? (
+              {perms.abonelik && (suspended ? (
                 <Button className="bg-positive text-white hover:bg-positive/90" disabled={pending} onClick={() => run(() => setSubscriptionStatus(business.id, "active"), "Abonelik aktive edildi")}><Play className="size-4" />Yeniden Aktive Et</Button>
               ) : (
                 <Button variant="destructive" disabled={pending} onClick={() => run(() => setSubscriptionStatus(business.id, "suspended"), "Abonelik askıya alındı")}><Pause className="size-4" />Askıya Al</Button>
-              )}
+              ))}
             </CardContent>
           </Card>
 
@@ -215,7 +224,7 @@ export function FirmaDetail({
                   <input value={sub.note} onChange={(e) => setSub((p) => ({ ...p, note: e.target.value }))} placeholder="İç not (firma görmez)" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />
                 </div>
               </div>
-              <Button disabled={pending} onClick={() => run(() => updateSubscription(business.id, { plan: sub.plan, status: sub.status, price: Number(sub.price) || 0, started_at: sub.started_at || null, expires_at: sub.expires_at || null, note: sub.note }), "Abonelik güncellendi")}><Save className="size-4" />Aboneliği Kaydet</Button>
+              {perms.abonelik && <Button disabled={pending} onClick={() => run(() => updateSubscription(business.id, { plan: sub.plan, status: sub.status, price: Number(sub.price) || 0, started_at: sub.started_at || null, expires_at: sub.expires_at || null, note: sub.note }), "Abonelik güncellendi")}><Save className="size-4" />Aboneliği Kaydet</Button>}
             </CardContent>
           </Card>
         </TabsContent>
@@ -245,7 +254,7 @@ export function FirmaDetail({
                 <Fld label="Logo URL" value={biz.logo_url} onChange={(v) => setBiz((p) => ({ ...p, logo_url: v }))} icon={ImageIcon} placeholder="https://…" />
               </div>
               <p className="text-xs text-muted-foreground">Bu alanları firma kendi <strong>Ayarlar</strong> sayfasından da doldurur; burada güncel hâli görünür ve düzenlenebilir.</p>
-              <Button disabled={pending} onClick={() => run(() => updateBusinessInfo(business.id, biz), "Firma bilgileri kaydedildi")}><Save className="size-4" />Kaydet</Button>
+              {perms.firma_duzenle && <Button disabled={pending} onClick={() => run(() => updateBusinessInfo(business.id, biz), "Firma bilgileri kaydedildi")}><Save className="size-4" />Kaydet</Button>}
             </CardContent>
           </Card>
         </TabsContent>

@@ -2,19 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { assertPerm } from "@/lib/supabase/admin-context";
 
 type Result = { ok: boolean; error?: string; password?: string; credentials?: { email: string; password: string } };
-
-async function assertSuperAdmin(): Promise<string | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return "Oturum bulunamadı.";
-  const { data: isAdmin } = await supabase.rpc("is_super_admin");
-  if (!isAdmin) return "Bu işlem için yetkiniz yok.";
-  return null;
-}
 
 function genPassword(): string {
   const base = (typeof crypto !== "undefined" && crypto.randomUUID)
@@ -36,7 +27,7 @@ export interface BusinessInfoPatch {
 }
 
 export async function updateBusinessInfo(id: string, patch: BusinessInfoPatch): Promise<Result> {
-  const err = await assertSuperAdmin();
+  const err = await assertPerm("firma_duzenle");
   if (err) return { ok: false, error: err };
   if (!patch.name.trim()) return { ok: false, error: "Firma adı zorunludur." };
   const admin = createAdminClient();
@@ -67,7 +58,7 @@ export interface SubscriptionPatch {
 }
 
 export async function updateSubscription(businessId: string, patch: SubscriptionPatch): Promise<Result> {
-  const err = await assertSuperAdmin();
+  const err = await assertPerm("abonelik");
   if (err) return { ok: false, error: err };
   const admin = createAdminClient();
   const { error } = await admin.from("subscriptions").update({
@@ -85,7 +76,7 @@ export async function updateSubscription(businessId: string, patch: Subscription
 }
 
 export async function setSubscriptionStatus(businessId: string, status: "active" | "suspended"): Promise<Result> {
-  const err = await assertSuperAdmin();
+  const err = await assertPerm("abonelik");
   if (err) return { ok: false, error: err };
   const admin = createAdminClient();
   const { error } = await admin.from("subscriptions").update({ status, updated_at: new Date().toISOString() }).eq("business_id", businessId);
@@ -98,7 +89,7 @@ export async function addUserToBusiness(
   businessId: string,
   input: { fullName: string; email: string; phone?: string; password?: string; role: string }
 ): Promise<Result> {
-  const err = await assertSuperAdmin();
+  const err = await assertPerm("kullanici_yonet");
   if (err) return { ok: false, error: err };
   const fullName = input.fullName.trim();
   const email = input.email.trim().toLowerCase();
@@ -127,7 +118,7 @@ export async function addUserToBusiness(
 }
 
 export async function changeUserRole(businessId: string, userId: string, role: "owner" | "staff"): Promise<Result> {
-  const err = await assertSuperAdmin();
+  const err = await assertPerm("kullanici_yonet");
   if (err) return { ok: false, error: err };
   const admin = createAdminClient();
   const { error } = await admin.from("profiles").update({ role }).eq("id", userId);
@@ -137,7 +128,7 @@ export async function changeUserRole(businessId: string, userId: string, role: "
 }
 
 export async function resetUserPassword(businessId: string, userId: string, customPassword?: string): Promise<Result> {
-  const err = await assertSuperAdmin();
+  const err = await assertPerm("kullanici_yonet");
   if (err) return { ok: false, error: err };
   const password = customPassword?.trim() || genPassword();
   if (password.length < 8) return { ok: false, error: "Şifre en az 8 karakter olmalı." };
@@ -149,7 +140,7 @@ export async function resetUserPassword(businessId: string, userId: string, cust
 }
 
 export async function setUserActive(businessId: string, userId: string, active: boolean): Promise<Result> {
-  const err = await assertSuperAdmin();
+  const err = await assertPerm("kullanici_yonet");
   if (err) return { ok: false, error: err };
   const admin = createAdminClient();
   // ban_duration ile pasifleştir (giriş engellenir) / "none" ile aktive et
@@ -160,7 +151,7 @@ export async function setUserActive(businessId: string, userId: string, active: 
 }
 
 export async function removeUser(businessId: string, userId: string): Promise<Result> {
-  const err = await assertSuperAdmin();
+  const err = await assertPerm("kullanici_yonet");
   if (err) return { ok: false, error: err };
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.deleteUser(userId);
