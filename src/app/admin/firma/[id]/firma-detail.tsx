@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Users, CalendarCheck, Banknote, Save, UserPlus, KeyRound, Trash2, Copy, CheckCircle2, ShieldAlert,
   Play, Pause, Eye, Pencil, Phone, Mail, MapPin, Globe, Clock, Image as ImageIcon, Ban, RotateCcw, CreditCard,
+  Wallet, Package as PackageIcon, Briefcase,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,13 +43,18 @@ function daysLeft(expires: string | null): number | null {
 
 type Perms = { goruntule: boolean; yonet: boolean; firma_duzenle: boolean; abonelik: boolean; kullanici_yonet: boolean };
 
+export type FirmStats = {
+  customers: number; leads: number; appointments: number; completed: number;
+  revenue: number; monthRevenue: number; openDebt: number; packages: number; staff: number;
+};
+
 export function FirmaDetail({
   business, subscription, users, stats, perms,
 }: {
   business: Business;
   subscription: Subscription | null;
   users: FirmaUser[];
-  stats: { customers: number; appointments: number; revenue: number };
+  stats: FirmStats;
   perms: Perms;
 }) {
   const router = useRouter();
@@ -116,19 +122,28 @@ export function FirmaDetail({
         </div>
       </div>
 
-      {/* Özet */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* Firma istatistikleri */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {[
-          { label: "Müşteri", value: stats.customers, icon: Users, tone: "bg-primary/10 text-primary" },
-          { label: "Randevu", value: stats.appointments, icon: CalendarCheck, tone: "bg-warning/12 text-amber-600" },
-          { label: "Tahsilat", value: formatPrice(stats.revenue), icon: Banknote, tone: "bg-positive/10 text-positive" },
+          { label: "Müşteri", value: String(stats.customers), sub: `${stats.leads} lead`, icon: Users, tone: "bg-primary/10 text-primary", bar: "border-l-primary", accent: "" },
+          { label: "Randevu", value: String(stats.appointments), sub: `${stats.completed} tamamlandı`, icon: CalendarCheck, tone: "bg-warning/12 text-amber-600", bar: "border-l-warning", accent: "" },
+          { label: "Toplam Ciro", value: formatPrice(stats.revenue), sub: `Bu ay ${formatPrice(stats.monthRevenue)}`, icon: Banknote, tone: "bg-positive/10 text-positive", bar: "border-l-positive", accent: "text-positive" },
+          { label: "Açık Borç", value: formatPrice(stats.openDebt), sub: stats.openDebt > 0 ? "tahsil edilecek" : "borç yok", icon: Wallet, tone: stats.openDebt > 0 ? "bg-danger/10 text-danger" : "bg-muted text-muted-foreground", bar: stats.openDebt > 0 ? "border-l-danger" : "border-l-border", accent: stats.openDebt > 0 ? "text-danger" : "" },
+          { label: "Paket", value: String(stats.packages), sub: "satılan paket", icon: PackageIcon, tone: "bg-violet-100 text-violet-600", bar: "border-l-violet-400", accent: "" },
+          { label: "Personel", value: String(stats.staff), sub: "aktif ekip", icon: Briefcase, tone: "bg-sky-100 text-sky-600", bar: "border-l-sky-400", accent: "" },
         ].map((s) => {
           const Icon = s.icon;
           return (
-            <Card key={s.label}><CardContent className="flex items-center justify-between p-4">
-              <div><p className="text-sm text-muted-foreground">{s.label}</p><p className="mt-1 text-xl font-bold tabular-nums">{s.value}</p></div>
-              <span className={cn("flex size-9 items-center justify-center rounded-lg", s.tone)}><Icon className="size-4" /></span>
-            </CardContent></Card>
+            <Card key={s.label} className={cn("border-l-4", s.bar)}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{s.label}</span>
+                  <span className={cn("flex size-8 items-center justify-center rounded-lg", s.tone)}><Icon className="size-4" /></span>
+                </div>
+                <p className={cn("mt-2 text-lg font-bold tabular-nums", s.accent)}>{s.value}</p>
+                <p className="truncate text-[11px] text-muted-foreground">{s.sub}</p>
+              </CardContent>
+            </Card>
           );
         })}
       </div>
