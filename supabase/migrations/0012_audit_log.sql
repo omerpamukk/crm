@@ -6,7 +6,26 @@
 -- Okuma yalnızca KURUCU (is_platform_owner) için.
 --
 -- Tekrar-güvenli (idempotent). Supabase SQL Editor'da elle çalıştırın.
+-- NOT: 0011 çalıştırılmadıysa diye is_platform_owner() güvenlik için burada da
+-- tanımlanır. Yine de EKİP/YETKİ özellikleri için 0011'i tam çalıştırın.
 -- =============================================================
+
+-- --- 0011 güvencesi: is_owner sütunu + is_platform_owner() var olsun ---
+alter table public.platform_admins
+  add column if not exists is_owner boolean not null default false;
+update public.platform_admins set is_owner = true where is_owner is distinct from true;
+
+create or replace function public.is_platform_owner()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from public.platform_admins where user_id = auth.uid() and is_owner = true);
+$$;
+grant execute on function public.is_platform_owner() to authenticated;
+-- ---------------------------------------------------------------------
 
 create table if not exists public.platform_audit_log (
   id            uuid primary key default gen_random_uuid(),
