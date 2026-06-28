@@ -132,10 +132,16 @@ create policy "profiles_update_super"
 -- =============================================================
 -- 5) ⚠️ İLK SÜPER-ADMINI ATAMA
 -- =============================================================
--- Supabase → Authentication → Users'tan KENDİ user id'ni kopyala ve
--- aşağıdaki satırın yorumunu kaldırıp id'yi yapıştırarak çalıştır.
 -- Bu satır olmadan hiçbir kullanıcı süper-admin OLMAZ (güvenli varsayılan).
 --
+-- KOLAY YOL — sadece kendi GİRİŞ E-POSTANI yaz (UUID aramana gerek yok):
+-- Aşağıdaki 3 satırın yorumunu kaldır, e-postayı kendi e-postanla değiştir, çalıştır.
+--
 -- insert into public.platform_admins (user_id)
--- values ('BURAYA-KENDI-USER-ID')
+-- select id from auth.users where email = 'senin@eposta.com'
 -- on conflict (user_id) do nothing;
+--
+-- (Alternatif — UUID ile: Supabase → Authentication → Users → satırındaki
+--  "UID" sütunundaki uzun kodu kopyalayıp:
+--  insert into public.platform_admins (user_id) values ('UUID')
+--  on conflict (user_id) do nothing; )
