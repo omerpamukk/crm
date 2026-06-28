@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Users, UserPlus, ShieldCheck, KeyRound, Trash2, Copy, CheckCircle2, SlidersHorizontal, Crown, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Users, UserPlus, ShieldCheck, KeyRound, Trash2, Copy, CheckCircle2, SlidersHorizontal, Crown, ShieldAlert, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { ADMIN_PERMS, DEFAULT_ADMIN_PERMS, PERM_LABEL } from "@/lib/admin-perms";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-import { addAdmin, updateAdminPerms, resetAdminPassword, removeAdmin } from "./actions";
+import { addAdmin, updateAdminPerms, resetAdminPassword, removeAdmin, updateOwnProfile } from "./actions";
 
 export type AdminRow = { user_id: string; full_name: string | null; is_owner: boolean; permissions: string[]; email: string; phone: string | null; isSelf: boolean };
 
@@ -25,6 +25,8 @@ export function EkipView({ rows }: { rows: AdminRow[] }) {
   const [editPerms, setEditPerms] = useState<string[]>([]);
   const [creds, setCreds] = useState<{ email?: string; password: string } | null>(null);
   const [confirmDel, setConfirmDel] = useState<AdminRow | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [prof, setProf] = useState({ fullName: "", password: "" });
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string; credentials?: { email: string; password: string }; password?: string }>, okMsg: string) =>
     start(async () => {
@@ -75,7 +77,10 @@ export function EkipView({ rows }: { rows: AdminRow[] }) {
                   )}
                 </div>
                 {a.is_owner ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-positive/12 px-2 py-1 text-xs font-medium text-positive"><ShieldCheck className="size-3.5" />Tam yetki</span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-positive/12 px-2 py-1 text-xs font-medium text-positive"><ShieldCheck className="size-3.5" />Tam yetki</span>
+                    {a.isSelf && <Button variant="outline" size="sm" onClick={() => { setProf({ fullName: a.full_name ?? "", password: "" }); setProfileOpen(true); }}><Pencil className="size-3.5" />Profilim</Button>}
+                  </div>
                 ) : (
                   <div className="flex flex-wrap items-center gap-1">
                     <Button variant="outline" size="sm" disabled={pending} onClick={() => { setPermEdit(a); setEditPerms([...a.permissions]); }}><SlidersHorizontal className="size-3.5" />Yetkiler</Button>
@@ -137,6 +142,22 @@ export function EkipView({ rows }: { rows: AdminRow[] }) {
             {creds && <Reveal label="Şifre" value={creds.password} onCopy={() => copy(creds.password, "Şifre")} />}
           </div>
           <DialogFooter><Button onClick={() => setCreds(null)}>Tamam</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Kendi profilim */}
+      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Profilim</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Kendi adını ve şifreni güncelle. Şifreyi boş bırakırsan değişmez.</p>
+          <div className="space-y-3">
+            <Fld label="Ad Soyad" value={prof.fullName} onChange={(v) => setProf((p) => ({ ...p, fullName: v }))} />
+            <Fld label="Yeni Şifre (opsiyonel)" type="password" value={prof.password} onChange={(v) => setProf((p) => ({ ...p, password: v }))} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProfileOpen(false)}>İptal</Button>
+            <Button disabled={pending} onClick={() => { setProfileOpen(false); run(() => updateOwnProfile({ fullName: prof.fullName, password: prof.password || undefined }), "Profil güncellendi"); }}>Kaydet</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

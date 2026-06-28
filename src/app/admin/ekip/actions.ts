@@ -77,6 +77,30 @@ export async function resetAdminPassword(userId: string, customPassword?: string
   return { ok: true, password };
 }
 
+/** Admin kendi profilini düzenler (ad + şifre). Yalnızca kendisi için. */
+export async function updateOwnProfile(input: { fullName?: string; password?: string }): Promise<Result> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Oturum bulunamadı." };
+  const { data: isAdmin } = await supabase.rpc("is_super_admin");
+  if (!isAdmin) return { ok: false, error: "Yetkiniz yok." };
+
+  const admin = createAdminClient();
+  const fullName = input.fullName?.trim();
+  const password = input.password?.trim();
+  if (fullName) {
+    await admin.from("platform_admins").update({ full_name: fullName }).eq("user_id", user.id);
+    await admin.auth.admin.updateUserById(user.id, { user_metadata: { full_name: fullName } });
+  }
+  if (password) {
+    if (password.length < 8) return { ok: false, error: "Şifre en az 8 karakter olmalı." };
+    const { error } = await admin.auth.admin.updateUserById(user.id, { password });
+    if (error) return { ok: false, error: error.message };
+  }
+  revalidatePath("/admin/ekip");
+  return { ok: true };
+}
+
 export async function removeAdmin(userId: string): Promise<Result> {
   const err = await assertOwner();
   if (err) return { ok: false, error: err };
