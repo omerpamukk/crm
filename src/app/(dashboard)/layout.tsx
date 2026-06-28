@@ -13,7 +13,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { fullName, email, businessName, roleLabel, impersonating } =
+  const { fullName, email, businessName, roleLabel, impersonating, manageMode } =
     await getAccountContext();
   const displayName = fullName ?? email ?? "Kullanıcı";
 
@@ -72,7 +72,7 @@ export default async function DashboardLayout({
 
       {/* İçerik */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {impersonating && <ViewAsBanner businessName={businessName} />}
+        {impersonating && <ViewAsBanner businessName={businessName} manageMode={manageMode} />}
         {/* Üst bar — masaüstünde arama + bildirim, mobilde hamburger + bildirim */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b bg-card/80 px-4 backdrop-blur-md">
           <div className="flex items-center gap-2 md:hidden">

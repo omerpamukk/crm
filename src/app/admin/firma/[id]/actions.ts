@@ -7,7 +7,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 type Result = { ok: boolean; error?: string; password?: string; credentials?: { email: string; password: string } };
 
-/** Her yazma işleminden önce: çağıran süper-admin mi? */
 async function assertSuperAdmin(): Promise<string | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -24,28 +23,62 @@ function genPassword(): string {
   return `Df${base.slice(0, 10)}!${base.slice(10, 12)}`;
 }
 
-export async function updateBusiness(id: string, name: string, sector: string): Promise<Result> {
+export interface BusinessInfoPatch {
+  name: string;
+  sector: string;
+  phone: string;
+  email: string;
+  address: string;
+  currency: string;
+  timezone: string;
+  slug: string;
+  logo_url: string;
+}
+
+export async function updateBusinessInfo(id: string, patch: BusinessInfoPatch): Promise<Result> {
   const err = await assertSuperAdmin();
   if (err) return { ok: false, error: err };
-  if (!name.trim()) return { ok: false, error: "Firma adı zorunludur." };
+  if (!patch.name.trim()) return { ok: false, error: "Firma adı zorunludur." };
   const admin = createAdminClient();
-  const { error } = await admin.from("businesses").update({ name: name.trim(), sector: sector || null }).eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  const { error } = await admin.from("businesses").update({
+    name: patch.name.trim(),
+    sector: patch.sector || null,
+    phone: patch.phone.trim() || null,
+    email: patch.email.trim() || null,
+    address: patch.address.trim() || null,
+    currency: patch.currency || "TRY",
+    timezone: patch.timezone || "Europe/Istanbul",
+    slug: patch.slug.trim() || null,
+    logo_url: patch.logo_url.trim() || null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", id);
+  if (error) return { ok: false, error: error.message.includes("slug") ? "Bu web adresi (slug) başka firmada kullanılıyor." : error.message };
   revalidatePath(`/admin/firma/${id}`);
   return { ok: true };
 }
 
-export async function updateSubscription(
-  businessId: string,
-  patch: { plan: string; status: string; price: number; expires_at: string | null }
-): Promise<Result> {
+export interface SubscriptionPatch {
+  plan: string;
+  status: string;
+  price: number;
+  started_at: string | null;
+  expires_at: string | null;
+  note: string;
+}
+
+export async function updateSubscription(businessId: string, patch: SubscriptionPatch): Promise<Result> {
   const err = await assertSuperAdmin();
   if (err) return { ok: false, error: err };
   const admin = createAdminClient();
-  const { error } = await admin
-    .from("subscriptions")
-    .update({ plan: patch.plan, status: patch.status, price: patch.price, expires_at: patch.expires_at, updated_at: new Date().toISOString() })
-    .eq("business_id", businessId);
+  const { error } = await admin.from("subscriptions").update({
+    plan: patch.plan,
+    status: patch.status,
+    price: patch.price,
+    started_at: patch.started_at || undefined,
+    expires_at: patch.expires_at,
+    note: patch.note.trim() || null,
+    updated_at: new Date().toISOString(),
+  }).eq("business_id", businessId);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/admin/firma/${businessId}`);
   return { ok: true };
@@ -63,7 +96,7 @@ export async function setSubscriptionStatus(businessId: string, status: "active"
 
 export async function addUserToBusiness(
   businessId: string,
-  input: { fullName: string; email: string; password?: string; role: string }
+  input: { fullName: string; email: string; phone?: string; password?: string; role: string }
 ): Promise<Result> {
   const err = await assertSuperAdmin();
   if (err) return { ok: false, error: err };
@@ -72,10 +105,12 @@ export async function addUserToBusiness(
   if (!fullName) return { ok: false, error: "Ad Soyad zorunludur." };
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: "Geçerli e-posta girin." };
   const password = input.password?.trim() || genPassword();
+  if (password.length < 8) return { ok: false, error: "Şifre en az 8 karakter olmalı." };
 
   const admin = createAdminClient();
   const { data: created, error: cErr } = await admin.auth.admin.createUser({
-    email, password, email_confirm: true, user_metadata: { full_name: fullName },
+    email, password, email_confirm: true,
+    user_metadata: { full_name: fullName, phone: input.phone?.trim() || null },
   });
   if (cErr || !created?.user) {
     return { ok: false, error: cErr?.message?.toLowerCase().includes("already") ? "Bu e-posta zaten kayıtlı." : (cErr?.message ?? "Kullanıcı oluşturulamadı.") };
@@ -101,10 +136,11 @@ export async function changeUserRole(businessId: string, userId: string, role: "
   return { ok: true };
 }
 
-export async function resetUserPassword(businessId: string, userId: string): Promise<Result> {
+export async function resetUserPassword(businessId: string, userId: string, customPassword?: string): Promise<Result> {
   const err = await assertSuperAdmin();
   if (err) return { ok: false, error: err };
-  const password = genPassword();
+  const password = customPassword?.trim() || genPassword();
+  if (password.length < 8) return { ok: false, error: "Şifre en az 8 karakter olmalı." };
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(userId, { password });
   if (error) return { ok: false, error: error.message };
@@ -112,11 +148,21 @@ export async function resetUserPassword(businessId: string, userId: string): Pro
   return { ok: true, password };
 }
 
+export async function setUserActive(businessId: string, userId: string, active: boolean): Promise<Result> {
+  const err = await assertSuperAdmin();
+  if (err) return { ok: false, error: err };
+  const admin = createAdminClient();
+  // ban_duration ile pasifleştir (giriş engellenir) / "none" ile aktive et
+  const { error } = await admin.auth.admin.updateUserById(userId, { ban_duration: active ? "none" : "876600h" });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/admin/firma/${businessId}`);
+  return { ok: true };
+}
+
 export async function removeUser(businessId: string, userId: string): Promise<Result> {
   const err = await assertSuperAdmin();
   if (err) return { ok: false, error: err };
   const admin = createAdminClient();
-  // profiles.id → auth.users on delete cascade; auth kullanıcısını silmek profili de siler
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/admin/firma/${businessId}`);

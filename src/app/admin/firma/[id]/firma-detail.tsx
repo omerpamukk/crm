@@ -4,12 +4,13 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Users, CalendarCheck, Banknote, Save, UserPlus, KeyRound, Trash2, Copy, CheckCircle2, ShieldAlert, Play, Pause, Eye,
+  ArrowLeft, Users, CalendarCheck, Banknote, Save, UserPlus, KeyRound, Trash2, Copy, CheckCircle2, ShieldAlert,
+  Play, Pause, Eye, Pencil, Phone, Mail, MapPin, Globe, Clock, Image as ImageIcon, Ban, RotateCcw, CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { SECTORS } from "@/lib/constants";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Business, Subscription, SubscriptionStatus } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -17,10 +18,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-import { updateBusiness, updateSubscription, setSubscriptionStatus, addUserToBusiness, changeUserRole, resetUserPassword, removeUser } from "./actions";
+import {
+  updateBusinessInfo, updateSubscription, setSubscriptionStatus, addUserToBusiness,
+  changeUserRole, resetUserPassword, setUserActive, removeUser,
+} from "./actions";
 import { enterViewAs } from "../../view-as-actions";
 
-export type FirmaUser = { id: string; full_name: string | null; role: "owner" | "staff"; email: string };
+export type FirmaUser = { id: string; full_name: string | null; role: "owner" | "staff"; email: string; phone: string | null; banned: boolean };
 
 const STATUS_META: Record<SubscriptionStatus, { label: string; cls: string }> = {
   active: { label: "Aktif", cls: "bg-positive/12 text-positive" },
@@ -28,6 +32,13 @@ const STATUS_META: Record<SubscriptionStatus, { label: string; cls: string }> = 
   suspended: { label: "Askıda", cls: "bg-warning/15 text-amber-700" },
   cancelled: { label: "İptal", cls: "bg-danger/12 text-danger" },
 };
+const PLAN_LABEL: Record<string, string> = { trial: "Deneme", temel: "Temel", pro: "Pro" };
+const CURRENCIES = ["TRY", "USD", "EUR"];
+
+function daysLeft(expires: string | null): number | null {
+  if (!expires) return null;
+  return Math.ceil((new Date(expires).getTime() - Date.now()) / 86_400_000);
+}
 
 export function FirmaDetail({
   business, subscription, users, stats,
@@ -38,27 +49,37 @@ export function FirmaDetail({
   stats: { customers: number; appointments: number; revenue: number };
 }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const [pending, start] = useTransition();
   const status = (subscription?.status ?? "active") as SubscriptionStatus;
   const suspended = status === "suspended" || status === "cancelled";
+  const left = daysLeft(subscription?.expires_at ?? null);
 
-  // Genel
-  const [name, setName] = useState(business.name);
-  const [sector, setSector] = useState(business.sector ?? SECTORS[0].value);
+  // Firma bilgileri
+  const [biz, setBiz] = useState({
+    name: business.name, sector: business.sector ?? SECTORS[0].value,
+    phone: business.phone ?? "", email: business.email ?? "", address: business.address ?? "",
+    currency: business.currency ?? "TRY", timezone: business.timezone ?? "Europe/Istanbul",
+    slug: business.slug ?? "", logo_url: business.logo_url ?? "",
+  });
   // Abonelik
-  const [plan, setPlan] = useState(subscription?.plan ?? "trial");
-  const [subStatus, setSubStatus] = useState<string>(status);
-  const [price, setPrice] = useState(String(subscription?.price ?? 0));
-  const [expires, setExpires] = useState(subscription?.expires_at?.slice(0, 10) ?? "");
+  const [sub, setSub] = useState({
+    plan: subscription?.plan ?? "trial", status: status as string, price: String(subscription?.price ?? 0),
+    started_at: subscription?.started_at?.slice(0, 10) ?? "", expires_at: subscription?.expires_at?.slice(0, 10) ?? "",
+    note: subscription?.note ?? "",
+  });
   // Kullanıcı ekle
   const [addOpen, setAddOpen] = useState(false);
-  const [nu, setNu] = useState({ fullName: "", email: "", password: "", role: "staff" });
-  // Üretilen kimlik bilgisi gösterimi
+  const [nu, setNu] = useState({ fullName: "", email: "", phone: "", password: "", pwMode: "auto", role: "staff" });
+  // Şifre sıfırla
+  const [pwUser, setPwUser] = useState<FirmaUser | null>(null);
+  const [pwMode, setPwMode] = useState("auto");
+  const [pwValue, setPwValue] = useState("");
+  // Sonuç / onay
   const [creds, setCreds] = useState<{ email?: string; password: string } | null>(null);
   const [confirmDel, setConfirmDel] = useState<FirmaUser | null>(null);
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string; credentials?: { email: string; password: string }; password?: string }>, okMsg: string) =>
-    startTransition(async () => {
+    start(async () => {
       const res = await fn();
       if (!res.ok) { toast.error(res.error ?? "Hata oluştu."); return; }
       if (res.credentials) setCreds(res.credentials);
@@ -67,25 +88,29 @@ export function FirmaDetail({
       router.refresh();
     });
 
-  function copy(t: string, l: string) { navigator.clipboard.writeText(t); toast.success(`${l} kopyalandı`); }
+  const copy = (t: string, l: string) => { navigator.clipboard.writeText(t); toast.success(`${l} kopyalandı`); };
 
   return (
     <div className="space-y-6">
       <Link href="/admin" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" />Firmalar</Link>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Başlık */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-lg font-bold text-primary">{business.name.slice(0, 2).toLocaleUpperCase("tr")}</span>
           <div>
-            <h1 className="text-xl font-bold">{business.name}</h1>
-            <p className="text-sm text-muted-foreground">{business.sector ?? "—"}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold">{business.name}</h1>
+              <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", STATUS_META[status].cls)}>{STATUS_META[status].label}</span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{PLAN_LABEL[sub.plan] ?? sub.plan}</span>
+            </div>
+            <p className="text-sm text-muted-foreground">{business.sector ?? "—"} · Oluşturma {formatDate(business.created_at)}</p>
           </div>
-          <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", STATUS_META[status].cls)}>{STATUS_META[status].label}</span>
         </div>
-        <Button variant="outline" disabled={pending} onClick={() => startTransition(() => enterViewAs(business.id))}>
-          <Eye className="size-4" />
-          Görüntüleyici Olarak Gir
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" disabled={pending} onClick={() => start(() => enterViewAs(business.id, "view"))}><Eye className="size-4" />Görüntüle</Button>
+          <Button disabled={pending} onClick={() => start(() => enterViewAs(business.id, "manage"))}><Pencil className="size-4" />Yönetici Olarak Gir</Button>
+        </div>
       </div>
 
       {/* Özet */}
@@ -108,11 +133,11 @@ export function FirmaDetail({
       <Tabs defaultValue="kullanici">
         <TabsList>
           <TabsTrigger value="kullanici"><Users className="size-4" />Kullanıcılar ({users.length})</TabsTrigger>
-          <TabsTrigger value="abonelik"><Banknote className="size-4" />Abonelik</TabsTrigger>
+          <TabsTrigger value="abonelik"><CreditCard className="size-4" />Abonelik</TabsTrigger>
           <TabsTrigger value="genel"><Save className="size-4" />Firma Bilgileri</TabsTrigger>
         </TabsList>
 
-        {/* Kullanıcılar */}
+        {/* KULLANICILAR */}
         <TabsContent value="kullanici" className="mt-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -123,16 +148,27 @@ export function FirmaDetail({
               <ul className="divide-y">
                 {users.map((u) => (
                   <li key={u.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{(u.full_name ?? "?").slice(0, 2).toLocaleUpperCase("tr")}</span>
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{(u.full_name ?? "?").slice(0, 2).toLocaleUpperCase("tr")}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{u.full_name ?? "—"}</p>
-                      <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                      <p className="flex items-center gap-2 truncate text-sm font-medium">
+                        {u.full_name ?? "—"}
+                        {u.banned && <span className="rounded-full bg-danger/12 px-1.5 py-0.5 text-[10px] font-medium text-danger">Pasif</span>}
+                      </p>
+                      <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1"><Mail className="size-3" />{u.email}</span>
+                        {u.phone && <span className="inline-flex items-center gap-1"><Phone className="size-3" />{u.phone}</span>}
+                      </p>
                     </div>
                     <select value={u.role} onChange={(e) => run(() => changeUserRole(business.id, u.id, e.target.value as "owner" | "staff"), "Rol güncellendi")} disabled={pending} className="h-8 rounded-lg border border-input bg-background px-2 text-xs">
                       <option value="owner">Yönetici</option>
                       <option value="staff">Personel</option>
                     </select>
-                    <Button variant="outline" size="sm" disabled={pending} onClick={() => run(() => resetUserPassword(business.id, u.id), "Şifre sıfırlandı")}><KeyRound className="size-3.5" />Şifre</Button>
+                    <Button variant="outline" size="sm" disabled={pending} onClick={() => { setPwUser(u); setPwMode("auto"); setPwValue(""); }}><KeyRound className="size-3.5" />Şifre</Button>
+                    {u.banned ? (
+                      <Button variant="outline" size="sm" className="text-positive" disabled={pending} onClick={() => run(() => setUserActive(business.id, u.id, true), "Kullanıcı aktifleştirildi")}><RotateCcw className="size-3.5" />Aktive Et</Button>
+                    ) : (
+                      <Button variant="outline" size="sm" className="text-amber-600" disabled={pending} onClick={() => run(() => setUserActive(business.id, u.id, false), "Kullanıcı pasifleştirildi")}><Ban className="size-3.5" />Pasifleştir</Button>
+                    )}
                     <Button variant="outline" size="icon-sm" className="text-danger" disabled={pending} onClick={() => setConfirmDel(u)}><Trash2 className="size-3.5" /></Button>
                   </li>
                 ))}
@@ -140,78 +176,119 @@ export function FirmaDetail({
               </ul>
             </CardContent>
           </Card>
-          <p className="mt-2 text-xs text-muted-foreground">E-postalar yalnızca SUPABASE_SERVICE_ROLE_KEY ayarlıysa görünür. Yeni kullanıcı/şifre bilgisi ekranda gösterilir, siz iletirsiniz.</p>
+          <p className="mt-2 text-xs text-muted-foreground">E-posta/telefon yalnızca SUPABASE_SERVICE_ROLE_KEY ayarlıysa görünür. Şifreler güvenlik gereği görüntülenemez; sıfırlanabilir.</p>
         </TabsContent>
 
-        {/* Abonelik */}
-        <TabsContent value="abonelik" className="mt-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base">Abonelik</CardTitle>
-              {suspended ? (
-                <Button size="sm" className="bg-positive text-white hover:bg-positive/90" disabled={pending} onClick={() => run(() => setSubscriptionStatus(business.id, "active"), "Abonelik aktive edildi")}><Play className="size-4" />Yeniden Aktive Et</Button>
-              ) : (
-                <Button size="sm" variant="destructive" disabled={pending} onClick={() => run(() => setSubscriptionStatus(business.id, "suspended"), "Abonelik askıya alındı")}><Pause className="size-4" />Askıya Al</Button>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5"><label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Plan</label>
-                  <select value={plan} onChange={(e) => setPlan(e.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
-                    <option value="trial">Deneme</option><option value="temel">Temel</option><option value="pro">Pro</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5"><label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Durum</label>
-                  <select value={subStatus} onChange={(e) => setSubStatus(e.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
-                    <option value="active">Aktif</option><option value="trial">Deneme</option><option value="suspended">Askıda</option><option value="cancelled">İptal</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5"><label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Aylık Ücret (₺)</label>
-                  <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />
-                </div>
-                <div className="space-y-1.5"><label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bitiş Tarihi</label>
-                  <input type="date" value={expires} onChange={(e) => setExpires(e.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />
+        {/* ABONELİK */}
+        <TabsContent value="abonelik" className="mt-4 space-y-4">
+          <Card className={cn("border-l-4", suspended ? "border-l-warning" : "border-l-positive")}>
+            <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
+              <div className="flex items-center gap-4">
+                <span className={cn("flex size-12 items-center justify-center rounded-xl", STATUS_META[status].cls)}><CreditCard className="size-6" /></span>
+                <div>
+                  <p className="text-lg font-bold">{PLAN_LABEL[sub.plan] ?? sub.plan} Plan · <span className={cn(suspended ? "text-amber-600" : "text-positive")}>{STATUS_META[status].label}</span></p>
+                  <p className="text-sm text-muted-foreground">
+                    {Number(sub.price) > 0 ? `${formatPrice(Number(sub.price))}/ay` : "Ücretsiz"}
+                    {subscription?.started_at && ` · Başlangıç ${formatDate(subscription.started_at)}`}
+                    {left !== null && ` · ${left >= 0 ? `${left} gün kaldı` : `${-left} gün önce bitti`}`}
+                  </p>
                 </div>
               </div>
-              <Button disabled={pending} onClick={() => run(() => updateSubscription(business.id, { plan, status: subStatus, price: Number(price) || 0, expires_at: expires || null }), "Abonelik güncellendi")}><Save className="size-4" />Aboneliği Kaydet</Button>
+              {suspended ? (
+                <Button className="bg-positive text-white hover:bg-positive/90" disabled={pending} onClick={() => run(() => setSubscriptionStatus(business.id, "active"), "Abonelik aktive edildi")}><Play className="size-4" />Yeniden Aktive Et</Button>
+              ) : (
+                <Button variant="destructive" disabled={pending} onClick={() => run(() => setSubscriptionStatus(business.id, "suspended"), "Abonelik askıya alındı")}><Pause className="size-4" />Askıya Al</Button>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Abonelik Detayları</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Sel label="Plan" value={sub.plan} onChange={(v) => setSub((p) => ({ ...p, plan: v }))} opts={[["trial", "Deneme"], ["temel", "Temel"], ["pro", "Pro"]]} />
+                <Sel label="Durum" value={sub.status} onChange={(v) => setSub((p) => ({ ...p, status: v }))} opts={[["active", "Aktif"], ["trial", "Deneme"], ["suspended", "Askıda"], ["cancelled", "İptal"]]} />
+                <Fld label="Aylık Ücret (₺)" type="number" value={sub.price} onChange={(v) => setSub((p) => ({ ...p, price: v }))} />
+                <Fld label="Başlangıç Tarihi" type="date" value={sub.started_at} onChange={(v) => setSub((p) => ({ ...p, started_at: v }))} />
+                <Fld label="Bitiş Tarihi" type="date" value={sub.expires_at} onChange={(v) => setSub((p) => ({ ...p, expires_at: v }))} />
+                <div className="space-y-1.5"><label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Not</label>
+                  <input value={sub.note} onChange={(e) => setSub((p) => ({ ...p, note: e.target.value }))} placeholder="İç not (firma görmez)" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />
+                </div>
+              </div>
+              <Button disabled={pending} onClick={() => run(() => updateSubscription(business.id, { plan: sub.plan, status: sub.status, price: Number(sub.price) || 0, started_at: sub.started_at || null, expires_at: sub.expires_at || null, note: sub.note }), "Abonelik güncellendi")}><Save className="size-4" />Aboneliği Kaydet</Button>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Firma bilgileri */}
+        {/* FİRMA BİLGİLERİ */}
         <TabsContent value="genel" className="mt-4">
           <Card>
             <CardHeader><CardTitle className="text-base">Firma Bilgileri</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-1.5"><label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Firma Adı</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Fld label="Firma Adı" value={biz.name} onChange={(v) => setBiz((p) => ({ ...p, name: v }))} icon={ImageIcon} />
+                <div className="space-y-1.5"><label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sektör</label>
+                  <select value={biz.sector} onChange={(e) => setBiz((p) => ({ ...p, sector: e.target.value }))} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
+                    {SECTORS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                </div>
+                <Fld label="Telefon" value={biz.phone} onChange={(v) => setBiz((p) => ({ ...p, phone: v }))} icon={Phone} placeholder="+90 5xx xxx xx xx" />
+                <Fld label="E-posta" value={biz.email} onChange={(v) => setBiz((p) => ({ ...p, email: v }))} icon={Mail} placeholder="info@firma.com" />
+                <div className="sm:col-span-2"><Fld label="Adres" value={biz.address} onChange={(v) => setBiz((p) => ({ ...p, address: v }))} icon={MapPin} placeholder="Açık adres" /></div>
+                <div className="space-y-1.5"><label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Para Birimi</label>
+                  <select value={biz.currency} onChange={(e) => setBiz((p) => ({ ...p, currency: e.target.value }))} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
+                    {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <Fld label="Zaman Dilimi" value={biz.timezone} onChange={(v) => setBiz((p) => ({ ...p, timezone: v }))} icon={Clock} />
+                <Fld label="Web Adresi (randevu linki slug)" value={biz.slug} onChange={(v) => setBiz((p) => ({ ...p, slug: v }))} icon={Globe} placeholder="defne-beauty" />
+                <Fld label="Logo URL" value={biz.logo_url} onChange={(v) => setBiz((p) => ({ ...p, logo_url: v }))} icon={ImageIcon} placeholder="https://…" />
               </div>
-              <div className="space-y-1.5"><label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sektör</label>
-                <select value={sector} onChange={(e) => setSector(e.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
-                  {SECTORS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-              </div>
-              <Button disabled={pending} onClick={() => run(() => updateBusiness(business.id, name, sector), "Firma güncellendi")}><Save className="size-4" />Kaydet</Button>
+              <p className="text-xs text-muted-foreground">Bu alanları firma kendi <strong>Ayarlar</strong> sayfasından da doldurur; burada güncel hâli görünür ve düzenlenebilir.</p>
+              <Button disabled={pending} onClick={() => run(() => updateBusinessInfo(business.id, biz), "Firma bilgileri kaydedildi")}><Save className="size-4" />Kaydet</Button>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Kullanıcı ekle modalı */}
+      {/* Kullanıcı ekle */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Kullanıcı Ekle</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <input value={nu.fullName} onChange={(e) => setNu((p) => ({ ...p, fullName: e.target.value }))} placeholder="Ad Soyad" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />
-            <input type="email" value={nu.email} onChange={(e) => setNu((p) => ({ ...p, email: e.target.value }))} placeholder="E-posta" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />
-            <input value={nu.password} onChange={(e) => setNu((p) => ({ ...p, password: e.target.value }))} placeholder="Şifre (boş = otomatik üret)" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />
-            <select value={nu.role} onChange={(e) => setNu((p) => ({ ...p, role: e.target.value }))} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
-              <option value="staff">Personel</option><option value="owner">Yönetici</option>
-            </select>
+            <Fld label="Ad Soyad" value={nu.fullName} onChange={(v) => setNu((p) => ({ ...p, fullName: v }))} placeholder="Yetkilinin adı" />
+            <Fld label="E-posta" type="email" value={nu.email} onChange={(v) => setNu((p) => ({ ...p, email: v }))} placeholder="ornek@firma.com" />
+            <Fld label="Telefon (opsiyonel)" value={nu.phone} onChange={(v) => setNu((p) => ({ ...p, phone: v }))} placeholder="+90 5xx…" />
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Şifre</label>
+              <div className="flex gap-1 rounded-lg border p-0.5 text-xs">
+                <button type="button" onClick={() => setNu((p) => ({ ...p, pwMode: "auto" }))} className={cn("flex-1 rounded-md py-1.5 font-medium", nu.pwMode === "auto" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Otomatik üret</button>
+                <button type="button" onClick={() => setNu((p) => ({ ...p, pwMode: "custom" }))} className={cn("flex-1 rounded-md py-1.5 font-medium", nu.pwMode === "custom" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Kendim belirle</button>
+              </div>
+              {nu.pwMode === "custom" && <input value={nu.password} onChange={(e) => setNu((p) => ({ ...p, password: e.target.value }))} placeholder="En az 8 karakter" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />}
+            </div>
+            <Sel label="Rol" value={nu.role} onChange={(v) => setNu((p) => ({ ...p, role: v }))} opts={[["staff", "Personel"], ["owner", "Yönetici"]]} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>İptal</Button>
-            <Button disabled={pending} onClick={() => { setAddOpen(false); run(() => addUserToBusiness(business.id, nu), "Kullanıcı eklendi"); setNu({ fullName: "", email: "", password: "", role: "staff" }); }}>Oluştur</Button>
+            <Button disabled={pending} onClick={() => { setAddOpen(false); run(() => addUserToBusiness(business.id, { fullName: nu.fullName, email: nu.email, phone: nu.phone, role: nu.role, password: nu.pwMode === "custom" ? nu.password : undefined }), "Kullanıcı eklendi"); setNu({ fullName: "", email: "", phone: "", password: "", pwMode: "auto", role: "staff" }); }}>Oluştur</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Şifre sıfırla */}
+      <Dialog open={!!pwUser} onOpenChange={(o) => !o && setPwUser(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Şifre Sıfırla — {pwUser?.full_name ?? pwUser?.email}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Mevcut şifre güvenlik gereği görüntülenemez (şifrelenmiş saklanır). Yeni bir şifre belirleyebilir veya otomatik üretebilirsin.</p>
+          <div className="flex gap-1 rounded-lg border p-0.5 text-xs">
+            <button type="button" onClick={() => setPwMode("auto")} className={cn("flex-1 rounded-md py-1.5 font-medium", pwMode === "auto" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Otomatik üret</button>
+            <button type="button" onClick={() => setPwMode("custom")} className={cn("flex-1 rounded-md py-1.5 font-medium", pwMode === "custom" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Kendim belirle</button>
+          </div>
+          {pwMode === "custom" && <input value={pwValue} onChange={(e) => setPwValue(e.target.value)} placeholder="Yeni şifre (en az 8 karakter)" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPwUser(null)}>İptal</Button>
+            <Button disabled={pending} onClick={() => { const id = pwUser?.id; setPwUser(null); if (id) run(() => resetUserPassword(business.id, id, pwMode === "custom" ? pwValue : undefined), "Şifre güncellendi"); }}>Şifreyi Belirle</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -222,28 +299,51 @@ export function FirmaDetail({
           <DialogHeader><DialogTitle className="flex items-center gap-2"><CheckCircle2 className="size-5 text-positive" />Giriş Bilgisi</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">Bu bilgiyi kullanıcıya iletin. Şifre yalnızca şimdi gösteriliyor.</p>
           <div className="space-y-2">
-            {creds?.email && (
-              <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/30 p-3"><div className="min-w-0"><p className="text-xs text-muted-foreground">E-posta</p><p className="truncate font-mono text-sm">{creds.email}</p></div><Button variant="outline" size="icon-sm" onClick={() => copy(creds.email!, "E-posta")}><Copy className="size-3.5" /></Button></div>
-            )}
-            {creds && (
-              <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/30 p-3"><div className="min-w-0"><p className="text-xs text-muted-foreground">Şifre</p><p className="truncate font-mono text-sm">{creds.password}</p></div><Button variant="outline" size="icon-sm" onClick={() => copy(creds.password, "Şifre")}><Copy className="size-3.5" /></Button></div>
-            )}
+            {creds?.email && <Reveal label="E-posta" value={creds.email} onCopy={() => copy(creds.email!, "E-posta")} />}
+            {creds && <Reveal label="Şifre" value={creds.password} onCopy={() => copy(creds.password, "Şifre")} />}
           </div>
           <DialogFooter><Button onClick={() => setCreds(null)}>Tamam</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Kullanıcı sil onayı */}
+      {/* Sil onayı */}
       <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><ShieldAlert className="size-5 text-danger" />Kullanıcıyı sil</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground"><b>{confirmDel?.full_name ?? confirmDel?.email}</b> kalıcı olarak silinecek (giriş yapamaz). Bu işlem geri alınamaz.</p>
+          <p className="text-sm text-muted-foreground"><b>{confirmDel?.full_name ?? confirmDel?.email}</b> kalıcı olarak silinecek (giriş yapamaz). Geri alınamaz. <br/>Sadece erişimini kapatmak istersen “Pasifleştir”i kullan.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDel(null)}>İptal</Button>
             <Button variant="destructive" disabled={pending} onClick={() => { const u = confirmDel; setConfirmDel(null); if (u) run(() => removeUser(business.id, u.id), "Kullanıcı silindi"); }}>Sil</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function Fld({ label, value, onChange, placeholder, type = "text", icon: Icon }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; icon?: typeof Phone }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{Icon && <Icon className="size-3" />}{label}</label>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />
+    </div>
+  );
+}
+function Sel({ label, value, onChange, opts }: { label: string; value: string; onChange: (v: string) => void; opts: [string, string][] }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</label>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
+        {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+      </select>
+    </div>
+  );
+}
+function Reveal({ label, value, onCopy }: { label: string; value: string; onCopy: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/30 p-3">
+      <div className="min-w-0"><p className="text-xs text-muted-foreground">{label}</p><p className="truncate font-mono text-sm">{value}</p></div>
+      <Button variant="outline" size="icon-sm" onClick={onCopy}><Copy className="size-3.5" /></Button>
     </div>
   );
 }

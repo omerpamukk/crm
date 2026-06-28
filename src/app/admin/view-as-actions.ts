@@ -3,10 +3,12 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { createClient, ACTING_COOKIE } from "@/lib/supabase/server";
+import { createClient, ACTING_COOKIE, ACTING_MODE_COOKIE } from "@/lib/supabase/server";
 
-/** Süper-admin bir firmayı salt-okunur "görüntüleyici" olarak gezmeye başlar. */
-export async function enterViewAs(businessId: string) {
+export type ActingMode = "view" | "manage";
+
+/** Süper-admin bir firmayı görüntüleyici (view) veya yönetici (manage) olarak gezer. */
+export async function enterViewAs(businessId: string, mode: ActingMode = "view") {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/giris");
@@ -14,18 +16,16 @@ export async function enterViewAs(businessId: string) {
   if (!isAdmin) redirect("/panel");
 
   const c = await cookies();
-  c.set(ACTING_COOKIE, businessId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 8, // 8 saat
-  });
+  const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 8 };
+  c.set(ACTING_COOKIE, businessId, opts);
+  c.set(ACTING_MODE_COOKIE, mode, opts);
   redirect("/panel");
 }
 
-/** Görüntüleyici modundan çıkar, admin paneline döner. */
+/** Görüntüleme/yönetim modundan çıkar, admin paneline döner. */
 export async function exitViewAs() {
   const c = await cookies();
   c.delete(ACTING_COOKIE);
+  c.delete(ACTING_MODE_COOKIE);
   redirect("/admin");
 }

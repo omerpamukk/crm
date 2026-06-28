@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { createClient, ACTING_COOKIE } from "@/lib/supabase/server";
+import { createClient, ACTING_COOKIE, ACTING_MODE_COOKIE } from "@/lib/supabase/server";
 import type { UserRole } from "@/types/database";
 
 export interface AccountContext {
@@ -12,8 +12,10 @@ export interface AccountContext {
   businessName: string;
   role: UserRole;
   roleLabel: string;
-  /** Süper-admin bu firmayı salt-okunur görüntülüyor mu? */
+  /** Süper-admin bu firmayı görüntülüyor/yönetiyor mu? */
   impersonating: boolean;
+  /** Impersonation "yönet" modunda mı? (yazma açık) */
+  manageMode: boolean;
 }
 
 /**
@@ -41,6 +43,7 @@ export async function getAccountContext(): Promise<AccountContext> {
     if (!acting) {
       redirect("/admin");
     }
+    const manageMode = cookieStore.get(ACTING_MODE_COOKIE)?.value === "manage";
     // Başlık sayesinde bu okuma yalnızca acting firmayı döndürür.
     const { data: biz } = await supabase
       .from("businesses")
@@ -57,8 +60,9 @@ export async function getAccountContext(): Promise<AccountContext> {
       businessId: acting,
       businessName: (biz as { name: string }).name,
       role: "owner",
-      roleLabel: "Görüntüleyici",
+      roleLabel: manageMode ? "Yönetici (Ajans)" : "Görüntüleyici",
       impersonating: true,
+      manageMode,
     };
   }
 
@@ -99,5 +103,6 @@ export async function getAccountContext(): Promise<AccountContext> {
     role,
     roleLabel: role === "owner" ? "Yönetici" : "Personel",
     impersonating: false,
+    manageMode: false,
   };
 }

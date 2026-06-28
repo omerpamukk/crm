@@ -25,22 +25,35 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
 
   const profiles = (profRes.data ?? []) as { id: string; full_name: string | null; role: string }[];
 
-  // E-postalar auth.users'tan (service_role) — anahtar yoksa zarifçe "—"
-  const emailById = new Map<string, string>();
+  // E-posta/telefon/durum auth.users'tan (service_role) — anahtar yoksa zarifçe boş
+  const metaById = new Map<string, { email: string; phone: string | null; banned: boolean }>();
   try {
     const admin = createAdminClient();
     const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    for (const u of list?.users ?? []) emailById.set(u.id, u.email ?? "—");
+    const nowIso = new Date().toISOString();
+    for (const u of list?.users ?? []) {
+      const bannedUntil = (u as { banned_until?: string | null }).banned_until ?? null;
+      metaById.set(u.id, {
+        email: u.email ?? "—",
+        phone: (u.user_metadata?.phone as string | undefined) ?? null,
+        banned: !!bannedUntil && bannedUntil > nowIso,
+      });
+    }
   } catch {
-    // SUPABASE_SERVICE_ROLE_KEY ayarlı değilse e-postalar gösterilmez (sayfa yine çalışır)
+    // SUPABASE_SERVICE_ROLE_KEY ayarlı değilse meta gösterilmez (sayfa yine çalışır)
   }
 
-  const users: FirmaUser[] = profiles.map((p) => ({
-    id: p.id,
-    full_name: p.full_name,
-    role: p.role === "staff" ? "staff" : "owner",
-    email: emailById.get(p.id) ?? "—",
-  }));
+  const users: FirmaUser[] = profiles.map((p) => {
+    const m = metaById.get(p.id);
+    return {
+      id: p.id,
+      full_name: p.full_name,
+      role: p.role === "staff" ? "staff" : "owner",
+      email: m?.email ?? "—",
+      phone: m?.phone ?? null,
+      banned: m?.banned ?? false,
+    };
+  });
 
   const revenue = ((payRes.data ?? []) as { amount: number | null }[]).reduce((s, p) => s + (p.amount ?? 0), 0);
 
