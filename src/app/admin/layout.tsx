@@ -4,11 +4,13 @@ import { Building2, ShieldCheck, Plus, Users, History } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/supabase/admin-context";
+import { getAdminNotifications } from "@/lib/supabase/notifications";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 
 import { AdminUserMenu } from "./admin-logout";
+import { AdminNotifications } from "./admin-notifications";
 
 /**
  * Süper-admin (ajans) paneli kabuğu.
@@ -24,6 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const { data: isAdmin } = await supabase.rpc("is_super_admin");
   if (!isAdmin) redirect("/panel");
   const ctx = await getAdminContext();
+  const notifications = await getAdminNotifications(!!ctx?.isOwner);
 
   return (
     <div className="min-h-svh bg-muted/30">
@@ -65,6 +68,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 Yeni Firma
               </Link>
             )}
+            <AdminNotifications items={notifications.items} count={notifications.count} />
             <AdminUserMenu email={user.email ?? ""} />
           </div>
         </div>
