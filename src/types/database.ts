@@ -64,6 +64,28 @@ export interface Profile {
   role: UserRole;
 }
 
+/** Süper-admin (ajans) kullanıcıları — platform_admins (0008). */
+export interface PlatformAdmin {
+  user_id: string;
+  created_at: string;
+}
+
+export type SubscriptionStatus = "active" | "trial" | "suspended" | "cancelled";
+
+/** Firma başına abonelik — subscriptions (0008). */
+export interface Subscription {
+  id: string;
+  business_id: string;
+  plan: string;
+  status: SubscriptionStatus;
+  price: number;
+  started_at: string;
+  expires_at: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PipelineStage {
   id: string;
   created_at: string;
