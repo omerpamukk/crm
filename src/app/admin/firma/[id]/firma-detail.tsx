@@ -156,10 +156,21 @@ export function FirmaDetail({
       </div>
 
       <Tabs defaultValue="kullanici">
-        <TabsList>
-          <TabsTrigger value="kullanici"><Users className="size-4" />Kullanıcılar ({users.length})</TabsTrigger>
-          <TabsTrigger value="abonelik"><CreditCard className="size-4" />Abonelik<span className={cn("ml-1 size-2 rounded-full", subscription?.status === "active" ? "bg-positive" : subscription?.status === "trial" ? "bg-primary" : subscription?.status === "suspended" ? "bg-amber-500" : "bg-danger")} /></TabsTrigger>
-          <TabsTrigger value="genel"><Building2 className="size-4" />Firma Bilgileri</TabsTrigger>
+        <TabsList className="grid h-auto w-full grid-cols-3 gap-1.5 rounded-xl border bg-muted/40 p-1.5">
+          <TabsTrigger value="kullanici" className="group flex h-auto items-center justify-center gap-2 rounded-lg px-3 py-2.5 data-active:bg-card data-active:shadow-sm">
+            <span className="flex size-7 items-center justify-center rounded-md bg-background/70 text-muted-foreground transition-colors group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary"><Users className="size-4" /></span>
+            <span className="hidden sm:inline">Kullanıcılar</span>
+            <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground transition-colors group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary">{users.length}</span>
+          </TabsTrigger>
+          <TabsTrigger value="abonelik" className="group flex h-auto items-center justify-center gap-2 rounded-lg px-3 py-2.5 data-active:bg-card data-active:shadow-sm">
+            <span className="flex size-7 items-center justify-center rounded-md bg-background/70 text-muted-foreground transition-colors group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary"><CreditCard className="size-4" /></span>
+            <span className="hidden sm:inline">Abonelik</span>
+            <span className={cn("size-2 shrink-0 rounded-full ring-2 ring-card", subscription?.status === "active" ? "bg-positive" : subscription?.status === "trial" ? "bg-primary" : subscription?.status === "suspended" ? "bg-amber-500" : "bg-danger")} />
+          </TabsTrigger>
+          <TabsTrigger value="genel" className="group flex h-auto items-center justify-center gap-2 rounded-lg px-3 py-2.5 data-active:bg-card data-active:shadow-sm">
+            <span className="flex size-7 items-center justify-center rounded-md bg-background/70 text-muted-foreground transition-colors group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary"><Building2 className="size-4" /></span>
+            <span className="hidden sm:inline">Firma Bilgileri</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* KULLANICILAR */}
