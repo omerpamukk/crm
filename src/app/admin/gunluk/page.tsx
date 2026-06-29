@@ -15,6 +15,7 @@ type Row = { id: string; created_at: string; actor_name: string | null; action: 
 
 const META: Record<string, { label: string; icon: typeof Building2; tone: string }> = {
   firma_olustur: { label: "Firma oluşturdu", icon: Building2, tone: "bg-positive/12 text-positive" },
+  firma_sil: { label: "Firmayı sildi", icon: Building2, tone: "bg-danger/12 text-danger" },
   firma_duzenle: { label: "Firma bilgilerini güncelledi", icon: Pencil, tone: "bg-primary/10 text-primary" },
   abonelik_guncelle: { label: "Aboneliği güncelledi", icon: CreditCard, tone: "bg-primary/10 text-primary" },
   abonelik_askiya: { label: "Aboneliği askıya aldı", icon: PauseCircle, tone: "bg-warning/15 text-amber-700" },

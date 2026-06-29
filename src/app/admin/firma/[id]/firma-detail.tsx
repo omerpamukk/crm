@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 
 import {
   updateBusinessInfo, updateSubscription, setSubscriptionStatus, addUserToBusiness,
-  changeUserRole, resetUserPassword, setUserActive, removeUser,
+  changeUserRole, resetUserPassword, setUserActive, removeUser, deleteBusiness,
 } from "./actions";
 import { enterViewAs } from "../../view-as-actions";
 
@@ -56,13 +56,14 @@ export type FirmStats = {
 };
 
 export function FirmaDetail({
-  business, subscription, users, stats, perms,
+  business, subscription, users, stats, perms, isOwner,
 }: {
   business: Business;
   subscription: Subscription | null;
   users: FirmaUser[];
   stats: FirmStats;
   perms: Perms;
+  isOwner: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -93,6 +94,9 @@ export function FirmaDetail({
   // Sonuç / onay
   const [creds, setCreds] = useState<{ email?: string; password: string } | null>(null);
   const [confirmDel, setConfirmDel] = useState<FirmaUser | null>(null);
+  // Firma sil
+  const [delOpen, setDelOpen] = useState(false);
+  const [delText, setDelText] = useState("");
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string; credentials?: { email: string; password: string }; password?: string }>, okMsg: string) =>
     start(async () => {
@@ -299,6 +303,38 @@ export function FirmaDetail({
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Tehlikeli Bölge — yalnızca kurucu */}
+      {isOwner && (
+        <Card className="border-danger/30">
+          <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base text-danger"><ShieldAlert className="size-4" />Tehlikeli Bölge</CardTitle></CardHeader>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">Firmayı kalıcı olarak sil</p>
+              <p className="text-xs text-muted-foreground">Tüm müşteri, randevu, ödeme, kullanıcı ve abonelik verisi silinir. Geri alınamaz.</p>
+            </div>
+            <Button variant="destructive" onClick={() => { setDelText(""); setDelOpen(true); }}><Trash2 className="size-4" />Firmayı Sil</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Firma sil onayı — "sil" yazarak */}
+      <Dialog open={delOpen} onOpenChange={(o) => { setDelOpen(o); if (!o) setDelText(""); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2 text-danger"><ShieldAlert className="size-5" />Firmayı sil</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground"><b className="text-foreground">{business.name}</b> firması ve <b>tüm verisi</b> (müşteriler, randevular, ödemeler, {users.length} kullanıcı, abonelik) kalıcı olarak silinecek. <b className="text-danger">Bu işlem geri alınamaz.</b></p>
+            <div className="rounded-lg border border-danger/30 bg-danger/5 p-3">
+              <label className="text-xs font-medium text-muted-foreground">Onaylamak için <b className="font-mono text-danger">sil</b> yazın</label>
+              <input value={delText} onChange={(e) => setDelText(e.target.value)} placeholder="sil" className="mt-1.5 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDelOpen(false); setDelText(""); }}>Vazgeç</Button>
+            <Button variant="destructive" disabled={pending || delText.trim().toLocaleLowerCase("tr") !== "sil"} onClick={() => { setDelOpen(false); start(async () => { const res = await deleteBusiness(business.id); if (!res.ok) { toast.error(res.error ?? "Firma silinemedi."); return; } toast.success("Firma silindi."); router.push("/admin"); router.refresh(); }); }}><Trash2 className="size-4" />Kalıcı Olarak Sil</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Kullanıcı ekle */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

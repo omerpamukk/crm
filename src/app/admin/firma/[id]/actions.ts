@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { assertPerm } from "@/lib/supabase/admin-context";
+import { assertPerm, assertOwner } from "@/lib/supabase/admin-context";
 import { logAdminAction } from "@/lib/supabase/audit";
 
 type Result = { ok: boolean; error?: string; password?: string; credentials?: { email: string; password: string } };
@@ -155,6 +155,33 @@ export async function setUserActive(businessId: string, userId: string, active: 
   if (error) return { ok: false, error: error.message };
 await logAdminAction(active ? "kullanici_aktive" : "kullanici_pasif", { businessId });
     revalidatePath(`/admin/firma/${businessId}`);
+  return { ok: true };
+}
+
+/**
+ * Firmayı kalıcı olarak siler — YALNIZCA KURUCU. Tüm firma verisi (cascade) +
+ * firmanın kullanıcı (auth) hesapları silinir. Geri alınamaz.
+ */
+export async function deleteBusiness(id: string): Promise<Result> {
+  const err = await assertOwner();
+  if (err) return { ok: false, error: err };
+  const admin = createAdminClient();
+
+  const { data: biz } = await admin.from("businesses").select("name").eq("id", id).maybeSingle();
+  const { data: profs } = await admin.from("profiles").select("id").eq("business_id", id);
+  const userIds = ((profs ?? []) as { id: string }[]).map((p) => p.id);
+
+  // 1) Firma satırını sil → bağlı tüm veriler cascade ile gider (0013 sonrası)
+  const { error: delErr } = await admin.from("businesses").delete().eq("id", id);
+  if (delErr) return { ok: false, error: `Firma silinemedi: ${delErr.message}` };
+
+  // 2) Artık profili kalmayan auth kullanıcılarını sil (giriş yapamasınlar)
+  for (const uid of userIds) {
+    try { await admin.auth.admin.deleteUser(uid); } catch { /* yoksay */ }
+  }
+
+  await logAdminAction("firma_sil", { businessName: (biz as { name: string } | null)?.name ?? null, detail: `${userIds.length} kullanıcı silindi` });
+  revalidatePath("/admin");
   return { ok: true };
 }
 

@@ -97,6 +97,7 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
       users={users}
       stats={stats}
       perms={perms}
+      isOwner={!!ctx?.isOwner}
     />
   );
 }
