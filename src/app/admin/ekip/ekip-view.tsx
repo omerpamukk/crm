@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Users, UserPlus, ShieldCheck, KeyRound, Trash2, Copy, CheckCircle2, SlidersHorizontal, Crown, ShieldAlert, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
-import { ADMIN_PERMS, DEFAULT_ADMIN_PERMS, PERM_LABEL } from "@/lib/admin-perms";
+import { ADMIN_PERMS, DEFAULT_ADMIN_PERMS, PERM_LABEL, ADMIN_ROLE_PRESETS, matchRolePreset } from "@/lib/admin-perms";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,8 +70,10 @@ export function EkipView({ rows }: { rows: AdminRow[] }) {
                   </p>
                   <p className="truncate text-xs text-muted-foreground">{a.email}{a.phone ? ` · ${a.phone}` : ""}</p>
                   {!a.is_owner && (
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {a.permissions.length === 0 ? <span className="text-[11px] text-muted-foreground">Yetki yok (yalnızca panel görür)</span> :
+                    <div className="mt-1 flex flex-wrap items-center gap-1">
+                      <span className="rounded-full bg-foreground/5 px-1.5 py-0.5 text-[10px] font-semibold text-foreground/70">{matchRolePreset(a.permissions)}</span>
+                      <span className="text-muted-foreground/40">·</span>
+                      {a.permissions.length === 0 ? <span className="text-[11px] text-muted-foreground">yalnızca panel görür</span> :
                         a.permissions.map((p) => <span key={p} className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{PERM_LABEL[p] ?? p}</span>)}
                     </div>
                   )}
@@ -111,7 +113,8 @@ export function EkipView({ rows }: { rows: AdminRow[] }) {
               </div>
               {nu.pwMode === "custom" && <input value={nu.password} onChange={(e) => setNu((p) => ({ ...p, password: e.target.value }))} placeholder="En az 8 karakter" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />}
             </div>
-            <PermPicker perms={nu.perms} onToggle={(k) => setNu((p) => ({ ...p, perms: toggle(p.perms, k) }))} />
+            <RolePresets perms={nu.perms} onPick={(perms) => setNu((p) => ({ ...p, perms }))} />
+            <PermPicker perms={nu.perms} onToggle={(k) => setNu((p) => ({ ...p, perms: toggle(p.perms, k) }))} fine />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>İptal</Button>
@@ -124,7 +127,8 @@ export function EkipView({ rows }: { rows: AdminRow[] }) {
       <Dialog open={!!permEdit} onOpenChange={(o) => !o && setPermEdit(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Yetkiler — {permEdit?.full_name ?? permEdit?.email}</DialogTitle></DialogHeader>
-          <PermPicker perms={editPerms} onToggle={(k) => setEditPerms((p) => toggle(p, k))} />
+          <RolePresets perms={editPerms} onPick={(perms) => setEditPerms(perms)} />
+          <PermPicker perms={editPerms} onToggle={(k) => setEditPerms((p) => toggle(p, k))} fine />
           <DialogFooter>
             <Button variant="outline" onClick={() => setPermEdit(null)}>İptal</Button>
             <Button disabled={pending} onClick={() => { const id = permEdit?.user_id; setPermEdit(null); if (id) run(() => updateAdminPerms(id, editPerms), "Yetkiler güncellendi"); }}>Kaydet</Button>
@@ -176,10 +180,30 @@ export function EkipView({ rows }: { rows: AdminRow[] }) {
   );
 }
 
-function PermPicker({ perms, onToggle }: { perms: string[]; onToggle: (k: string) => void }) {
+function RolePresets({ perms, onPick }: { perms: string[]; onPick: (perms: string[]) => void }) {
+  const current = matchRolePreset(perms);
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Yetkiler</label>
+      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hazır Rol</label>
+      <div className="grid gap-1.5">
+        {ADMIN_ROLE_PRESETS.map((r) => {
+          const active = current === r.label;
+          return (
+            <button key={r.key} type="button" onClick={() => onPick([...r.perms])} className={cn("flex items-center gap-2.5 rounded-lg border p-2 text-left transition-colors", active ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50")}>
+              <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold", r.tone)}>{r.label.slice(0, 2).toLocaleUpperCase("tr")}</span>
+              <span className="min-w-0 flex-1"><span className="block text-sm font-medium">{r.label}</span><span className="block truncate text-xs text-muted-foreground">{r.desc}</span></span>
+              {active && <CheckCircle2 className="size-4 shrink-0 text-primary" />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+function PermPicker({ perms, onToggle, fine }: { perms: string[]; onToggle: (k: string) => void; fine?: boolean }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{fine ? "İnce Ayar (opsiyonel)" : "Yetkiler"}</label>
       <div className="space-y-1.5 rounded-lg border p-2">
         {ADMIN_PERMS.map((p) => (
           <label key={p.key} className="flex cursor-pointer items-start gap-2.5 rounded-md p-1.5 hover:bg-muted/50">
