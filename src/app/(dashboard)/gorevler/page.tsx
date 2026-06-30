@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, CheckCircle2, Bell, User, GripVertical, Zap, Trash2, AlignLeft, CalendarClock, Tag, X, Check, Pencil } from "lucide-react";
+import { Plus, CheckCircle2, Bell, User, GripVertical, Zap, Trash2, AlignLeft, CalendarClock, Tag, X, Check, Pencil, History, MoveRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 type Priority = "high" | "normal" | "low";
+type CustStatus = "aktif" | "lead" | "pasif";
+type Customer = { name: string; status: CustStatus };
+type Activity = { id: string; actor: string; text: string; at: number };
 type Column = { id: string; label: string; dot: string; done?: boolean };
 type Task = {
   id: string;
@@ -20,11 +23,16 @@ type Task = {
   when: string;
   priority: Priority;
   colId: string;
-  customer?: string;
+  customer?: Customer;
   auto?: boolean;
   alert?: boolean;
   completedAt?: string;
+  createdBy: string;
+  createdAt: number;
+  activity: Activity[];
 };
+
+const ME = "Sen"; // mock: oturum açan kullanıcı
 
 const DEFAULT_COLUMNS: Column[] = [
   { id: "todo", label: "Yapılacaklar", dot: "bg-amber-400" },
@@ -32,15 +40,36 @@ const DEFAULT_COLUMNS: Column[] = [
   { id: "done", label: "Tamamlananlar", dot: "bg-emerald-500", done: true },
 ];
 
-const INITIAL: Task[] = [
-  { id: "t1", emoji: "📞", title: "Seda Yılmaz aranacak", desc: "Lead geldi, 2 saat aranmadı.", assignee: "Ayşe", when: "Bugün 17:00", priority: "high", customer: "Seda Yılmaz", auto: true, colId: "todo" },
-  { id: "t2", emoji: "💳", title: "Ahmet Çelik ödeme takibi", desc: "7.000₺ gecikmiş ödeme — 8 gündür ödeme yok.", assignee: "Zeynep", when: "Bugün 16:00", priority: "high", customer: "Ahmet Çelik", auto: true, colId: "todo" },
+const DEMO_CUSTOMERS: Customer[] = [
+  { name: "Seda Yılmaz", status: "lead" },
+  { name: "Ahmet Çelik", status: "aktif" },
+  { name: "Zeynep Arslan", status: "aktif" },
+  { name: "Büşra Kaya", status: "aktif" },
+  { name: "Elif Demir", status: "pasif" },
+  { name: "Mert Şahin", status: "lead" },
+];
+
+const CUST_STATUS: Record<CustStatus, { label: string; chip: string; dot: string }> = {
+  aktif: { label: "Aktif Müşteri", chip: "bg-emerald-500/12 text-emerald-700", dot: "bg-emerald-500" },
+  lead: { label: "Lead", chip: "bg-amber-500/15 text-amber-700", dot: "bg-amber-500" },
+  pasif: { label: "Pasif Müşteri", chip: "bg-muted text-muted-foreground", dot: "bg-muted-foreground" },
+};
+
+type Raw = Omit<Task, "activity" | "createdAt" | "createdBy">;
+const RAW: Raw[] = [
+  { id: "t1", emoji: "📞", title: "Seda Yılmaz aranacak", desc: "Lead geldi, 2 saat aranmadı.", assignee: "Ayşe", when: "Bugün 17:00", priority: "high", customer: { name: "Seda Yılmaz", status: "lead" }, auto: true, colId: "todo" },
+  { id: "t2", emoji: "💳", title: "Ahmet Çelik ödeme takibi", desc: "7.000₺ gecikmiş ödeme — 8 gündür ödeme yok.", assignee: "Zeynep", when: "Bugün 16:00", priority: "high", customer: { name: "Ahmet Çelik", status: "aktif" }, auto: true, colId: "todo" },
   { id: "t3", emoji: "📅", title: "Randevu hatırlatması gönder", desc: "Yarınki 3 randevu için SMS/WP mesajı gönderilmeli.", assignee: "Tüm Ekip", when: "Bugün 18:00", priority: "normal", colId: "todo" },
   { id: "t4", emoji: "📸", title: "Instagram DM yanıtları", desc: "3 yanıtsız DM var, cevap verilecek.", assignee: "Ayşe", when: "Bugün 14:00", priority: "normal", alert: true, colId: "doing" },
-  { id: "t5", emoji: "🔄", title: "Zeynep Arslan paketi yenile", desc: "Cilt bakımı 4'lü paket bitiyor, teklif yapılacak.", assignee: "Zeynep", when: "Yarın 12:00", priority: "low", customer: "Zeynep Arslan", colId: "doing" },
-  { id: "t6", emoji: "📞", title: "Büşra Kaya arandı", desc: "", assignee: "Ayşe", when: "", priority: "normal", colId: "done", completedAt: "10:30" },
+  { id: "t5", emoji: "🔄", title: "Zeynep Arslan paketi yenile", desc: "Cilt bakımı 4'lü paket bitiyor, teklif yapılacak.", assignee: "Zeynep", when: "Yarın 12:00", priority: "low", customer: { name: "Zeynep Arslan", status: "aktif" }, colId: "doing" },
+  { id: "t6", emoji: "📞", title: "Büşra Kaya arandı", desc: "", assignee: "Ayşe", when: "", priority: "normal", customer: { name: "Büşra Kaya", status: "aktif" }, colId: "done", completedAt: "10:30" },
   { id: "t7", emoji: "📊", title: "Mayıs gider raporu hazırla", desc: "", assignee: "Zeynep", when: "", priority: "normal", colId: "done", completedAt: "09:15" },
 ];
+const INITIAL: Task[] = RAW.map((t, i) => {
+  const createdAt = Date.now() - (i + 2) * 3_600_000;
+  const createdBy = t.auto ? "Otomasyon" : t.assignee;
+  return { ...t, createdBy, createdAt, activity: [{ id: `a-${t.id}`, actor: createdBy, text: "görevi oluşturdu", at: createdAt }] };
+});
 
 const PRIORITY: Record<Priority, { label: string; bar: string; chip: string }> = {
   high: { label: "Acil", bar: "bg-rose-500", chip: "bg-rose-500/12 text-rose-600" },
@@ -57,6 +86,17 @@ function tone(name: string) {
   return AVATAR_TONES[h];
 }
 const now = () => new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+const aid = () => `a-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+function relTime(at: number) {
+  const m = Math.floor((Date.now() - at) / 60000);
+  if (m < 1) return "az önce";
+  if (m < 60) return `${m} dk önce`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} sa önce`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d} gün önce`;
+  return new Date(at).toLocaleDateString("tr-TR");
+}
 
 export default function GorevlerPage() {
   const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS);
@@ -66,36 +106,44 @@ export default function GorevlerPage() {
   const [didDrag, setDidDrag] = useState(false);
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", desc: "", assignee: "Tüm Ekip", priority: "normal" as Priority, when: "Bugün", colId: "todo" });
+  const [form, setForm] = useState({ title: "", desc: "", assignee: "Tüm Ekip", priority: "normal" as Priority, when: "Bugün", colId: "todo", customer: "" });
   const [editId, setEditId] = useState<string | null>(null);
   const editing = tasks.find((t) => t.id === editId) ?? null;
 
-  // Sütun düzenleme
   const [editingCol, setEditingCol] = useState<string | null>(null);
   const [colName, setColName] = useState("");
   const [addingList, setAddingList] = useState(false);
   const [newListName, setNewListName] = useState("");
 
   const isDone = (colId: string) => !!columns.find((c) => c.id === colId)?.done;
+  const colLabel = (id: string) => columns.find((c) => c.id === id)?.label ?? "?";
   const update = (id: string, patch: Partial<Task>) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-  const drop = (id: string, colId: string) => update(id, { colId, completedAt: isDone(colId) ? now() : undefined });
   const remove = (id: string) => { setTasks((prev) => prev.filter((t) => t.id !== id)); setEditId(null); toast.success("Görev silindi"); };
 
+  function moveTask(id: string, toColId: string) {
+    setTasks((prev) => prev.map((t) => {
+      if (t.id !== id || t.colId === toColId) return t;
+      const entry: Activity = { id: aid(), actor: ME, text: `“${colLabel(t.colId)}” → “${colLabel(toColId)}” taşıdı`, at: Date.now() };
+      return { ...t, colId: toColId, completedAt: isDone(toColId) ? now() : undefined, activity: [entry, ...t.activity] };
+    }));
+  }
+
   function openAdd(colId: string) {
-    setForm({ title: "", desc: "", assignee: "Tüm Ekip", priority: "normal", when: "Bugün", colId });
+    setForm({ title: "", desc: "", assignee: "Tüm Ekip", priority: "normal", when: "Bugün", colId, customer: "" });
     setOpen(true);
   }
   function addTask() {
     if (!form.title.trim()) return;
+    const createdAt = Date.now();
+    const customer = DEMO_CUSTOMERS.find((c) => c.name === form.customer);
     setTasks((prev) => [
-      { id: `t-${Date.now()}`, emoji: "📝", title: form.title.trim(), desc: form.desc.trim(), assignee: form.assignee, when: form.when.trim() || "Bugün", priority: form.priority, colId: form.colId, completedAt: isDone(form.colId) ? now() : undefined },
+      { id: `t-${createdAt}`, emoji: "📝", title: form.title.trim(), desc: form.desc.trim(), assignee: form.assignee, when: form.when.trim() || "Bugün", priority: form.priority, colId: form.colId, customer, completedAt: isDone(form.colId) ? now() : undefined, createdBy: ME, createdAt, activity: [{ id: aid(), actor: ME, text: "görevi oluşturdu", at: createdAt }] },
       ...prev,
     ]);
     setOpen(false);
     toast.success("Görev eklendi");
   }
 
-  // --- Sütun işlemleri ---
   function startRename(c: Column) { setEditingCol(c.id); setColName(c.label); }
   function commitRename() {
     if (editingCol && colName.trim()) setColumns((prev) => prev.map((c) => (c.id === editingCol ? { ...c, label: colName.trim() } : c)));
@@ -104,8 +152,7 @@ export default function GorevlerPage() {
   function addList() {
     const name = newListName.trim();
     if (!name) { setAddingList(false); return; }
-    const id = `col-${Date.now()}`;
-    setColumns((prev) => [...prev, { id, label: name, dot: DOT_PALETTE[prev.length % DOT_PALETTE.length] }]);
+    setColumns((prev) => [...prev, { id: `col-${Date.now()}`, label: name, dot: DOT_PALETTE[prev.length % DOT_PALETTE.length] }]);
     setNewListName("");
     setAddingList(false);
     toast.success("Liste eklendi");
@@ -120,14 +167,13 @@ export default function GorevlerPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Görev Sistemi" description="Listeleri Trello gibi yönet: kart ekle, sürükle, kartın içine girip düzenle; liste ekle/yeniden adlandır.">
+      <PageHeader title="Görev Sistemi" description="Listeleri Trello gibi yönet: kart ekle, sürükle, kartın içine girip düzenle; müşteri bağla, geçmişi gör.">
         <Button onClick={() => openAdd(columns[0]?.id ?? "todo")}>
           <Plus className="size-4" />
           Görev Ekle
         </Button>
       </PageHeader>
 
-      {/* Trello tarzı board zemini — yatay kaydırma */}
       <div className="rounded-2xl bg-gradient-to-br from-indigo-500/8 via-violet-500/8 to-sky-500/10 p-3 ring-1 ring-black/5 sm:p-4 dark:from-indigo-500/10 dark:via-violet-500/10 dark:to-sky-500/10">
         <div className="flex gap-3 overflow-x-auto pb-1">
           {columns.map((col) => {
@@ -138,45 +184,33 @@ export default function GorevlerPage() {
                 key={col.id}
                 onDragOver={(e) => { e.preventDefault(); if (draggingId) setOverCol(col.id); }}
                 onDragLeave={() => setOverCol((s) => (s === col.id ? null : s))}
-                onDrop={(e) => { e.preventDefault(); setOverCol(null); const id = e.dataTransfer.getData("text/task"); if (id) drop(id, col.id); setDraggingId(null); }}
+                onDrop={(e) => { e.preventDefault(); setOverCol(null); const id = e.dataTransfer.getData("text/task"); if (id) moveTask(id, col.id); setDraggingId(null); }}
                 className={cn(
                   "flex w-72 shrink-0 flex-col self-start rounded-xl border border-white/60 bg-white/55 shadow-sm backdrop-blur-md transition-all dark:border-white/10 dark:bg-white/5",
                   over && "bg-primary/10 ring-2 ring-primary"
                 )}
               >
-                {/* Başlık — tıkla yeniden adlandır */}
                 <div className="group/col flex items-center gap-2 px-3 py-2.5">
                   <span className={cn("size-2.5 shrink-0 rounded-full", col.dot)} />
                   {editingCol === col.id ? (
-                    <input
-                      autoFocus
-                      value={colName}
-                      onChange={(e) => setColName(e.target.value)}
-                      onBlur={commitRename}
-                      onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setEditingCol(null); }}
-                      className="h-7 flex-1 rounded-md border border-input bg-background px-2 text-sm font-bold outline-none"
-                    />
+                    <input autoFocus value={colName} onChange={(e) => setColName(e.target.value)} onBlur={commitRename} onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setEditingCol(null); }} className="h-7 flex-1 rounded-md border border-input bg-background px-2 text-sm font-bold outline-none" />
                   ) : (
                     <button onClick={() => startRename(col)} className="flex flex-1 items-center gap-1.5 text-left text-sm font-bold tracking-tight" title="Yeniden adlandır">
-                      {col.label}
-                      <Pencil className="size-3 text-muted-foreground/0 transition-colors group-hover/col:text-muted-foreground/60" />
+                      {col.label}<Pencil className="size-3 text-muted-foreground/0 transition-colors group-hover/col:text-muted-foreground/60" />
                     </button>
                   )}
                   <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground/8 px-1.5 text-xs font-bold text-muted-foreground">{items.length}</span>
-                  <button onClick={() => removeList(col)} className="text-muted-foreground/0 transition-colors group-hover/col:text-muted-foreground/60 hover:!text-danger" title="Listeyi sil">
-                    <Trash2 className="size-3.5" />
-                  </button>
+                  <button onClick={() => removeList(col)} className="text-muted-foreground/0 transition-colors group-hover/col:text-muted-foreground/60 hover:!text-danger" title="Listeyi sil"><Trash2 className="size-3.5" /></button>
                 </div>
 
                 <div className="flex-1 space-y-2 px-2 pb-2">
                   {items.length === 0 && (
-                    <p className={cn("rounded-lg border border-dashed border-foreground/15 py-8 text-center text-sm text-muted-foreground", over && "border-primary text-primary")}>
-                      {over ? "Buraya bırak" : "Görev yok"}
-                    </p>
+                    <p className={cn("rounded-lg border border-dashed border-foreground/15 py-8 text-center text-sm text-muted-foreground", over && "border-primary text-primary")}>{over ? "Buraya bırak" : "Görev yok"}</p>
                   )}
                   {items.map((t) => {
                     const done = isDone(t.colId);
                     const pri = PRIORITY[t.priority];
+                    const cust = t.customer ? CUST_STATUS[t.customer.status] : null;
                     return (
                       <div
                         key={t.id}
@@ -184,15 +218,12 @@ export default function GorevlerPage() {
                         onDragStart={(e) => { e.dataTransfer.setData("text/task", t.id); e.dataTransfer.effectAllowed = "move"; setDraggingId(t.id); setDidDrag(true); }}
                         onDragEnd={() => { setDraggingId(null); setTimeout(() => setDidDrag(false), 0); }}
                         onClick={() => { if (!didDrag) setEditId(t.id); }}
-                        className={cn(
-                          "group cursor-pointer overflow-hidden rounded-lg bg-card shadow-sm ring-1 ring-black/5 transition-all hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing dark:ring-white/10",
-                          draggingId === t.id && "rotate-2 opacity-60"
-                        )}
+                        className={cn("group cursor-pointer overflow-hidden rounded-lg bg-card shadow-sm ring-1 ring-black/5 transition-all hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing dark:ring-white/10", draggingId === t.id && "rotate-2 opacity-60")}
                       >
                         <div className="flex gap-1 px-3 pt-2.5">
                           <span className={cn("h-1.5 w-9 rounded-full", done ? "bg-emerald-500" : pri.bar)} />
                           {t.auto && <span className="h-1.5 w-6 rounded-full bg-violet-400" />}
-                          {t.customer && <span className="h-1.5 w-6 rounded-full bg-sky-400" />}
+                          {t.customer && <span className={cn("h-1.5 w-6 rounded-full", cust!.dot)} />}
                           {t.alert && !done && <span className="h-1.5 w-6 rounded-full bg-amber-400" />}
                         </div>
 
@@ -208,19 +239,18 @@ export default function GorevlerPage() {
 
                           <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pl-6 text-xs">
                             <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 py-0.5 pl-0.5 pr-2 font-medium">
-                              <span className={cn("flex size-4 items-center justify-center rounded-full text-[9px] font-bold", tone(t.assignee))}>{t.assignee.slice(0, 1).toLocaleUpperCase("tr")}</span>
-                              {t.assignee}
+                              <span className={cn("flex size-4 items-center justify-center rounded-full text-[9px] font-bold", tone(t.assignee))}>{t.assignee.slice(0, 1).toLocaleUpperCase("tr")}</span>{t.assignee}
                             </span>
                             {t.auto && <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-500/12 px-1.5 py-0.5 font-medium text-violet-600"><Zap className="size-2.5" />Otomatik</span>}
                             {!done && t.priority !== "normal" && <span className={cn("rounded-full px-1.5 py-0.5 font-medium", pri.chip)}>{pri.label}</span>}
                             {done ? <span className="text-muted-foreground">Tamamlandı · {t.completedAt}</span> : <span className={cn(t.priority === "high" ? "font-medium text-rose-600" : "text-muted-foreground")}>{t.when}</span>}
                           </div>
 
-                          {t.customer && !done && (
-                            <div className="mt-2 ml-6 flex items-center gap-1.5 rounded-md bg-sky-500/8 px-2 py-1.5 text-xs">
-                              <User className="size-3.5 text-sky-600" />
-                              <span className="font-medium">{t.customer}</span>
-                              <span className="rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">Aktif Müşteri</span>
+                          {t.customer && (
+                            <div className={cn("mt-2 ml-6 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs", cust!.chip)}>
+                              <User className="size-3.5" />
+                              <span className="font-medium">{t.customer.name}</span>
+                              <span className="ml-auto rounded-full bg-background/60 px-1.5 py-0.5 text-[10px] font-semibold">{cust!.label}</span>
                             </div>
                           )}
                         </div>
@@ -228,35 +258,23 @@ export default function GorevlerPage() {
                     );
                   })}
 
-                  <button onClick={() => openAdd(col.id)} className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
-                    <Plus className="size-3.5" />Görev ekle
-                  </button>
+                  <button onClick={() => openAdd(col.id)} className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"><Plus className="size-3.5" />Görev ekle</button>
                 </div>
               </div>
             );
           })}
 
-          {/* Liste ekle */}
           <div className="w-72 shrink-0 self-start">
             {addingList ? (
               <div className="rounded-xl border border-white/60 bg-white/70 p-2 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5">
-                <input
-                  autoFocus
-                  value={newListName}
-                  onChange={(e) => setNewListName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") addList(); if (e.key === "Escape") { setAddingList(false); setNewListName(""); } }}
-                  placeholder="Liste adı…"
-                  className="mb-2 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none"
-                />
+                <input autoFocus value={newListName} onChange={(e) => setNewListName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addList(); if (e.key === "Escape") { setAddingList(false); setNewListName(""); } }} placeholder="Liste adı…" className="mb-2 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none" />
                 <div className="flex gap-1.5">
                   <Button size="sm" onClick={addList}><Check className="size-4" />Ekle</Button>
                   <Button size="sm" variant="ghost" onClick={() => { setAddingList(false); setNewListName(""); }}><X className="size-4" /></Button>
                 </div>
               </div>
             ) : (
-              <button onClick={() => setAddingList(true)} className="flex w-full items-center gap-1.5 rounded-xl border border-dashed border-foreground/20 bg-white/30 px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/60 hover:text-foreground dark:bg-white/5">
-                <Plus className="size-4" />Liste ekle
-              </button>
+              <button onClick={() => setAddingList(true)} className="flex w-full items-center gap-1.5 rounded-xl border border-dashed border-foreground/20 bg-white/30 px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/60 hover:text-foreground dark:bg-white/5"><Plus className="size-4" />Liste ekle</button>
             )}
           </div>
         </div>
@@ -288,6 +306,10 @@ export default function GorevlerPage() {
               </div>
             </div>
             <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Müşteri</label>
+              <CustomerPicker value={form.customer} onChange={(v) => setForm((f) => ({ ...f, customer: v }))} />
+            </div>
+            <div className="space-y-1.5">
               <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Öncelik</label>
               <PriorityPicker value={form.priority} onChange={(p) => setForm((f) => ({ ...f, priority: p }))} />
             </div>
@@ -305,23 +327,24 @@ export default function GorevlerPage() {
 
       {/* KART DETAYI */}
       <Dialog open={!!editId} onOpenChange={(o) => !o && setEditId(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           {editing && (
             <>
               <div className="flex gap-1 pr-8">
                 <span className={cn("h-1.5 w-12 rounded-full", isDone(editing.colId) ? "bg-emerald-500" : PRIORITY[editing.priority].bar)} />
                 {editing.auto && <span className="h-1.5 w-7 rounded-full bg-violet-400" />}
-                {editing.customer && <span className="h-1.5 w-7 rounded-full bg-sky-400" />}
+                {editing.customer && <span className={cn("h-1.5 w-7 rounded-full", CUST_STATUS[editing.customer.status].dot)} />}
               </div>
               <DialogHeader>
                 <DialogTitle className="sr-only">Görev Detayı</DialogTitle>
                 <input value={editing.title} onChange={(e) => update(editing.id, { title: e.target.value })} className="w-full rounded-lg border border-transparent bg-transparent px-2 py-1 text-lg font-bold outline-none hover:border-input focus:border-input focus:bg-background" />
+                <p className="px-2 text-xs text-muted-foreground"><b>{editing.createdBy}</b> oluşturdu · {relTime(editing.createdAt)}</p>
               </DialogHeader>
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Tag className="size-3.5" />Liste</label>
-                  <ColumnPicker columns={columns} value={editing.colId} onChange={(id) => update(editing.id, { colId: id, completedAt: isDone(id) ? now() : undefined })} />
+                  <ColumnPicker columns={columns} value={editing.colId} onChange={(id) => moveTask(editing.id, id)} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><AlignLeft className="size-3.5" />Açıklama</label>
@@ -340,16 +363,32 @@ export default function GorevlerPage() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><User className="size-3.5" />Müşteri</label>
+                  <CustomerPicker value={editing.customer?.name ?? ""} onChange={(v) => update(editing.id, { customer: DEMO_CUSTOMERS.find((c) => c.name === v) })} />
+                </div>
+                <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Öncelik</label>
                   <PriorityPicker value={editing.priority} onChange={(p) => update(editing.id, { priority: p })} />
                 </div>
-                {editing.customer && (
-                  <div className="flex items-center gap-1.5 rounded-lg bg-sky-500/8 px-3 py-2 text-sm">
-                    <User className="size-4 text-sky-600" />
-                    <span className="font-medium">{editing.customer}</span>
-                    <span className="rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">Aktif Müşteri</span>
-                  </div>
-                )}
+
+                {/* Geçmiş */}
+                <div className="space-y-2 border-t pt-3">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><History className="size-3.5" />Geçmiş</label>
+                  <ul className="space-y-2.5">
+                    {editing.activity.map((a) => (
+                      <li key={a.id} className="flex items-start gap-2 text-xs">
+                        <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold", a.actor === "Otomasyon" ? "bg-violet-500/12 text-violet-600" : tone(a.actor))}>
+                          {a.actor === "Otomasyon" ? <Sparkles className="size-3" /> : a.actor.slice(0, 1).toLocaleUpperCase("tr")}
+                        </span>
+                        <span className="flex-1 leading-relaxed">
+                          {a.text.includes("→") ? <MoveRight className="mr-1 inline size-3 text-muted-foreground" /> : null}
+                          <b>{a.actor}</b> {a.text}
+                        </span>
+                        <span className="shrink-0 text-muted-foreground tabular-nums">{relTime(a.at)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
 
               <DialogFooter className="sm:justify-between">
@@ -361,6 +400,15 @@ export default function GorevlerPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function CustomerPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
+      <option value="">— Müşteri yok —</option>
+      {DEMO_CUSTOMERS.map((c) => <option key={c.name} value={c.name}>{c.name} ({CUST_STATUS[c.status].label})</option>)}
+    </select>
   );
 }
 
