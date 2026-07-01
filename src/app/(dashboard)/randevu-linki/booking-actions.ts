@@ -42,7 +42,6 @@ export async function ensureBookingSettings(): Promise<{
     .single();
 
   if (error) return { error: `Ayarlar oluşturulamadı: ${error.message}` };
-  revalidatePath("/randevu-linki");
   return { settings: created as BookingSettings };
 }
 
