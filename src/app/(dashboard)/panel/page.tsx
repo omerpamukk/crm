@@ -2,6 +2,9 @@ import Link from "next/link";
 import {
   Clock,
   Banknote,
+  Users,
+  CalendarDays,
+  Wallet,
   TrendingUp,
   TrendingDown,
   PackageX,
@@ -22,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { StatCard } from "@/components/shared/stat-card";
 
 import { NewCustomerButton } from "../musteriler/new-customer-button";
 import { RevenueAreaChart, Sparkline } from "../raporlar/charts";
@@ -192,10 +196,10 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const summary = summaryParts.join(" · ") + ".";
 
   const kpis = [
-    { label: "Bu Ay Ciro", value: formatPrice(monthRevenue), trend: periodPct !== null ? { up: periodPct >= 0, text: `${periodMeta.comp} %${Math.abs(periodPct)}` } : null, href: "/tahsilat", spark: sparkData },
-    { label: "Bekleyen Randevu", value: pendingAppt.toLocaleString("tr-TR"), sub: `Bugün ${todayAppointments.length} randevu`, href: "/randevular" },
-    { label: "Tahsil Edilecek", value: formatPrice(totalDebt), sub: `${debtors.length} müşteri · ${overdueDebtors.length} gecikmiş`, href: "/cari", accent: totalDebt > 0 ? "text-danger" : "" },
-    { label: "Toplam Müşteri", value: customerTotal.toLocaleString("tr-TR"), sub: `${leadTotal} aktif lead`, href: "/musteriler" },
+    { label: "Bu Ay Ciro", value: formatPrice(monthRevenue), icon: Banknote, delta: periodPct, comparison: periodPct !== null ? periodMeta.comp : undefined, href: "/tahsilat", spark: sparkData, hint: "Seçili dönemde tahsil edilen toplam ödeme." },
+    { label: "Bekleyen Randevu", value: pendingAppt.toLocaleString("tr-TR"), icon: CalendarDays, sub: `Bugün ${todayAppointments.length} randevu`, href: "/randevular", hint: "Planlanmış ve henüz gerçekleşmemiş randevular." },
+    { label: "Tahsil Edilecek", value: formatPrice(totalDebt), icon: Wallet, sub: `${debtors.length} müşteri · ${overdueDebtors.length} gecikmiş`, href: "/cari", accent: totalDebt > 0 ? "text-danger" : "", hint: "Paket bedellerinden kalan açık alacak." },
+    { label: "Toplam Müşteri", value: customerTotal.toLocaleString("tr-TR"), icon: Users, sub: `${leadTotal} aktif lead`, href: "/musteriler", hint: "Müşteriye dönüşmüş kayıtlar." },
   ];
 
   const priorities = [
@@ -252,21 +256,24 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
       {/* KPI kartları — ferah dilde her biri ayrı yüzey */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
-          <Link
+          <StatCard
             key={kpi.label}
+            label={kpi.label}
+            value={kpi.value}
+            icon={kpi.icon}
+            delta={kpi.delta}
+            comparison={kpi.comparison}
+            sub={kpi.sub}
+            hint={kpi.hint}
+            accent={kpi.accent}
             href={kpi.href}
-            className="focus-ring surface group p-5 transition-all hover:-translate-y-0.5 hover:shadow-soft-lg"
           >
-            <p className="section-label">{kpi.label}</p>
-            <p className={cn("metric-value mt-2", kpi.accent)}>{kpi.value}</p>
-            {kpi.trend && (
-              <p className={cn("mt-1.5 flex items-center gap-1 text-xs font-medium", kpi.trend.up ? "text-positive" : "text-danger")}>
-                {kpi.trend.up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}{kpi.trend.text}
-              </p>
+            {kpi.spark && (
+              <div className="-mb-1 mt-3">
+                <Sparkline data={kpi.spark} />
+              </div>
             )}
-            {kpi.sub && <p className="mt-1.5 text-xs text-muted-foreground">{kpi.sub}</p>}
-            {kpi.spark && <div className="-mb-1 mt-3"><Sparkline data={kpi.spark} /></div>}
-          </Link>
+          </StatCard>
         ))}
       </div>
 

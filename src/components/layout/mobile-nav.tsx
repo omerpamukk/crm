@@ -17,11 +17,13 @@ export function MobileNav({
   displayName,
   roleLabel,
   badges,
+  counts,
 }: {
   businessName: string;
   displayName: string;
   roleLabel: string;
   badges?: Record<string, number>;
+  counts?: Record<string, number>;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -33,13 +35,14 @@ export function MobileNav({
           <span className="sr-only">Menüyü aç</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0" showCloseButton={false}>
+      <SheetContent side="left" className="w-[17rem] p-0" showCloseButton={false}>
         <SheetTitle className="sr-only">Menü</SheetTitle>
         <SidebarNav
           businessName={businessName}
           displayName={displayName}
           roleLabel={roleLabel}
           badges={badges}
+          counts={counts}
           onNavigate={() => setOpen(false)}
           variant="full"
         />

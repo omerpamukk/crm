@@ -64,15 +64,15 @@
    ============================================================= */
 :root {
   /* Nötr slate skalası — çok hafif soğuk, ama "mor" değil */
-  --background: oklch(0.978 0.003 250);
+  --background: oklch(0.975 0.002 280);
   --foreground: oklch(0.19 0.014 255);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.19 0.014 255);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.19 0.014 255);
 
-  /* Tek vurgu rengi — sakin indigo, yalnızca aksiyonlarda */
-  --primary: oklch(0.52 0.16 265);
+  /* Tek vurgu rengi — menekşe/mor (referans arayüz), yalnızca aksiyonlarda */
+  --primary: oklch(0.54 0.23 295);
   --primary-foreground: oklch(1 0 0);
 
   /* Anlam renkleri — yalnızca durum bildirir, dekorasyon değil */
@@ -96,29 +96,29 @@
   /* Border yumuşak — yüzeyleri ayırır ama çizgi gibi durmaz */
   --border: oklch(0.925 0.004 250);
   --input: oklch(0.9 0.005 250);
-  --ring: oklch(0.52 0.16 265);
+  --ring: oklch(0.54 0.23 295);
 
   /* Yumuşak elevation — ferah dilde yüzeyler hafifçe kalkık durur */
   --shadow-soft: 0 1px 2px oklch(0.19 0.014 255 / 0.04), 0 1px 3px oklch(0.19 0.014 255 / 0.03);
   --shadow-soft-lg: 0 8px 24px -6px oklch(0.19 0.014 255 / 0.1), 0 2px 6px -2px oklch(0.19 0.014 255 / 0.05);
 
   /* Grafik paleti — tek tondan türetilmiş, okunabilir sıra */
-  --chart-1: oklch(0.52 0.15 265);
-  --chart-2: oklch(0.62 0.11 230);
-  --chart-3: oklch(0.68 0.09 195);
-  --chart-4: oklch(0.72 0.08 160);
-  --chart-5: oklch(0.6 0.05 255);
+  --chart-1: oklch(0.54 0.23 295);
+  --chart-2: oklch(0.66 0.16 292);
+  --chart-3: oklch(0.76 0.1 290);
+  --chart-4: oklch(0.85 0.06 291);
+  --chart-5: oklch(0.62 0.06 285);
 
   --radius: 0.75rem; /* 12px — ferah dilde köşeler daha yumuşak */
 
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.19 0.014 255);
-  --sidebar-primary: oklch(0.52 0.16 265);
+  --sidebar-primary: oklch(0.54 0.23 295);
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.96 0.004 250);
   --sidebar-accent-foreground: oklch(0.19 0.014 255);
   --sidebar-border: oklch(0.925 0.004 250);
-  --sidebar-ring: oklch(0.52 0.16 265);
+  --sidebar-ring: oklch(0.54 0.23 295);
 }
 
 .dark {
@@ -129,7 +129,7 @@
   --popover: oklch(0.23 0.009 255);
   --popover-foreground: oklch(0.96 0.003 250);
 
-  --primary: oklch(0.65 0.15 265);
+  --primary: oklch(0.68 0.19 295);
   --primary-foreground: oklch(0.15 0.01 255);
 
   --positive: oklch(0.7 0.14 155);
@@ -151,25 +151,25 @@
 
   --border: oklch(0.31 0.01 255);
   --input: oklch(0.35 0.01 255);
-  --ring: oklch(0.65 0.15 265);
+  --ring: oklch(0.68 0.19 295);
 
   --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.3);
   --shadow-soft-lg: 0 8px 24px -6px oklch(0 0 0 / 0.5), 0 2px 6px -2px oklch(0 0 0 / 0.35);
 
-  --chart-1: oklch(0.65 0.15 265);
-  --chart-2: oklch(0.7 0.11 230);
-  --chart-3: oklch(0.75 0.09 195);
-  --chart-4: oklch(0.79 0.08 160);
-  --chart-5: oklch(0.66 0.05 255);
+  --chart-1: oklch(0.68 0.19 295);
+  --chart-2: oklch(0.74 0.14 292);
+  --chart-3: oklch(0.8 0.1 290);
+  --chart-4: oklch(0.86 0.06 291);
+  --chart-5: oklch(0.68 0.06 285);
 
   --sidebar: oklch(0.19 0.008 255);
   --sidebar-foreground: oklch(0.96 0.003 250);
-  --sidebar-primary: oklch(0.65 0.15 265);
+  --sidebar-primary: oklch(0.68 0.19 295);
   --sidebar-primary-foreground: oklch(0.15 0.01 255);
   --sidebar-accent: oklch(0.26 0.009 255);
   --sidebar-accent-foreground: oklch(0.96 0.003 250);
   --sidebar-border: oklch(0.3 0.01 255);
-  --sidebar-ring: oklch(0.65 0.15 265);
+  --sidebar-ring: oklch(0.68 0.19 295);
 }
 
 @layer base {

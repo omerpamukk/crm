@@ -1,10 +1,11 @@
-import { Users, TrendingUp, Wallet } from "lucide-react";
+import { CalendarCheck, TrendingUp, Users, Wallet } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice } from "@/lib/format";
 import type { Customer } from "@/types/database";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { StatCard } from "@/components/shared/stat-card";
 import { CardTitle } from "@/components/ui/card";
 
 import { NewCustomerButton } from "./new-customer-button";
@@ -117,10 +118,10 @@ export default async function MusterilerPage() {
   const debtorCount = enriched.filter((c) => c.openDebt > 0).length;
 
   const kpis = [
-    { label: "Aktif Müşteri", value: activeCount.toLocaleString("tr-TR"), trend: newThisMonth > 0 ? `+${newThisMonth} bu ay` : null, sub: null as string | null, accent: "" },
-    { label: "Bu Ay Seans", value: monthSessions.toLocaleString("tr-TR"), trend: null, sub: null as string | null, accent: "" },
-    { label: "Bu Ay Yeni Müşteri", value: `+${newThisMonth}`, trend: null, sub: null as string | null, accent: "" },
-    { label: "Açık Alacak", value: formatPrice(totalOpenDebt), trend: null, sub: debtorCount > 0 ? `${debtorCount} borçlu müşteri` : null, accent: totalOpenDebt > 0 ? "text-danger" : "" },
+    { label: "Aktif Müşteri", value: activeCount.toLocaleString("tr-TR"), icon: Users, sub: newThisMonth > 0 ? `Bu ay +${newThisMonth} yeni` : null, accent: "" },
+    { label: "Bu Ay Seans", value: monthSessions.toLocaleString("tr-TR"), icon: CalendarCheck, sub: null as string | null, accent: "" },
+    { label: "Bu Ay Yeni Müşteri", value: `+${newThisMonth}`, icon: TrendingUp, sub: null as string | null, accent: "" },
+    { label: "Açık Alacak", value: formatPrice(totalOpenDebt), icon: Wallet, sub: debtorCount > 0 ? `${debtorCount} borçlu müşteri` : null, accent: totalOpenDebt > 0 ? "text-danger" : "" },
   ];
 
   return (
@@ -141,17 +142,14 @@ export default async function MusterilerPage() {
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {kpis.map((kpi) => (
-              <div key={kpi.label} className="surface p-5">
-                <p className="section-label">{kpi.label}</p>
-                <p className={`metric-value mt-2 ${kpi.accent}`}>{kpi.value}</p>
-                {kpi.trend && (
-                  <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-positive">
-                    <TrendingUp className="size-3" />
-                    {kpi.trend}
-                  </p>
-                )}
-                {kpi.sub && <p className="mt-1.5 text-xs text-muted-foreground">{kpi.sub}</p>}
-              </div>
+              <StatCard
+                key={kpi.label}
+                label={kpi.label}
+                value={kpi.value}
+                icon={kpi.icon}
+                sub={kpi.sub}
+                accent={kpi.accent}
+              />
             ))}
           </div>
 

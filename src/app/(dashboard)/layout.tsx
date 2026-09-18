@@ -5,6 +5,7 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { TopBar, type AppNotification } from "@/components/layout/top-bar";
 import { ViewAsBanner } from "@/components/layout/view-as-banner";
 import { PageTransition } from "@/components/layout/page-transition";
+import { PageTitleBar } from "@/components/layout/page-title-bar";
 import { Toaster } from "@/components/ui/sonner";
 
 const DAY = 86_400_000;
@@ -25,15 +26,29 @@ export default async function DashboardLayout({
   const endOfToday = new Date(startOfToday);
   endOfToday.setDate(endOfToday.getDate() + 1);
 
-  const [pkgsRes, todayApptRes] = await Promise.all([
-    supabase.from("packages").select("customer_id, price, paid_amount, purchased_at"),
-    supabase
-      .from("appointments")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "planned")
-      .gte("starts_at", startOfToday.toISOString())
-      .lt("starts_at", endOfToday.toISOString()),
-  ]);
+  const [pkgsRes, todayApptRes, customersRes, leadsRes, upcomingApptRes] =
+    await Promise.all([
+      supabase.from("packages").select("customer_id, price, paid_amount, purchased_at"),
+      supabase
+        .from("appointments")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "planned")
+        .gte("starts_at", startOfToday.toISOString())
+        .lt("starts_at", endOfToday.toISOString()),
+      supabase
+        .from("customers")
+        .select("*", { count: "exact", head: true })
+        .eq("is_lead", false),
+      supabase
+        .from("customers")
+        .select("*", { count: "exact", head: true })
+        .eq("is_lead", true),
+      supabase
+        .from("appointments")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "planned")
+        .gte("starts_at", nowDate.toISOString()),
+    ]);
 
   const now = nowDate.getTime();
   const overdue = new Set<string>();
@@ -59,6 +74,13 @@ export default async function DashboardLayout({
   // Yalnızca gerçek veriden gelen rozet: gecikmiş ödemeli müşteri sayısı
   const badges = { overdueCari: overdue.size };
 
+  // Menüde gösterilen kayıt sayıları (referans arayüzdeki gibi)
+  const counts: Record<string, number> = {
+    "/musteriler": customersRes.count ?? 0,
+    "/leadler": leadsRes.count ?? 0,
+    "/randevular": upcomingApptRes.count ?? 0,
+  };
+
   return (
     <div className="flex min-h-svh bg-background">
       {/* Masaüstü: ikon şeridi + açılır bölüm paneli (sticky, tam boy) */}
@@ -68,6 +90,7 @@ export default async function DashboardLayout({
           displayName={displayName}
           roleLabel={roleLabel}
           badges={badges}
+          counts={counts}
         />
       </aside>
 
@@ -75,16 +98,18 @@ export default async function DashboardLayout({
       <div className="flex min-w-0 flex-1 flex-col">
         {impersonating && <ViewAsBanner businessName={businessName} manageMode={manageMode} />}
         {/* Üst bar — masaüstünde arama + bildirim, mobilde hamburger + bildirim */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur-md md:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md md:gap-5 md:px-6">
           <div className="flex items-center gap-2 md:hidden">
             <MobileNav
               businessName={businessName}
               displayName={displayName}
               roleLabel={roleLabel}
               badges={badges}
+              counts={counts}
             />
             <span className="truncate font-semibold">{businessName}</span>
           </div>
+          <PageTitleBar />
           <TopBar notifications={notifications} />
         </header>
 

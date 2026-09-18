@@ -49,22 +49,24 @@ export function TopBar({ notifications }: { notifications: AppNotification[] }) 
         <button
           type="button"
           onClick={() => setCmdOpen(true)}
-          className="hidden h-9 w-full max-w-md items-center gap-2.5 rounded-lg border bg-muted/40 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted md:flex"
+          className="focus-ring hidden h-10 w-full max-w-sm items-center gap-2.5 rounded-full border bg-card px-4 text-sm text-muted-foreground shadow-soft transition-colors hover:bg-accent md:flex"
         >
-          <Search className="size-4" />
-          <span className="flex-1 text-left">Ara veya komut çalıştır…</span>
-          <kbd className="rounded border bg-card px-1.5 py-0.5 text-[10px] font-medium">⌘K</kbd>
+          <Search className="size-4 shrink-0 text-primary" />
+          <span className="flex-1 truncate text-left">Ara veya komut çalıştır…</span>
+          <kbd className="shrink-0 rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+            ⌘K
+          </kbd>
         </button>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           {/* Arama (mobil) */}
           <button
             type="button"
             onClick={() => setCmdOpen(true)}
-            className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted md:hidden"
+            className="focus-ring flex size-10 items-center justify-center rounded-xl border bg-card text-muted-foreground shadow-soft transition-colors hover:bg-accent hover:text-foreground md:hidden"
             aria-label="Ara"
           >
-            <Search className="size-5" />
+            <Search className="size-4.5" />
           </button>
 
           {/* Bildirimler */}
@@ -72,12 +74,12 @@ export function TopBar({ notifications }: { notifications: AppNotification[] }) 
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="relative flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted"
+                className="focus-ring relative flex size-10 items-center justify-center rounded-xl border bg-card text-muted-foreground shadow-soft transition-colors hover:bg-accent hover:text-foreground"
                 aria-label="Bildirimler"
               >
-                <Bell className="size-5" />
+                <Bell className="size-4.5" />
                 {notifications.length > 0 && (
-                  <span className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white">
+                  <span className="absolute -right-1 -top-1 flex min-w-4.5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-4.5 text-danger-foreground tabular-nums">
                     {notifications.length}
                   </span>
                 )}
