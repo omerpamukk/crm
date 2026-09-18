@@ -4,6 +4,7 @@ import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { TopBar, type AppNotification } from "@/components/layout/top-bar";
 import { ViewAsBanner } from "@/components/layout/view-as-banner";
+import { PageTransition } from "@/components/layout/page-transition";
 import { Toaster } from "@/components/ui/sonner";
 
 const DAY = 86_400_000;
@@ -88,7 +89,9 @@ export default async function DashboardLayout({
         </header>
 
         <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
-          <div className="page-shell">{children}</div>
+          <div className="page-shell">
+            <PageTransition>{children}</PageTransition>
+          </div>
         </main>
       </div>
 
