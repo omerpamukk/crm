@@ -1,21 +1,30 @@
-import { MessageSquare } from "lucide-react";
+import { PageHeader } from "@/components/shared/page-header";
+import { DemoBanner } from "@/components/shared/demo-banner";
+import { MessagesView } from "./messages-view";
+import { DEMO_CONVERSATIONS, type Channel } from "./demo-data";
 
-import { ComingSoon } from "@/components/shared/coming-soon";
+const CHANNELS: Channel[] = ["instagram", "whatsapp", "messenger", "tiktok", "email"];
 
-export default function MesajlarPage() {
+export default async function MesajlarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kanal?: string }>;
+}) {
+  const { kanal } = await searchParams;
+  const initialChannel =
+    kanal && (CHANNELS as string[]).includes(kanal) ? (kanal as Channel) : "all";
+
   return (
-    <ComingSoon
-      title="Tüm Mesajlar"
-      pageDescription="Instagram, WhatsApp, Messenger ve TikTok mesajları tek gelen kutusunda."
-      icon={MessageSquare}
-      tagline="Omnichannel Gelen Kutusu"
-      description="Tüm sosyal ve mesajlaşma kanallarındaki yazışmaları tek ekrandan yönet, müşteriye dönüştür."
-      features={[
-        "Instagram DM, WhatsApp, Messenger ve TikTok tek kutuda",
-        "Kanal bazlı filtre ve okunmamış sayaçları",
-        "Sohbetten tek tıkla potansiyel müşteriye ekleme",
-        "Hazır yanıt şablonları ve ekibe atama",
-      ]}
-    />
+    <div className="space-y-6">
+      <PageHeader
+        title="Tüm Mesajlar"
+        description="Instagram, WhatsApp, Messenger ve TikTok mesajları tek gelen kutusunda."
+      />
+      <DemoBanner>
+        Kanallar bağlandığında gerçek yazışmalar buraya düşecek. Şu an örnek
+        sohbetlerle çalışıyor; gönderilen mesajlar kaydedilmez.
+      </DemoBanner>
+      <MessagesView conversations={DEMO_CONVERSATIONS} initialChannel={initialChannel} />
+    </div>
   );
 }

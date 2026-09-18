@@ -1,21 +1,14 @@
-import { PenLine } from "lucide-react";
-
-import { ComingSoon } from "@/components/shared/coming-soon";
+import { PageHeader } from "@/components/shared/page-header";
+import { WriterView } from "./writer-view";
 
 export default function MetinYaziciPage() {
   return (
-    <ComingSoon
-      title="Metin Yazıcı"
-      pageDescription="AI ile pazarlama metinleri üret."
-      icon={PenLine}
-      tagline="AI Metin Asistanı"
-      description="Instagram caption, WhatsApp/SMS kampanyası, e-posta bülteni ve reklam metinlerini saniyeler içinde üret."
-      features={[
-        "Platforma özel hazır metin türleri",
-        "Ton ve uzunluk ayarı",
-        "Hashtag ve başlık önerileri",
-        "Tek tıkla içerik planına aktarma",
-      ]}
-    />
+    <div className="space-y-6">
+      <PageHeader
+        title="Metin Yazıcı"
+        description="Instagram, WhatsApp, SMS ve e-posta metinlerini yapay zeka ile üret."
+      />
+      <WriterView />
+    </div>
   );
 }

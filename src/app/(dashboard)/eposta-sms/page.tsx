@@ -1,21 +1,19 @@
-import { Mail } from "lucide-react";
-
-import { ComingSoon } from "@/components/shared/coming-soon";
+import { PageHeader } from "@/components/shared/page-header";
+import { DemoBanner } from "@/components/shared/demo-banner";
+import { CampaignsView } from "./campaigns-view";
 
 export default function EpostaSmsPage() {
   return (
-    <ComingSoon
-      title="E-posta & SMS"
-      pageDescription="Toplu e-posta ve SMS kampanyaları."
-      icon={Mail}
-      tagline="Kampanya & Toplu Gönderim"
-      description="Hedef kitleye toplu e-posta ve SMS gönder; açılma/tıklanma performansını izle."
-      features={[
-        "E-posta ve SMS kampanya yönetimi",
-        "Hedef kitle segmentasyonu",
-        "Açılma, tıklanma ve teslim raporları",
-        "Otomatik tetiklenen seriler",
-      ]}
-    />
+    <div className="space-y-6">
+      <PageHeader
+        title="E-posta & SMS"
+        description="Toplu kampanya gönder, açılma ve teslim oranlarını izle."
+      />
+      <DemoBanner>
+        Gönderim için SMTP veya SMS sağlayıcı (Netgsm, İleti Merkezi) bağlantısı
+        gerekiyor. Şu an örnek kampanya verisi gösteriliyor.
+      </DemoBanner>
+      <CampaignsView />
+    </div>
   );
 }
