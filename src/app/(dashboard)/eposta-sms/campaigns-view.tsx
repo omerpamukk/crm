@@ -66,7 +66,7 @@ function CampaignTable({
             <span className="text-muted-foreground">{r.sent}</span>
             <span className="font-medium tabular-nums">{r.rate}</span>
             <span>
-              <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", STATUS_TONE[r.tone])}>
+              <span className={cn("inline-flex rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium", STATUS_TONE[r.tone])}>
                 {r.status}
               </span>
             </span>
@@ -82,7 +82,7 @@ export function CampaignsView() {
   const [audience, setAudience] = useState(AUDIENCES[0]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {KPIS.map((k) => (
           <div key={k.label} className="surface p-5">

@@ -273,7 +273,7 @@ export default async function YoneticiPage({
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Yönetici Paneli"
         description="İşletmenin kazanç istatistikleri, kârlılık ve büyüme analizi."

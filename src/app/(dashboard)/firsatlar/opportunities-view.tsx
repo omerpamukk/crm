@@ -276,7 +276,7 @@ export function OpportunitiesView({ categories }: { categories: OppCategory[] })
         {summaryTiles.map((t) => {
           const Icon = t.icon;
           return (
-            <div key={t.label} className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-soft">
+            <div key={t.label} className="flex items-center gap-3 rounded-lg border bg-card p-4 shadow-soft">
               <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-lg", t.tone)}>
                 <Icon className="size-5" />
               </span>
@@ -290,7 +290,7 @@ export function OpportunitiesView({ categories }: { categories: OppCategory[] })
       </div>
 
       {/* Bilgi bandı */}
-      <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/[0.04] p-3.5 text-sm">
+      <div className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/[0.04] p-3.5 text-sm">
         <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
         <p className="text-muted-foreground">
           Para potansiyeli yüksek müşteriler. <strong className="text-foreground">Tümünü gör</strong> ile kategoride
@@ -329,7 +329,7 @@ export function OpportunitiesView({ categories }: { categories: OppCategory[] })
           const m = META[c.key];
           const Icon = m?.icon ?? Sparkles;
           return (
-            <div key={c.key} className={cn("rounded-xl border border-l-4 bg-card p-5 shadow-soft transition-shadow hover:shadow-md", m?.bar)}>
+            <div key={c.key} className={cn("surface border-l-4 p-4 transition-colors duration-150 ease-out hover:bg-muted/30", m?.bar)}>
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", m?.iconCls)}>

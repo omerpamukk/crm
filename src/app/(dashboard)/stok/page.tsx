@@ -60,7 +60,7 @@ export default function StokPage() {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader title="Stok Yönetimi" description="Ürün stoklarını, kritik seviyeleri ve tüketimi takip et.">
         <Button onClick={() => toast.info("Ürün ekleme yakında.")}>
           <Plus className="size-4" />
@@ -107,7 +107,7 @@ export default function StokPage() {
           </div>
 
           {/* Tablo */}
-          <div className="overflow-hidden rounded-xl border">
+          <div className="overflow-hidden rounded-lg border">
             <div className="hidden grid-cols-[2fr_1fr_0.8fr_0.8fr_0.9fr_auto] gap-3 border-b bg-muted/40 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
               <span>Ürün</span><span>Kategori</span><span>Stok</span><span>Değer</span><span>Durum</span><span className="text-right">İşlem</span>
             </div>
@@ -127,10 +127,10 @@ export default function StokPage() {
                       <p className="truncate text-sm font-medium">{p.name}</p>
                       <p className="text-xs text-muted-foreground">{p.code}</p>
                     </div>
-                    <span><span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", CAT_TONE[p.category] ?? "bg-muted text-muted-foreground")}>{p.category}</span></span>
+                    <span><span className={cn("inline-flex rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium", CAT_TONE[p.category] ?? "bg-muted text-muted-foreground")}>{p.category}</span></span>
                     <span className={cn("text-sm font-medium", p.status === "Kritik" && "text-danger")}>{p.stock} adet</span>
                     <span className="text-sm text-muted-foreground">₺{p.value.toLocaleString("tr-TR")}</span>
-                    <span><span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", STATUS_TONE[p.status])}>{p.status}</span></span>
+                    <span><span className={cn("inline-flex rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium", STATUS_TONE[p.status])}>{p.status}</span></span>
                     <span className="flex items-center justify-end gap-1">
                       <Button variant="outline" size="sm" onClick={() => toast.info(`“${p.name}” düzenleme yakında.`)}><Pencil className="size-3.5" />Düzenle</Button>
                       {p.status === "Kritik" && (

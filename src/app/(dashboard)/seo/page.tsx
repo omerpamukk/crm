@@ -71,7 +71,7 @@ export default function SeoPage() {
   const [robots, setRobots] = useState("index, follow");
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader title="SEO" description="Sitenin arama motoru performansını izle, meta etiketlerini ve teknik SEO'yu yönet." />
 
       {/* Skor KPI'ları */}
@@ -167,7 +167,7 @@ export default function SeoPage() {
             {TECH.map((t) => {
               const Icon = t.icon;
               return (
-                <div key={t.name} className="flex items-center gap-3 rounded-xl border p-3">
+                <div key={t.name} className="flex items-center gap-3 rounded-lg border p-3">
                   <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", t.tone)}><Icon className="size-4" /></span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{t.name}</p>

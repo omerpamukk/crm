@@ -139,7 +139,7 @@ function Palette({ onClose }: { onClose: () => void }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.98, y: -4 }}
         transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
-        className="relative w-full max-w-xl overflow-hidden rounded-xl border bg-popover shadow-soft-lg"
+        className="relative w-full max-w-xl overflow-hidden rounded-lg border bg-popover shadow-soft-lg"
       >
         <Command
           loop

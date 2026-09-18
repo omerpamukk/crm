@@ -67,7 +67,7 @@ export default function SayfalarPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader title="Web Yönetimi — Sayfalar" description="Web sitenin sayfalarını, alan adını ve medyasını buradan yönet.">
         <Button onClick={() => toast.info("Yeni sayfa oluşturma yakında.")}>
           <Plus className="size-4" />
@@ -151,7 +151,7 @@ export default function SayfalarPage() {
                 {g.pages.map((p) => {
                   const Icon = p.icon;
                   return (
-                    <li key={p.id} className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-soft">
+                    <li key={p.id} className="flex items-center gap-3 rounded-lg border bg-card p-3 shadow-soft">
                       <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/50 text-muted-foreground">
                         <Icon className="size-4" />
                       </span>
@@ -162,7 +162,7 @@ export default function SayfalarPage() {
                       <span className="hidden text-xs text-muted-foreground sm:block">
                         {p.views != null ? `${p.views.toLocaleString("tr-TR")} görüntülenme` : "Taslak"}
                       </span>
-                      <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", p.status === "Yayında" ? "bg-positive/12 text-positive" : "bg-warning/12 text-amber-600")}>
+                      <span className={cn("rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium", p.status === "Yayında" ? "bg-positive/12 text-positive" : "bg-warning/12 text-amber-600")}>
                         {p.status}
                       </span>
                       <div className="flex shrink-0 items-center gap-1">
@@ -201,12 +201,12 @@ export default function SayfalarPage() {
         <CardContent>
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
             {MEDIA.map((g, i) => (
-              <div key={i} className={cn("aspect-square rounded-xl bg-gradient-to-br", g)} />
+              <div key={i} className={cn("aspect-square rounded-lg bg-gradient-to-br", g)} />
             ))}
             <button
               type="button"
               onClick={() => toast.info("Medya yükleme yakında.")}
-              className="flex aspect-square items-center justify-center rounded-xl border border-dashed text-muted-foreground transition-colors hover:bg-muted/40"
+              className="flex aspect-square items-center justify-center rounded-lg border border-dashed text-muted-foreground transition-colors hover:bg-muted/40"
             >
               <Plus className="size-6" />
             </button>

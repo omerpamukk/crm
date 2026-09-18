@@ -293,7 +293,7 @@ export default async function RaporlarPage() {
     sourceData.length > 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Raporlar"
         description="İşletmenin gelir, hizmet ve dönüşüm performansına analitik bakış."
@@ -360,15 +360,15 @@ export default async function RaporlarPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-xl border border-l-4 border-l-positive bg-card p-3">
+                <div className="rounded-lg border border-l-4 border-l-positive bg-card p-3">
                   <p className="text-xs text-muted-foreground">Gelir</p>
                   <p className="text-lg font-bold tabular-nums text-positive">{formatPrice(totalRevenue)}</p>
                 </div>
-                <div className="rounded-xl border border-l-4 border-l-danger bg-card p-3">
+                <div className="rounded-lg border border-l-4 border-l-danger bg-card p-3">
                   <p className="text-xs text-muted-foreground">Gider</p>
                   <p className="text-lg font-bold tabular-nums text-danger">{formatPrice(totalExpense)}</p>
                 </div>
-                <div className={`rounded-xl border border-l-4 bg-card p-3 ${netProfit >= 0 ? "border-l-positive" : "border-l-danger"}`}>
+                <div className={`rounded-lg border border-l-4 bg-card p-3 ${netProfit >= 0 ? "border-l-positive" : "border-l-danger"}`}>
                   <p className="text-xs text-muted-foreground">Net Kâr · %{margin} marj</p>
                   <p className={`text-lg font-bold tabular-nums ${netProfit >= 0 ? "text-positive" : "text-danger"}`}>{formatPrice(netProfit)}</p>
                 </div>

@@ -42,7 +42,7 @@ export default function BelgelerPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader title="Belge İmzalama" description="Sözleşme ve onam formlarını yükle, dijital olarak imzala ve sakla.">
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => toast.info("İmza ayarlama (demo).")}>
@@ -60,9 +60,9 @@ export default function BelgelerPage() {
       <button
         type="button"
         onClick={() => toast.info("Belge yükleme (demo).")}
-        className="flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed bg-card/50 px-6 py-12 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.03]"
+        className="flex w-full flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed bg-card/50 px-6 py-12 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.03]"
       >
-        <span className="flex size-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <span className="flex size-14 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <Upload className="size-7" />
         </span>
         <div>
@@ -78,7 +78,7 @@ export default function BelgelerPage() {
           {docs.map((d) => (
             <Card key={d.id}>
               <CardContent className="flex items-center gap-3 p-3">
-                <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl text-[10px] font-bold", TYPE_TONE[d.type])}>
+                <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-[10px] font-bold", TYPE_TONE[d.type])}>
                   <FileText className="size-5" />
                 </span>
                 <div className="min-w-0 flex-1">

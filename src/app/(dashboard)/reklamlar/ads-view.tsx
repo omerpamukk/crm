@@ -73,7 +73,7 @@ export function AdsView({ initialCampaigns }: { initialCampaigns: AdCampaign[] }
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* KPI'lar */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {KPIS.map((k) => {
@@ -88,7 +88,7 @@ export function AdsView({ initialCampaigns }: { initialCampaigns: AdCampaign[] }
       </div>
 
       {/* AI bilgi şeridi */}
-      <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] p-4">
+      <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/[0.04] p-4">
         <Sparkles className="mt-0.5 size-5 shrink-0 text-primary" />
         <p className="text-sm">
           <span className="font-semibold">AI Destekli Reklam Yönetimi</span>{" "}
@@ -122,7 +122,7 @@ export function AdsView({ initialCampaigns }: { initialCampaigns: AdCampaign[] }
               <CardContent className="space-y-4 p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-card">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] border bg-card">
                       <Logo className="size-6" />
                     </span>
                     <div>
@@ -132,7 +132,7 @@ export function AdsView({ initialCampaigns }: { initialCampaigns: AdCampaign[] }
                   </div>
                   <span
                     className={cn(
-                      "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium",
+                      "shrink-0 rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium",
                       active ? "bg-positive/12 text-positive" : "bg-warning/12 text-amber-600"
                     )}
                   >

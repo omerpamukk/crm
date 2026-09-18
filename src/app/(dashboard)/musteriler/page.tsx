@@ -125,7 +125,7 @@ export default async function MusterilerPage() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Müşteriler"
         description="Dönüşmüş müşterilerini yönet, filtrele ve geçmişlerini takip et."

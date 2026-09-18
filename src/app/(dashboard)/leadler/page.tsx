@@ -26,7 +26,7 @@ export default async function LeadlerPage() {
   const staff = (staffRes.data ?? []) as { id: string; full_name: string | null }[];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Lead'ler"
         description="Potansiyel müşterileri pipeline sütunları arasında sürükleyerek takip et."

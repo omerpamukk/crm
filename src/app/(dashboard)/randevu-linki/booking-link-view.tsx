@@ -90,7 +90,7 @@ export function BookingLinkView({
   const bookable = services.filter((s) => s.bookable !== false);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Link bandı */}
       <Card
         className={cn(
@@ -100,7 +100,7 @@ export function BookingLinkView({
       >
         <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-primary/10 text-primary">
               <Link2 className="size-5" />
             </span>
             <div className="min-w-0">
@@ -108,7 +108,7 @@ export function BookingLinkView({
                 <p className="text-sm font-semibold">Herkese Açık Randevu Linkin</p>
                 <span
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                    "inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium",
                     settings.is_active
                       ? "bg-positive/12 text-positive"
                       : "bg-muted text-muted-foreground"
@@ -386,7 +386,7 @@ function PreviewPanel({
 
   return (
     <div className="flex justify-center">
-      <div className="w-full max-w-sm overflow-hidden rounded-[2rem] border-8 border-foreground/90 bg-background shadow-xl">
+      <div className="w-full max-w-sm overflow-hidden rounded-[2rem] border-8 border-foreground/90 bg-background shadow-soft-lg">
         {/* Telefon başlığı */}
         <div className="bg-primary px-5 py-6 text-center text-primary-foreground">
           <p className="text-xs/4 opacity-80">Online Randevu</p>
@@ -414,7 +414,7 @@ function PreviewPanel({
               services.slice(0, 4).map((s) => (
                 <div
                   key={s.id}
-                  className="flex items-center justify-between rounded-xl border p-3"
+                  className="flex items-center justify-between rounded-lg border p-3"
                 >
                   <div>
                     <p className="text-sm font-medium">{s.name}</p>
@@ -430,7 +430,7 @@ function PreviewPanel({
             )}
           </div>
 
-          <div className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
+          <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
             <p className="flex items-center gap-1.5">
               <CalendarDays className="size-3.5" />
               {dayLabels || "Gün seçilmedi"}

@@ -45,7 +45,7 @@ export function RangeSelector() {
             className={cn(
               "rounded-md px-2.5 py-1 text-sm font-medium transition-colors",
               current === r.k
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground shadow-soft"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
@@ -58,7 +58,7 @@ export function RangeSelector() {
           className={cn(
             "rounded-md px-2.5 py-1 text-sm font-medium transition-colors",
             current === "ozel"
-              ? "bg-primary text-primary-foreground shadow-sm"
+              ? "bg-primary text-primary-foreground shadow-soft"
               : "text-muted-foreground hover:bg-muted hover:text-foreground"
           )}
         >
@@ -67,7 +67,7 @@ export function RangeSelector() {
       </div>
 
       {customOpen && (
-        <div className="absolute right-0 z-20 mt-2 w-72 space-y-3 rounded-lg border bg-popover p-3 shadow-lg">
+        <div className="absolute right-0 z-20 mt-2 w-72 space-y-3 rounded-lg border bg-popover p-3 shadow-soft-lg">
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Başlangıç</label>

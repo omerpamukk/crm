@@ -236,7 +236,7 @@ export default async function FirsatlarPage() {
   const categories = DEMO ? DEMO_CATEGORIES : realCategories;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Gelir Fırsatları"
         description="Mevcut verilerinden otomatik hesaplanan, aksiyon alınabilir müşteri grupları."

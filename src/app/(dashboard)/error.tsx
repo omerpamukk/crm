@@ -23,7 +23,7 @@ export default function DashboardError({
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="surface max-w-md space-y-4 p-8 text-center">
-        <span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-danger/10 text-danger">
+        <span className="mx-auto flex size-11 items-center justify-center rounded-[var(--radius-md)] bg-danger/10 text-danger">
           <TriangleAlert className="size-5" />
         </span>
         <div className="space-y-1.5">

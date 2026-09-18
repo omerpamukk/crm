@@ -68,8 +68,8 @@ export function WriterView() {
   return (
     <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
       {/* Sol: asistan kartı */}
-      <div className="rounded-xl border bg-primary/[0.04] p-5 text-center">
-        <div className="mx-auto flex size-16 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-sm">
+      <div className="rounded-lg border bg-primary/[0.04] p-5 text-center">
+        <div className="mx-auto flex size-16 items-center justify-center rounded-lg bg-primary/10 text-primary shadow-soft">
           <Sparkles className="size-8" />
         </div>
         <p className="mt-3 font-semibold">Yazar</p>
@@ -82,7 +82,7 @@ export function WriterView() {
               key={t.label}
               type="button"
               onClick={() => ask(`${t.label} metni yaz`)}
-              className={cn("rounded-full px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-80", t.tone)}
+              className={cn("rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-80", t.tone)}
             >
               {t.label}
             </button>
@@ -96,7 +96,7 @@ export function WriterView() {
       </div>
 
       {/* Sağ: sohbet */}
-      <div className="flex min-h-[480px] flex-col overflow-hidden rounded-xl border bg-card shadow-soft">
+      <div className="flex min-h-[480px] flex-col overflow-hidden rounded-lg border bg-card shadow-soft">
         <div className="flex items-center justify-between gap-2 border-b p-3">
           <div className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -118,7 +118,7 @@ export function WriterView() {
             <div key={m.id} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
               <div
                 className={cn(
-                  "max-w-[85%] whitespace-pre-wrap rounded-xl px-4 py-2.5 text-sm leading-relaxed shadow-soft",
+                  "max-w-[85%] whitespace-pre-wrap rounded-lg px-4 py-2.5 text-sm leading-relaxed shadow-soft",
                   m.role === "user" ? "bg-primary text-primary-foreground" : "bg-primary/[0.06] text-foreground"
                 )}
               >
@@ -128,7 +128,7 @@ export function WriterView() {
           ))}
           {pending && (
             <div className="flex justify-start">
-              <div className="rounded-xl bg-primary/[0.06] px-4 py-2.5 text-sm text-muted-foreground">Yazıyor…</div>
+              <div className="rounded-lg bg-primary/[0.06] px-4 py-2.5 text-sm text-muted-foreground">Yazıyor…</div>
             </div>
           )}
         </div>

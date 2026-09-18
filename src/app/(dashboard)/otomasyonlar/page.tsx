@@ -7,7 +7,7 @@ import { AutomationsView } from "./automations-view";
 
 export default function OtomasyonlarPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Otomasyonlar"
         description="Tetik → aksiyon kuralları kur; lead, DM ve yorumları otomatik yönet."

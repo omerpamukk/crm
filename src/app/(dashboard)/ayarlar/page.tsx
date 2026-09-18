@@ -82,7 +82,7 @@ function Field({ label, hint, defaultValue, placeholder, disabled }: { label: st
 
 export default function AyarlarPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader title="Ayarlar" description="İşletme bilgilerini, çalışma saatlerini, bildirimleri ve entegrasyonları yönet.">
         <Button onClick={() => toast.success("Ayarlar kaydedildi (demo).")}>
           <Save className="size-4" />
@@ -126,7 +126,7 @@ export default function AyarlarPage() {
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Logo</label>
                   <div className="flex items-center gap-3">
-                    <span className="flex size-14 items-center justify-center rounded-xl bg-primary/10 text-primary"><Store className="size-6" /></span>
+                    <span className="flex size-14 items-center justify-center rounded-[var(--radius-md)] bg-primary/10 text-primary"><Store className="size-6" /></span>
                     <Button variant="outline" onClick={() => toast.info("Logo yükleme (demo).")}><Upload className="size-4" />Logo Yükle</Button>
                   </div>
                 </div>
@@ -242,7 +242,7 @@ function WorkingHours() {
         <CardHeader><CardTitle className="flex items-center gap-2 text-base"><RefreshCw className="size-4 text-primary" />Otomatik Senkronizasyon</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground">Aktif plana göre saatler seçilen platformlara otomatik yansır.</p>
-          <div className="flex items-center gap-3 rounded-xl border p-3">
+          <div className="flex items-center gap-3 rounded-lg border p-3">
             <span className="flex size-9 items-center justify-center rounded-lg bg-positive/10 text-positive"><MapPin className="size-4" /></span>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">Google Maps çalışma saatlerini güncelle</p>
@@ -250,7 +250,7 @@ function WorkingHours() {
             </div>
             <Switch on={sync.maps} onClick={() => setSync((s) => ({ ...s, maps: !s.maps }))} />
           </div>
-          <div className="flex items-center gap-3 rounded-xl border p-3">
+          <div className="flex items-center gap-3 rounded-lg border p-3">
             <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><CalendarPlus className="size-4" /></span>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">Randevu linki saatlerini güncelle</p>
@@ -291,7 +291,7 @@ function Notifications() {
           ].map((d) => {
             const Icon = d.icon;
             return (
-              <div key={d.key} className="rounded-xl border p-4">
+              <div key={d.key} className="rounded-lg border p-4">
                 <div className="flex items-center justify-between gap-2">
                   <p className="flex items-center gap-2 font-semibold"><Icon className={cn("size-4", d.key === "morning" ? "text-amber-500" : "text-violet-500")} />{d.title}</p>
                   <Switch on={digests[d.key]} onClick={() => setDigests((s) => ({ ...s, [d.key]: !s[d.key] }))} />
@@ -338,8 +338,8 @@ function Integrations() {
           {INTEGR.map((it) => {
             const Logo = it.logo;
             return (
-              <div key={it.name} className="flex items-center gap-3 rounded-xl border p-3">
-                <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl border bg-card", !it.connected && "opacity-50")}><Logo className="size-6" /></span>
+              <div key={it.name} className="flex items-center gap-3 rounded-lg border p-3">
+                <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] border bg-card", !it.connected && "opacity-50")}><Logo className="size-6" /></span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{it.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{it.sub}</p>
@@ -369,8 +369,8 @@ function Integrations() {
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Google İşletme Profili</label>
-            <div className="flex items-center gap-3 rounded-xl border p-3">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-positive/10 text-positive"><MapPin className="size-5" /></span>
+            <div className="flex items-center gap-3 rounded-lg border p-3">
+              <span className="flex size-10 items-center justify-center rounded-[var(--radius-md)] bg-positive/10 text-positive"><MapPin className="size-5" /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">Google İşletme Profili</p>
                 <p className="text-xs text-muted-foreground">Defne Beauty Center</p>
@@ -395,7 +395,7 @@ function Subscription() {
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Crown className="size-4 text-primary" />Mevcut Paket</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-4">
+          <div className="rounded-lg border border-primary/30 bg-primary/[0.04] p-4">
             <p className="text-lg font-bold text-primary">Pro Plan</p>
             <p className="text-sm text-muted-foreground">Tüm özellikler aktif · 5 kullanıcıya kadar</p>
             <div className="mt-3 flex items-end justify-between">

@@ -43,7 +43,7 @@ export default function RaporlamaPage() {
   const exp = (fmt: string, name: string) => toast.success(`${name} — ${fmt} olarak indiriliyor (demo).`);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader title="Rapor Oluştur" description="Dönem seç, rapor türünü belirle ve Excel/PDF olarak dışa aktar; otomatik özetleri kur." />
 
       {/* Rapor oluşturucu */}
@@ -68,7 +68,7 @@ export default function RaporlamaPage() {
             <div className="flex flex-wrap gap-1.5">
               {QUICK.map((q) => (
                 <button key={q} type="button" onClick={() => setQuick(q)}
-                  className={cn("rounded-full px-3 py-1.5 text-xs font-medium transition-colors", quick === q ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70")}>
+                  className={cn("rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-medium transition-colors", quick === q ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70")}>
                   {q}
                 </button>
               ))}
@@ -85,7 +85,7 @@ export default function RaporlamaPage() {
             <Card key={r.title}>
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-center gap-3">
-                  <span className={cn("flex size-10 items-center justify-center rounded-xl", r.tone)}><Icon className="size-5" /></span>
+                  <span className={cn("flex size-10 items-center justify-center rounded-[var(--radius-md)]", r.tone)}><Icon className="size-5" /></span>
                   <div>
                     <p className="font-semibold leading-tight">{r.title}</p>
                     <p className="text-xs text-muted-foreground">{r.short}</p>
@@ -179,7 +179,7 @@ function DigestCard({
           </div>
         </div>
 
-        <div className="rounded-xl border bg-muted/30 p-3">
+        <div className="rounded-lg border bg-muted/30 p-3">
           <p className="mb-1.5 text-sm font-semibold">{previewTitle}</p>
           <ul className="space-y-1 text-sm text-muted-foreground">
             {preview.map((p) => <li key={p}>{p}</li>)}
@@ -190,7 +190,7 @@ function DigestCard({
           <p className="mb-1.5 text-sm font-medium">Gönderilecek kişiler:</p>
           <div className="flex flex-wrap items-center gap-1.5">
             {recipients.map((r, i) => (
-              <span key={r} className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium", i === 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+              <span key={r} className={cn("inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium", i === 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
                 {r}
                 {i > 0 && <button type="button" onClick={() => setRecipients((p) => p.filter((x) => x !== r))}><X className="size-3" /></button>}
               </span>

@@ -3,6 +3,7 @@ import { CalendarPlus, CheckCircle2, XCircle, Percent } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { Service } from "@/types/database";
 import { PageHeader } from "@/components/shared/page-header";
+import { StatCard } from "@/components/shared/stat-card";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 
 import { ensureBookingSettings } from "./booking-actions";
@@ -15,7 +16,7 @@ export default async function RandevuLinkiPage() {
 
   if (error || !settings) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-6">
         <PageHeader title="Randevu Linki" description="Online randevu linki yönetimi." />
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -81,7 +82,7 @@ export default async function RandevuLinkiPage() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Randevu Linki"
         description="Müşterilerinin tek bir linkten kendi randevusunu almasını sağla. Linki paylaş, hizmetleri ve çalışma saatlerini buradan yönet."
@@ -90,10 +91,12 @@ export default async function RandevuLinkiPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {kpis.map((kpi) => {
           return (
-            <div key={kpi.label} className="surface p-5">
-              <p className="section-label">{kpi.label}</p>
-              <p className="metric-value mt-2">{kpi.value}</p>
-            </div>
+            <StatCard
+              key={kpi.label}
+              label={kpi.label}
+              value={kpi.value}
+              icon={kpi.icon}
+            />
           );
         })}
       </div>

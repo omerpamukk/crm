@@ -83,7 +83,7 @@ export function CustomerInlineForm({
   }
 
   return (
-    <div className="rounded-xl border bg-card p-5 shadow-soft">
+    <div className="rounded-lg border bg-card p-5 shadow-soft">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-base font-semibold">
           <UserPlus className="size-4 text-primary" />
@@ -162,7 +162,7 @@ export function CustomerInlineForm({
                     type="button"
                     onClick={() => toggleTag(t.label)}
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition-all",
+                      "inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-medium ring-1 transition-all",
                       active
                         ? TAG_TONE[t.tone]
                         : "bg-muted/50 text-muted-foreground ring-transparent hover:bg-muted"

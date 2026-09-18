@@ -228,7 +228,7 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
         {/* Başlık (sabit) */}
         <DialogHeader className="shrink-0 gap-1.5 border-b px-6 py-5">
           <div className="flex items-center gap-2.5">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <span className="flex size-9 items-center justify-center rounded-[var(--radius-md)] bg-primary/10 text-primary">
               {isEditing ? <Pencil className="size-5" /> : <Store className="size-5" />}
             </span>
             <div>
@@ -272,7 +272,7 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
                     key={s.key}
                     onClick={() => toggle(s.key)}
                     className={cn(
-                      "group flex items-center gap-3 rounded-xl border p-3 text-left transition-all",
+                      "group flex items-center gap-3 rounded-lg border p-3 text-left transition-all",
                       checked
                         ? "border-primary/50 bg-primary/[0.04] ring-1 ring-primary/15"
                         : "border-border hover:border-foreground/15 hover:bg-muted/40"
@@ -369,7 +369,7 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
                     <li
                       key={a.id}
                       className={cn(
-                        "flex flex-wrap items-center gap-2.5 rounded-xl border p-3",
+                        "flex flex-wrap items-center gap-2.5 rounded-lg border p-3",
                         editingId === a.id && "border-primary/50 bg-primary/[0.04] ring-1 ring-primary/15"
                       )}
                     >

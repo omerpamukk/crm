@@ -116,7 +116,7 @@ export function SalesTabs({ sales, payments }: { sales: SaleRow[]; payments: Pay
           </Select>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border bg-card shadow-soft">
+        <div className="overflow-x-auto rounded-lg border bg-card shadow-soft">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
@@ -204,7 +204,7 @@ export function SalesTabs({ sales, payments }: { sales: SaleRow[]; payments: Pay
 
       {/* TAHSİLATLAR */}
       <TabsContent value="tahsilatlar">
-        <div className="overflow-x-auto rounded-xl border bg-card shadow-soft">
+        <div className="overflow-x-auto rounded-lg border bg-card shadow-soft">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">

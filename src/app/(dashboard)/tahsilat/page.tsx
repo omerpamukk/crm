@@ -135,7 +135,7 @@ export default async function SatislarPage({
   const empty = sales.length === 0 && payments.length === 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Satışlar"
         description="Yapılan satışlar (ciro), tahsilatlar ve bekleyen alacaklar tek ekranda."

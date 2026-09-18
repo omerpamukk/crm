@@ -43,39 +43,51 @@ export function StatCard({
 
   const body = (
     <>
+      {/* Seviye 3: etiket + işlevsel ikon */}
       <div className="flex items-center gap-2.5">
         {Icon && (
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <span className="icon-chip">
             <Icon className="size-4" />
           </span>
         )}
-        <span className="flex-1 truncate text-sm font-medium">{label}</span>
+        <span className="flex-1 truncate text-[0.8125rem] font-medium text-muted-foreground">
+          {label}
+        </span>
         {hint && (
-          <Info className="size-4 shrink-0 text-muted-foreground/60" aria-label={hint} />
+          <Info
+            className="size-3.5 shrink-0 text-muted-foreground/50"
+            aria-label={hint}
+          />
         )}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className={cn("metric-value", accent)}>{value}</span>
-        {hasDelta && (
-          <span
-            className={cn(
-              "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-semibold",
-              up
-                ? "bg-positive/10 text-positive"
-                : "bg-danger/10 text-danger"
-            )}
-          >
-            {up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-            {Math.abs(delta!)}%
-          </span>
-        )}
-        {comparison && (
-          <span className="text-xs text-muted-foreground">{comparison}</span>
-        )}
-      </div>
+      {/* Seviye 1: ana değer */}
+      <p className={cn("metric-value mt-3", accent)}>{value}</p>
 
-      {sub && <p className="mt-1.5 text-xs text-muted-foreground">{sub}</p>}
+      {/* Seviye 4: karşılaştırma / bağlam */}
+      {(hasDelta || comparison || sub) && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
+          {hasDelta && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-0.5 font-medium tabular-nums",
+                up ? "text-positive" : "text-danger"
+              )}
+            >
+              {up ? (
+                <TrendingUp className="size-3.5" />
+              ) : (
+                <TrendingDown className="size-3.5" />
+              )}
+              %{Math.abs(delta!)}
+            </span>
+          )}
+          {comparison && (
+            <span className="text-muted-foreground">{comparison}</span>
+          )}
+          {sub && <span className="text-muted-foreground">{sub}</span>}
+        </div>
+      )}
       {children}
     </>
   );
@@ -84,12 +96,12 @@ export function StatCard({
     return (
       <Link
         href={href}
-        className="focus-ring surface block p-5 transition-all hover:-translate-y-0.5 hover:shadow-soft-lg"
+        className="focus-ring surface block p-4 transition-colors duration-150 ease-out hover:border-primary/25 hover:bg-muted/30"
       >
         {body}
       </Link>
     );
   }
 
-  return <div className="surface p-5">{body}</div>;
+  return <div className="surface p-4">{body}</div>;
 }

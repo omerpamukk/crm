@@ -142,9 +142,9 @@ export function SidebarNav({
           href="/panel"
           onClick={onNavigate}
           title={businessName}
-          className="focus-ring flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"
+          className="focus-ring flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-primary text-primary-foreground"
         >
-          <Flower2 className="size-4.5" />
+          <Flower2 className="size-4" />
         </Link>
         {!isCollapsed && (
           <>
@@ -161,7 +161,7 @@ export function SidebarNav({
                 type="button"
                 onClick={toggleCollapsed}
                 title="Menüyü daralt"
-                className="focus-ring flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="focus-ring flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-muted-foreground transition-colors duration-150 ease-out hover:bg-muted hover:text-foreground"
               >
                 <ChevronsLeft className="size-4" />
                 <span className="sr-only">Menüyü daralt</span>
@@ -179,11 +179,11 @@ export function SidebarNav({
               type="button"
               title={displayName}
               className={cn(
-                "focus-ring flex w-full items-center gap-2.5 rounded-xl border bg-card p-2 text-left transition-colors hover:bg-accent",
+                "focus-ring flex w-full items-center gap-2.5 rounded-[var(--radius-md)] border bg-card p-2 text-left transition-colors duration-150 ease-out hover:bg-muted",
                 isCollapsed && "justify-center px-0"
               )}
             >
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-[11px] font-semibold text-primary">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-primary/10 text-[11px] font-semibold text-primary">
                 {initials(displayName)}
               </span>
               {!isCollapsed && (
@@ -352,21 +352,21 @@ function NavLink({
       title={collapsed ? item.label : undefined}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "focus-ring relative flex items-center gap-2.5 rounded-lg py-2 text-sm transition-colors",
+        "focus-ring relative flex items-center gap-2.5 rounded-lg py-2 text-sm transition-colors duration-150 ease-out",
         collapsed ? "justify-center px-0" : "px-2.5",
         active
-          ? "bg-primary/[0.08] font-medium text-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+          ? "bg-primary/[0.07] font-medium text-primary"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >
       {active && (
         <motion.span
           layoutId="nav-active-bar"
-          className="absolute -left-3 h-5 w-1 rounded-r-full bg-primary"
+          className="absolute -left-3 h-5 w-[3px] rounded-r-full bg-primary"
           transition={{ type: "spring", stiffness: 500, damping: 40 }}
         />
       )}
-      <Icon className={cn("size-4 shrink-0", active && "text-primary")} />
+      <Icon className={cn("size-[18px] shrink-0", active && "text-primary")} />
       {!collapsed && (
         <>
           <span className="flex-1 truncate">{item.label}</span>
@@ -376,7 +376,7 @@ function NavLink({
             </span>
           )}
           {badgeCount > 0 ? (
-            <span className="rounded-full bg-danger px-1.5 text-[10px] font-semibold leading-4 text-danger-foreground tabular-nums">
+            <span className="rounded-[var(--radius-sm)] bg-danger/10 px-1.5 text-[11px] font-medium leading-5 text-danger tabular-nums">
               {badgeCount}
             </span>
           ) : count != null && count > 0 ? (
@@ -412,14 +412,14 @@ function FooterLink({
       onClick={onNavigate}
       title={collapsed ? label : undefined}
       className={cn(
-        "focus-ring flex items-center gap-2.5 rounded-lg py-2 text-sm transition-colors",
+        "focus-ring flex items-center gap-2.5 rounded-lg py-2 text-sm transition-colors duration-150 ease-out",
         collapsed ? "justify-center px-0" : "px-2.5",
         active
           ? "bg-accent font-medium text-foreground"
           : "text-muted-foreground hover:bg-accent hover:text-foreground"
       )}
     >
-      <Icon className="size-4 shrink-0" />
+      <Icon className="size-[18px] shrink-0" />
       {!collapsed && <span className="flex-1 truncate">{label}</span>}
     </Link>
   );

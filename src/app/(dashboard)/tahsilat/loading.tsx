@@ -2,7 +2,7 @@ import { PageHeaderSkeleton, KpiRowSkeleton, TableSkeleton } from "@/components/
 
 export default function Loading() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeaderSkeleton />
       <KpiRowSkeleton count={4} />
       <TableSkeleton rows={6} />

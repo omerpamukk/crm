@@ -26,7 +26,7 @@ export function SalesRange() {
           className={cn(
             "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
             current === r.k
-              ? "bg-primary text-primary-foreground shadow-sm"
+              ? "bg-primary text-primary-foreground shadow-soft"
               : "text-muted-foreground hover:bg-muted hover:text-foreground"
           )}
         >

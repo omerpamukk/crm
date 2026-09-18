@@ -36,7 +36,7 @@ export default function BlogPage() {
   const [posts, setPosts] = useState(DEMO_POSTS);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader title="Blog" description="Blog yazılarınla SEO gücünü artır, organik trafik kazan.">
         {active && (
           <Button onClick={() => toast.info("Yeni yazı editörü yakında.")}>
@@ -50,7 +50,7 @@ export default function BlogPage() {
         <>
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center gap-4 px-6 py-12 text-center">
-              <span className="flex size-16 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <span className="flex size-16 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Newspaper className="size-8" />
               </span>
               <div>
@@ -112,7 +112,7 @@ export default function BlogPage() {
                       {p.date}{p.views != null ? ` · ${p.views.toLocaleString("tr-TR")} okunma` : ""}
                     </p>
                   </div>
-                  <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", p.status === "Yayında" ? "bg-positive/12 text-positive" : "bg-warning/12 text-amber-600")}>
+                  <span className={cn("rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium", p.status === "Yayında" ? "bg-positive/12 text-positive" : "bg-warning/12 text-amber-600")}>
                     {p.status}
                   </span>
                   <div className="flex shrink-0 items-center gap-1">

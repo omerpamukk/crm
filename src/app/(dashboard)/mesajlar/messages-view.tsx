@@ -195,7 +195,7 @@ export function MessagesView({
       </div>
 
       {/* Kanal sekmeleri — tam genişlik, eşit bölünür (kaydırma yok) */}
-      <div className="flex gap-1 rounded-xl border bg-card p-1 shadow-soft">
+      <div className="flex gap-1 rounded-lg border bg-card p-1 shadow-soft">
         {FILTERS.map((f) => {
           const active = filter === f.key;
           const Logo = f.key === "all" ? null : CHANNEL_THEME[f.key].icon;
@@ -231,7 +231,7 @@ export function MessagesView({
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 md:flex-row">
         {/* Sol: kanal filtreleri + sohbet listesi */}
-        <aside className="flex w-full shrink-0 flex-col overflow-hidden rounded-xl border bg-card shadow-soft max-md:max-h-72 md:w-80">
+        <aside className="flex w-full shrink-0 flex-col overflow-hidden rounded-lg border bg-card shadow-soft max-md:max-h-72 md:w-80">
           <div className="flex items-center justify-between gap-2 border-b p-3">
             <div className="flex items-center gap-2">
               <Inbox className="size-4 text-primary" />
@@ -290,7 +290,7 @@ export function MessagesView({
 
         {/* Sağ: sohbet */}
         {selected ? (
-          <section className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border shadow-soft">
+          <section className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border shadow-soft">
             {/* Başlık şeridi */}
             <div className={cn("flex items-center justify-between gap-3 px-4 py-3", theme.header)}>
               <div className="flex min-w-0 items-center gap-3">
@@ -298,7 +298,7 @@ export function MessagesView({
                   <span className={cn("flex size-9 items-center justify-center rounded-full text-xs font-semibold", theme.avatar)}>
                     {initials(selected.name)}
                   </span>
-                  <span className="absolute -bottom-1 -right-1 flex size-[18px] items-center justify-center rounded-full bg-white shadow-sm">
+                  <span className="absolute -bottom-1 -right-1 flex size-[18px] items-center justify-center rounded-full bg-white shadow-soft">
                     <ChannelLogo className="size-3.5" />
                   </span>
                 </span>
@@ -329,7 +329,7 @@ export function MessagesView({
                 <div key={m.id} className={cn("flex", m.from === "me" ? "justify-end" : "justify-start")}>
                   <div
                     className={cn(
-                      "max-w-[78%] rounded-xl px-3.5 py-2 text-sm shadow-soft",
+                      "max-w-[78%] rounded-lg px-3.5 py-2 text-sm shadow-soft",
                       m.from === "me" ? theme.outgoing : theme.incoming
                     )}
                   >
@@ -384,7 +384,7 @@ export function MessagesView({
             </div>
           </section>
         ) : (
-          <section className="flex min-w-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl border bg-card text-center shadow-soft">
+          <section className="flex min-w-0 flex-1 flex-col items-center justify-center gap-3 rounded-lg border bg-card text-center shadow-soft">
             <Search className="size-8 text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">Görüntülenecek mesaj seç.</p>
           </section>

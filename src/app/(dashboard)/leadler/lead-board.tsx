@@ -494,7 +494,7 @@ export function LeadBoard({
               )}
             </div>
           ) : draggingColumn ? (
-            <div className="w-72 rounded-xl border bg-card px-3 py-2 shadow-soft-lg">
+            <div className="w-72 rounded-lg border bg-card px-3 py-2 shadow-soft-lg">
               <p className="text-sm font-semibold">{draggingColumn.name}</p>
             </div>
           ) : null}
@@ -609,7 +609,7 @@ function BoardColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex w-72 shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors",
+        "flex w-72 shrink-0 flex-col rounded-lg border bg-muted/30 transition-colors",
         isOver && "ring-2 ring-primary",
         isDragging && "opacity-60"
       )}

@@ -3,28 +3,11 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Phone,
-  Mail,
-  MessageCircle,
-  CalendarPlus,
-  Banknote,
-  Package as PackageIcon,
-  Wallet,
-  CalendarCheck,
-  Clock,
-  Sparkles,
-  ArrowRight,
-  UserCircle2,
-  Calendar,
-  FileText,
-  ArrowRightLeft,
-  Send,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowRightLeft, Banknote, Calendar, CalendarCheck, CalendarPlus, Clock, Coins, FileText, Mail, MessageCircle, Package as PackageIcon, Phone, Send, Sparkles, UserCircle2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
+import { StatCard } from "@/components/shared/stat-card";
 import { formatPrice, formatDate, formatDateTime } from "@/lib/format";
 import {
   appointmentStatusLabel,
@@ -146,14 +129,14 @@ export function Customer360View({
   const pkgOpts = packages.map((p) => ({ id: p.id, customer_id: p.customer_id, service_name: p.service_name, remaining_sessions: p.remaining_sessions }));
 
   const metrics = [
-    { label: "Yaşam Boyu Değer", value: formatPrice(totalPaid), accent: "" },
-    { label: "Açık Borç", value: formatPrice(openDebt), accent: openDebt > 0 ? "text-danger" : "" },
-    { label: "Toplam Randevu", value: String(appointments.length), accent: "" },
-    { label: "Son Ziyaret", value: lastVisit ? formatDate(lastVisit) : "—", accent: "", sub: daysSinceVisit !== null ? `${daysSinceVisit} gün önce` : undefined },
+    { label: "Yaşam Boyu Değer", value: formatPrice(totalPaid), icon: Coins, accent: "" },
+    { label: "Açık Borç", value: formatPrice(openDebt), icon: Wallet, accent: openDebt > 0 ? "text-danger" : "" },
+    { label: "Toplam Randevu", value: String(appointments.length), icon: CalendarCheck, accent: "" },
+    { label: "Son Ziyaret", value: lastVisit ? formatDate(lastVisit) : "—", icon: Clock, accent: "", sub: daysSinceVisit !== null ? `${daysSinceVisit} gün önce` : undefined },
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <Link href="/musteriler" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
         <ArrowLeft className="size-4" /> Müşteriler
       </Link>
@@ -162,7 +145,7 @@ export function Customer360View({
       <Card>
         <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex items-start gap-4">
-            <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-semibold text-primary">
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-lg font-semibold text-primary">
               {initials(customer.full_name)}
             </span>
             <div className="min-w-0">
@@ -205,17 +188,20 @@ export function Customer360View({
       {/* Metrikler */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {metrics.map((m) => (
-          <div key={m.label} className="surface p-5">
-            <p className="section-label">{m.label}</p>
-            <p className={cn("metric-value mt-2", m.accent)}>{m.value}</p>
-            {m.sub && <p className="mt-1.5 text-xs text-muted-foreground">{m.sub}</p>}
-          </div>
+          <StatCard
+            key={m.label}
+            label={m.label}
+            value={m.value}
+            icon={m.icon}
+            sub={m.sub}
+            accent={m.accent}
+          />
         ))}
       </div>
 
       {/* Önerilen aksiyon */}
       <div className={cn(
-        "flex flex-wrap items-center justify-between gap-3 rounded-xl border-l-4 bg-card p-4 shadow-soft",
+        "flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 bg-card p-4 shadow-soft",
         reco.tone === "danger" && "border-l-danger",
         reco.tone === "warning" && "border-l-warning",
         reco.tone === "info" && "border-l-primary"

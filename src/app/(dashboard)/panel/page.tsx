@@ -90,7 +90,9 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const periodMeta = PERIODS.find((p) => p.key === period)!;
 
   const { fullName, email } = await getAccountContext();
-  const displayName = (fullName ?? email ?? "").split(" ")[0] || "👋";
+  // Sunum: ad varsa ilk adı, yoksa e-postanın kullanıcı kısmını göster.
+  const rawName = fullName?.trim() || email?.split("@")[0] || "";
+  const displayName = rawName.split(/\s+/)[0] || "";
   const supabase = await createClient();
 
   const now = new Date();
@@ -227,29 +229,52 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Başlık + dönem seçici + aksiyonlar */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
-          <p className="text-sm capitalize text-muted-foreground">{todayLabel}</p>
-          <h1 className="page-title mt-1">Merhaba {displayName}</h1>
+          <h1 className="page-title">
+            {displayName ? `Merhaba, ${displayName}` : "Genel Bakış"}
+          </h1>
+          <p className="mt-1 text-[0.8125rem] capitalize text-muted-foreground">
+            {todayLabel}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center rounded-lg border bg-card p-1 shadow-soft">
-            {PERIODS.map((p) => (
-              <Link key={p.key} href={p.key === "ay" ? "/panel" : `/panel?d=${p.key}`} className={cn(buttonVariants({ variant: period === p.key ? "secondary" : "ghost", size: "sm" }))}>
-                {p.label}
-              </Link>
-            ))}
+          {/* Segmented control — dönem seçici */}
+          <div className="flex h-9 items-center rounded-[var(--radius-md)] border bg-card p-0.5">
+            {PERIODS.map((p) => {
+              const active = period === p.key;
+              return (
+                <Link
+                  key={p.key}
+                  href={p.key === "ay" ? "/panel" : `/panel?d=${p.key}`}
+                  aria-current={active ? "true" : undefined}
+                  className={cn(
+                    "focus-ring rounded-[calc(var(--radius-md)-2px)] px-2.5 py-1.5 text-[0.8125rem] font-medium transition-colors duration-150 ease-out",
+                    active
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {p.label}
+                </Link>
+              );
+            })}
           </div>
-          <Link href="/tahsilat" className={cn(buttonVariants({ variant: "outline" }))}><Banknote className="size-4" />Ödeme Al</Link>
+          {/* Secondary CTA */}
+          <Link href="/tahsilat" className={cn(buttonVariants({ variant: "outline" }))}>
+            <Banknote className="size-4" />
+            Ödeme Al
+          </Link>
+          {/* Primary CTA */}
           <NewCustomerButton />
         </div>
       </div>
 
       {/* Günün özeti */}
       <p
-        className="text-[0.9375rem] leading-relaxed text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground"
+        className="-mt-2 text-[0.8125rem] leading-relaxed text-muted-foreground [&_strong]:font-medium [&_strong]:text-foreground"
         dangerouslySetInnerHTML={{ __html: summary.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>") }}
       />
 
@@ -277,12 +302,19 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
         ))}
       </div>
 
-      {/* Dönem performansı */}
+      {/* Dönem performansı — KPI'ların tekrarı, düşük görsel öncelik */}
       <div className="surface grid grid-cols-1 divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         {periodStats.map((s) => (
-          <div key={s.label} className="p-5">
-            <p className="section-label">{s.label}</p>
-            <p className="mt-2 text-xl font-semibold tabular-nums tracking-tight">{s.value}</p>
+          <div
+            key={s.label}
+            className="flex items-baseline justify-between gap-3 px-4 py-3"
+          >
+            <span className="truncate text-[0.8125rem] text-muted-foreground">
+              {s.label}
+            </span>
+            <span className="shrink-0 text-[0.9375rem] font-medium tabular-nums">
+              {s.value}
+            </span>
           </div>
         ))}
       </div>
@@ -294,26 +326,46 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
             <CardTitle className="flex items-center gap-2 text-base"><Clock className="size-4 text-primary" />Bugünün Programı</CardTitle>
             <div className="flex items-center gap-3">
               {todayAppointments.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs tabular-nums text-muted-foreground">{completedToday}/{todayAppointments.length} tamamlandı</span>
-                </div>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {completedToday}/{todayAppointments.length} tamamlandı
+                </span>
               )}
-              <Link href="/takvim" className="text-xs text-muted-foreground transition-colors hover:text-foreground">Takvim →</Link>
+              <Link
+                href="/takvim"
+                className="focus-ring rounded text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Takvim →
+              </Link>
             </div>
           </CardHeader>
           <CardContent>
             {todayAppointments.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-10 text-center">
-                <CalendarCheck className="size-8 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">Bugün için planlanmış randevu yok.</p>
-                <Link href="/randevular" className={cn(buttonVariants({ size: "sm" }), "mt-1")}><CalendarPlus className="size-4" />Randevu ekle</Link>
+              <div className="flex items-center gap-4 rounded-[var(--radius-md)] border border-dashed px-4 py-5">
+                <span className="icon-chip">
+                  <CalendarCheck className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[0.8125rem] font-medium">
+                    Bugün için planlanmış randevu yok.
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Yeni bir randevu ekleyerek gününü planlayabilirsin.
+                  </p>
+                </div>
+                <Link
+                  href="/randevular"
+                  className={cn(buttonVariants({ size: "sm" }), "shrink-0")}
+                >
+                  <CalendarPlus className="size-3.5" />
+                  Randevu ekle
+                </Link>
               </div>
             ) : (
               <ul className="divide-y">
                 {todayAppointments.slice(0, 6).map((a) => (
-                  <li key={a.id} className="flex items-center justify-between gap-3 py-2.5">
-                    <div className="flex items-center gap-3">
-                      <span className="w-12 shrink-0 text-sm font-medium tabular-nums text-muted-foreground">{formatTime(a.starts_at)}</span>
+                  <li key={a.id} className="flex items-center justify-between gap-3 py-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="w-11 shrink-0 text-[0.8125rem] font-medium tabular-nums text-muted-foreground">{formatTime(a.starts_at)}</span>
                       <div className="min-w-0">
                         {a.customer_id ? (
                           <Link href={`/musteriler/${a.customer_id}`} className="block truncate text-sm font-medium leading-tight hover:text-primary hover:underline">{a.customer?.full_name ?? "—"}</Link>
@@ -333,18 +385,31 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle>Gelir Fırsatları</CardTitle>
-            <Link href="/firsatlar" className="text-xs text-muted-foreground transition-colors hover:text-foreground">Tümü →</Link>
+            <Link
+              href="/firsatlar"
+              className="focus-ring rounded text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Tümü →
+            </Link>
           </CardHeader>
           <CardContent className="row-list">
             {opportunities.map((o) => {
               const Icon = o.icon;
               return (
-                <Link key={o.label} href="/firsatlar" className="-mx-2 flex items-center justify-between gap-2 rounded-md px-2 py-2.5 transition-colors hover:bg-accent/50">
-                  <span className="flex items-center gap-2.5 text-sm">
-                    <Icon className="size-4 shrink-0 text-muted-foreground" />
+                <Link
+                  key={o.label}
+                  href="/firsatlar"
+                  className="focus-ring -mx-2 flex items-center gap-3 rounded-[var(--radius-md)] px-2 py-2.5 transition-colors duration-150 ease-out hover:bg-muted/60"
+                >
+                  <span className="icon-chip size-7 rounded-[var(--radius-sm)]">
+                    <Icon className="size-3.5" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[0.8125rem]">
                     {o.label}
                   </span>
-                  <span className="shrink-0 text-sm font-semibold tabular-nums">{o.count}</span>
+                  <span className="shrink-0 text-[0.8125rem] font-medium tabular-nums">
+                    {o.count}
+                  </span>
                 </Link>
               );
             })}

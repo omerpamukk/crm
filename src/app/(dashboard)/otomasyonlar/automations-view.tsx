@@ -135,7 +135,7 @@ function Flow({ a }: { a: Pick<Automation, "triggerId" | "triggerParam" | "actio
   const TI = T.icon;
   const AI = A.icon;
   return (
-    <div className="rounded-xl border bg-muted/20 p-3">
+    <div className="rounded-lg border bg-muted/20 p-3">
       <div className="flex items-center gap-2.5">
         <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", TONE[T.tone])}><TI className="size-4" /></span>
         <div className="min-w-0">
@@ -288,7 +288,7 @@ export function AutomationsView() {
             <CardContent className="space-y-3 p-4">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-semibold leading-tight">{a.title}</p>
-                <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-medium", a.active ? "bg-positive/12 text-positive" : "bg-muted text-muted-foreground")}>{a.active ? "Aktif" : "Pasif"}</span>
+                <span className={cn("shrink-0 rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium", a.active ? "bg-positive/12 text-positive" : "bg-muted text-muted-foreground")}>{a.active ? "Aktif" : "Pasif"}</span>
               </div>
               <Flow a={a} />
               <div className="flex items-center justify-between gap-2 pt-0.5">
@@ -302,8 +302,8 @@ export function AutomationsView() {
           </Card>
         ))}
 
-        <button type="button" onClick={() => setCreateOpen(true)} className="flex min-h-52 flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-card/50 p-4 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.03]">
-          <span className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"><Plus className="size-6" /></span>
+        <button type="button" onClick={() => setCreateOpen(true)} className="flex min-h-52 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-card/50 p-4 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.03]">
+          <span className="flex size-12 items-center justify-center rounded-[var(--radius-md)] bg-primary/10 text-primary"><Plus className="size-6" /></span>
           <span className="font-semibold">Yeni Otomasyon</span>
           <span className="text-xs text-muted-foreground">Şablondan seç veya sıfırdan oluştur</span>
         </button>
@@ -327,7 +327,7 @@ export function AutomationsView() {
                   const TI = trigDef(t.triggerId).icon;
                   const AI = actDef(t.actionId).icon;
                   return (
-                    <button key={t.title} type="button" onClick={() => addTemplate(t)} className="rounded-xl border p-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/[0.03]">
+                    <button key={t.title} type="button" onClick={() => addTemplate(t)} className="rounded-lg border p-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/[0.03]">
                       <p className="mb-2 text-sm font-semibold leading-tight">{t.title}</p>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <span className={cn("flex size-6 items-center justify-center rounded-md", TONE[trigDef(t.triggerId).tone])}><TI className="size-3.5" /></span>

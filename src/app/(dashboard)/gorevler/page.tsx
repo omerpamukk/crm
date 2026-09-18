@@ -199,7 +199,7 @@ export default function GorevlerPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader title="Görev Sistemi" description="Listeleri Trello gibi yönet: kart ekle, sürükle, kartın içine girip düzenle; müşteri bağla, geçmişi gör.">
         <Button onClick={() => openAdd(columns[0]?.id ?? "todo")}>
           <Plus className="size-4" />
@@ -214,7 +214,7 @@ export default function GorevlerPage() {
         onDragEnd={handleDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-      <div className="rounded-xl border bg-muted/30 p-3 sm:p-4">
+      <div className="rounded-lg border bg-muted/30 p-3 sm:p-4">
         <div className="flex gap-3 overflow-x-auto pb-1">
           {columns.map((col) => {
             const items = tasks.filter((t) => t.colId === col.id);
@@ -269,7 +269,7 @@ export default function GorevlerPage() {
                               <span className={cn("flex size-4 items-center justify-center rounded-full text-[9px] font-bold", tone(t.assignee))}>{t.assignee.slice(0, 1).toLocaleUpperCase("tr")}</span>{t.assignee}
                             </span>
                             {t.auto && <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-500/12 px-1.5 py-0.5 font-medium text-violet-600"><Zap className="size-2.5" />Otomatik</span>}
-                            {!done && t.priority !== "normal" && <span className={cn("rounded-full px-1.5 py-0.5 font-medium", pri.chip)}>{pri.label}</span>}
+                            {!done && t.priority !== "normal" && <span className={cn("rounded-[var(--radius-sm)] px-1.5 py-0.5 font-medium", pri.chip)}>{pri.label}</span>}
                             {done ? <span className="text-muted-foreground">Tamamlandı · {t.completedAt}</span> : <span className={cn(t.priority === "high" ? "font-medium text-rose-600" : "text-muted-foreground")}>{t.when}</span>}
                           </div>
 
@@ -301,7 +301,7 @@ export default function GorevlerPage() {
                 </div>
               </div>
             ) : (
-              <button onClick={() => setAddingList(true)} className="flex w-full items-center gap-1.5 rounded-xl border border-dashed bg-card/60 px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground"><Plus className="size-4" />Liste ekle</button>
+              <button onClick={() => setAddingList(true)} className="flex w-full items-center gap-1.5 rounded-lg border border-dashed bg-card/60 px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground"><Plus className="size-4" />Liste ekle</button>
             )}
           </div>
         </div>
@@ -502,7 +502,7 @@ function TaskColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex w-72 shrink-0 flex-col self-start rounded-xl border bg-card shadow-soft transition-colors",
+        "flex w-72 shrink-0 flex-col self-start rounded-lg border bg-card shadow-soft transition-colors",
         isOver && "ring-2 ring-primary"
       )}
     >

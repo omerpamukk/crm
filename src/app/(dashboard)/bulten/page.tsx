@@ -62,7 +62,7 @@ export default function BultenPage() {
   const [gdpr, setGdpr] = useState({ optin: true, unsub: true });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader title="Bülten" description="Abonelerini yönet, bülten gönder ve otomatik bülten dizilerini kur.">
         <Button onClick={() => toast.info("Yeni bülten editörü yakında.")}>
           <Plus className="size-4" />
@@ -91,7 +91,7 @@ export default function BultenPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {NEWSLETTERS.map((n) => (
-              <div key={n.id} className="flex items-center gap-3 rounded-xl border p-3">
+              <div key={n.id} className="flex items-center gap-3 rounded-lg border p-3">
                 <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", n.status === "sent" ? "bg-positive/10 text-positive" : "bg-warning/12 text-amber-600")}>
                   {n.status === "sent" ? <CheckCircle2 className="size-4" /> : <Pencil className="size-4" />}
                 </span>
@@ -160,7 +160,7 @@ export default function BultenPage() {
             Bir müşteriye seçili etiket eklendiğinde, ilgili bülten dizisi <strong className="text-foreground">otomatik başlar</strong> ve müşteri abone listesine eklenir.
           </div>
           {rules.map((r) => (
-            <div key={r.id} className="flex flex-wrap items-center gap-2 rounded-xl border p-3">
+            <div key={r.id} className="flex flex-wrap items-center gap-2 rounded-lg border p-3">
               <span className="text-sm text-muted-foreground">Etiket eklenince:</span>
               <span className="rounded-lg border bg-muted/40 px-3 py-1.5 text-sm font-medium">{r.tag}</span>
               <span className="text-muted-foreground">→</span>
@@ -198,7 +198,7 @@ export default function BultenPage() {
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2 text-base"><ShieldCheck className="size-4 text-primary" />GDPR & İzin</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            <div className="flex items-center gap-3 rounded-xl border p-3">
+            <div className="flex items-center gap-3 rounded-lg border p-3">
               <span className="flex size-9 items-center justify-center rounded-lg bg-positive/10 text-positive"><CheckCircle2 className="size-4" /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">Çift Onay (Double Opt-in)</p>
@@ -206,7 +206,7 @@ export default function BultenPage() {
               </div>
               <Switch on={gdpr.optin} onClick={() => setGdpr((g) => ({ ...g, optin: !g.optin }))} />
             </div>
-            <div className="flex items-center gap-3 rounded-xl border p-3">
+            <div className="flex items-center gap-3 rounded-lg border p-3">
               <span className="flex size-9 items-center justify-center rounded-lg bg-positive/10 text-positive"><CheckCircle2 className="size-4" /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">Abonelikten Çıkma Linki</p>
@@ -214,7 +214,7 @@ export default function BultenPage() {
               </div>
               <Switch on={gdpr.unsub} onClick={() => setGdpr((g) => ({ ...g, unsub: !g.unsub }))} />
             </div>
-            <div className="flex items-center gap-3 rounded-xl border p-3">
+            <div className="flex items-center gap-3 rounded-lg border p-3">
               <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground"><FileText className="size-4" /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">KVKK Metni</p>
@@ -222,7 +222,7 @@ export default function BultenPage() {
               </div>
               <Button variant="outline" size="sm" onClick={() => toast.info("KVKK düzenleme yakında.")}>Düzenle</Button>
             </div>
-            <div className="flex items-center gap-3 rounded-xl border p-3">
+            <div className="flex items-center gap-3 rounded-lg border p-3">
               <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground"><History className="size-4" /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">İzin Geçmişi</p>

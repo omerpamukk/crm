@@ -129,7 +129,7 @@ export default async function TakvimPage({
   ).length;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Takvim"
         description="Randevularını aylık takvim üzerinde gör."
@@ -171,7 +171,7 @@ export default async function TakvimPage({
             </span>
           </div>
 
-          <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
+          <div className="overflow-hidden rounded-lg border bg-card shadow-soft">
             {/* Hafta günü başlıkları */}
             <div className="grid grid-cols-7 border-b bg-muted/40">
               {WEEKDAYS.map((d) => (
@@ -266,7 +266,7 @@ export default async function TakvimPage({
         </div>
 
         {/* Sağ kolon: Bugünün Programı (her zaman gerçek bugüne ait) */}
-        <aside className="overflow-hidden rounded-xl border bg-card shadow-soft lg:sticky lg:top-6">
+        <aside className="overflow-hidden rounded-lg border bg-card shadow-soft lg:sticky lg:top-6">
           <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <Clock className="size-4 text-primary" />

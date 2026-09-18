@@ -148,7 +148,7 @@ export default async function RandevularPage({
   const tableRows = [...appointments].reverse();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Randevular"
         description="Randevularını gün gün takip et, WhatsApp'tan hatırlat ya da tablo halinde gör."
@@ -224,7 +224,7 @@ export default async function RandevularPage({
                 return (
                   <section
                     key={group.key}
-                    className="overflow-hidden rounded-xl border bg-card shadow-soft"
+                    className="overflow-hidden rounded-lg border bg-card shadow-soft"
                   >
                     <header className="flex items-center justify-between gap-2 border-b bg-muted/30 px-4 py-2.5">
                       <h2 className="flex items-center gap-2 text-sm font-semibold">
@@ -299,7 +299,7 @@ export default async function RandevularPage({
               })}
             </div>
           ) : (
-            <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
+            <div className="overflow-hidden rounded-lg border bg-card shadow-soft">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">

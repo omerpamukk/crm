@@ -32,7 +32,7 @@ const CHANNEL: Record<
 function ChannelTag({ channel }: { channel: PlanChannel }) {
   const c = CHANNEL[channel];
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium", c.chip)}>
+    <span className={cn("inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium", c.chip)}>
       {c.logo ? <c.logo className="size-3.5" /> : c.icon ? <c.icon className="size-3" /> : null}
       {c.label}
     </span>
@@ -68,7 +68,7 @@ export function PlannerView() {
             type="button"
             onClick={() => setFilter("all")}
             className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+              "rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium transition-colors",
               filter === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"
             )}
           >
@@ -83,7 +83,7 @@ export function PlannerView() {
                 type="button"
                 onClick={() => setFilter(ch)}
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                  "inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium transition-colors",
                   active ? "ring-2 ring-primary/40" : "hover:opacity-80",
                   c.chip
                 )}
@@ -113,7 +113,7 @@ export function PlannerView() {
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         {WEEK.map((d) => (
-          <div key={d.day} className="min-h-28 rounded-xl border bg-card p-2 shadow-soft">
+          <div key={d.day} className="min-h-28 rounded-lg border bg-card p-2 shadow-soft">
             <div className="mb-1.5 flex items-center justify-between">
               <span className="text-[10px] font-semibold uppercase text-muted-foreground">{d.day}</span>
               <span className="text-sm font-semibold">{d.date}</span>
@@ -137,7 +137,7 @@ export function PlannerView() {
 
       <div>
         <h3 className="mb-2 text-sm font-semibold">Bekleyen İçerikler</h3>
-        <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
+        <div className="overflow-hidden rounded-lg border bg-card shadow-soft">
           <div className="hidden grid-cols-[1.4fr_0.9fr_0.9fr_1fr_0.7fr_auto] gap-3 border-b bg-muted/40 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
             <span>İçerik</span>
             <span>Kanal</span>
@@ -159,7 +159,7 @@ export function PlannerView() {
                   <span>
                     <span
                       className={cn(
-                        "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
+                        "inline-flex rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium",
                         p.status === "Planlandı" ? "bg-positive/12 text-positive" : "bg-warning/12 text-amber-600"
                       )}
                     >
