@@ -282,7 +282,7 @@ export function OpportunitiesView({ categories }: { categories: OppCategory[] })
               </span>
               <div>
                 <p className="text-xs text-muted-foreground">{t.label}</p>
-                <p className="text-xl font-bold tracking-tight">{t.value}</p>
+                <p className="text-xl font-semibold tabular-nums tracking-tight">{t.value}</p>
               </div>
             </div>
           );

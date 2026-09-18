@@ -13,7 +13,6 @@ import {
   Package as PackageIcon,
   Wallet,
   CalendarCheck,
-  Coins,
   Clock,
   Sparkles,
   ArrowRight,
@@ -147,10 +146,10 @@ export function Customer360View({
   const pkgOpts = packages.map((p) => ({ id: p.id, customer_id: p.customer_id, service_name: p.service_name, remaining_sessions: p.remaining_sessions }));
 
   const metrics = [
-    { label: "Yaşam Boyu Değer", value: formatPrice(totalPaid), icon: Coins, tone: "bg-positive/10 text-positive", bar: "border-l-positive" },
-    { label: "Açık Borç", value: formatPrice(openDebt), icon: Wallet, tone: openDebt > 0 ? "bg-danger/10 text-danger" : "bg-muted text-muted-foreground", bar: openDebt > 0 ? "border-l-danger" : "border-l-border", accent: openDebt > 0 ? "text-danger" : "" },
-    { label: "Toplam Randevu", value: String(appointments.length), icon: CalendarCheck, tone: "bg-primary/10 text-primary", bar: "border-l-primary" },
-    { label: "Son Ziyaret", value: lastVisit ? formatDate(lastVisit) : "—", icon: Clock, tone: "bg-sky-100 text-sky-600", bar: "border-l-sky-400", sub: daysSinceVisit !== null ? `${daysSinceVisit} gün önce` : undefined },
+    { label: "Yaşam Boyu Değer", value: formatPrice(totalPaid), accent: "" },
+    { label: "Açık Borç", value: formatPrice(openDebt), accent: openDebt > 0 ? "text-danger" : "" },
+    { label: "Toplam Randevu", value: String(appointments.length), accent: "" },
+    { label: "Son Ziyaret", value: lastVisit ? formatDate(lastVisit) : "—", accent: "", sub: daysSinceVisit !== null ? `${daysSinceVisit} gün önce` : undefined },
   ];
 
   return (
@@ -160,7 +159,7 @@ export function Customer360View({
       </Link>
 
       {/* Profil başlığı */}
-      <Card className="border-l-primary">
+      <Card>
         <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex items-start gap-4">
             <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-semibold text-primary">
@@ -205,21 +204,13 @@ export function Customer360View({
 
       {/* Metrikler */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {metrics.map((m) => {
-          const Icon = m.icon;
-          return (
-            <Card key={m.label} className={cn("", m.bar)}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{m.label}</span>
-                  <span className={cn("flex size-8 items-center justify-center rounded-lg", m.tone)}><Icon className="size-4" /></span>
-                </div>
-                <p className={cn("mt-2 text-xl font-bold tracking-tight", m.accent)}>{m.value}</p>
-                {m.sub && <p className="text-xs text-muted-foreground">{m.sub}</p>}
-              </CardContent>
-            </Card>
-          );
-        })}
+        {metrics.map((m) => (
+          <div key={m.label} className="surface p-5">
+            <p className="section-label">{m.label}</p>
+            <p className={cn("metric-value mt-2", m.accent)}>{m.value}</p>
+            {m.sub && <p className="mt-1.5 text-xs text-muted-foreground">{m.sub}</p>}
+          </div>
+        ))}
       </div>
 
       {/* Önerilen aksiyon */}

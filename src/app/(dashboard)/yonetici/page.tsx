@@ -297,26 +297,18 @@ export default async function YoneticiPage({
       {/* 6 KPI kartı */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {kpis.map((kpi) => {
-          const Icon = kpi.icon;
           return (
-            <Card key={kpi.label} className={cn("border-l-4", kpi.bar)}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">{kpi.label}</CardTitle>
-                <span className={cn("flex size-8 items-center justify-center rounded-lg", kpi.tone)}>
-                  <Icon className="size-4" />
-                </span>
-              </CardHeader>
-              <CardContent>
-                <div className={cn("text-xl font-bold tracking-tight", kpi.accent)}>{kpi.value}</div>
-                {kpi.delta !== null && kpi.delta !== undefined && (
-                  <p className={cn("mt-1 flex items-center gap-0.5 text-xs font-medium", kpi.delta >= 0 ? "text-positive" : "text-danger")}>
-                    {kpi.delta >= 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-                    {kpi.delta >= 0 ? "+" : ""}%{kpi.delta}
-                  </p>
-                )}
-                {kpi.sub && <p className="mt-1 text-xs text-muted-foreground">{kpi.sub}</p>}
-              </CardContent>
-            </Card>
+            <div key={kpi.label} className="surface p-4">
+              <p className="section-label">{kpi.label}</p>
+              <p className={cn("mt-2 text-xl font-semibold tabular-nums tracking-tight", kpi.accent)}>{kpi.value}</p>
+              {kpi.delta !== null && kpi.delta !== undefined && (
+                <p className={cn("mt-1 flex items-center gap-0.5 text-xs font-medium", kpi.delta >= 0 ? "text-positive" : "text-danger")}>
+                  {kpi.delta >= 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+                  {kpi.delta >= 0 ? "+" : ""}%{kpi.delta}
+                </p>
+              )}
+              {kpi.sub && <p className="mt-1 text-xs text-muted-foreground">{kpi.sub}</p>}
+            </div>
           );
         })}
       </div>
@@ -422,7 +414,7 @@ export default async function YoneticiPage({
             ) : (
               <ul className="space-y-2">
                 {risks.map((r, i) => (
-                  <li key={i} className={cn("flex items-start gap-2.5 rounded-lg border-l-4 bg-card p-3 text-sm shadow-soft", r.tone === "danger" ? "border-l-danger" : "border-l-warning")}>
+                  <li key={i} className="flex items-start gap-2.5 rounded-lg border bg-card p-3 text-sm">
                     <ShieldAlert className={cn("mt-0.5 size-4 shrink-0", r.tone === "danger" ? "text-danger" : "text-amber-600")} />
                     {r.text}
                   </li>

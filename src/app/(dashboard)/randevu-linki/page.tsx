@@ -3,7 +3,7 @@ import { CalendarPlus, CheckCircle2, XCircle, Percent } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { Service } from "@/types/database";
 import { PageHeader } from "@/components/shared/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 
 import { ensureBookingSettings } from "./booking-actions";
 import { BookingLinkView } from "./booking-link-view";
@@ -89,21 +89,11 @@ export default async function RandevuLinkiPage() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {kpis.map((kpi) => {
-          const Icon = kpi.icon;
           return (
-            <Card key={kpi.label} className={`border-l-4 ${kpi.bar}`}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {kpi.label}
-                </CardTitle>
-                <span className={`flex size-9 items-center justify-center rounded-lg ${kpi.tone}`}>
-                  <Icon className="size-5" />
-                </span>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold tracking-tight">{kpi.value}</div>
-              </CardContent>
-            </Card>
+            <div key={kpi.label} className="surface p-5">
+              <p className="section-label">{kpi.label}</p>
+              <p className="metric-value mt-2">{kpi.value}</p>
+            </div>
           );
         })}
       </div>

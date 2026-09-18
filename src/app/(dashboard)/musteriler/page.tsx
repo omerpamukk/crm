@@ -1,11 +1,11 @@
-import { Users, CalendarCheck, TrendingUp, Wallet } from "lucide-react";
+import { Users, TrendingUp, Wallet } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice } from "@/lib/format";
 import type { Customer } from "@/types/database";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardTitle } from "@/components/ui/card";
 
 import { NewCustomerButton } from "./new-customer-button";
 import { CustomersView, type EnrichedCustomer } from "./customers-view";

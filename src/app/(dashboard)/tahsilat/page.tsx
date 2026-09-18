@@ -163,20 +163,12 @@ export default async function SatislarPage({
           {/* 6 KPI */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
             {kpis.map((c) => {
-              const Icon = c.icon;
               return (
-                <Card key={c.label} className={cn("border-l-4", c.bar)}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-xs font-medium text-muted-foreground">{c.label}</CardTitle>
-                    <span className={cn("flex size-8 items-center justify-center rounded-lg", c.tone)}>
-                      <Icon className="size-4" />
-                    </span>
-                  </CardHeader>
-                  <CardContent>
-                    <div className={cn("text-xl font-bold tracking-tight", c.accent)}>{c.value}</div>
-                    {c.sub && <p className="mt-0.5 text-xs text-muted-foreground">{c.sub}</p>}
-                  </CardContent>
-                </Card>
+                <div key={c.label} className="surface p-4">
+                  <p className="section-label">{c.label}</p>
+                  <p className={cn("mt-2 text-xl font-semibold tabular-nums tracking-tight", c.accent)}>{c.value}</p>
+                  {c.sub && <p className="mt-1 text-xs text-muted-foreground">{c.sub}</p>}
+                </div>
               );
             })}
           </div>

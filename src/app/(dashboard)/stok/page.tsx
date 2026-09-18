@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 
 type Status = "Yeterli" | "Az" | "Kritik";
 type Product = { id: string; name: string; code: string; category: string; stock: number; value: number; status: Status };
@@ -70,22 +70,16 @@ export default function StokPage() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {KPIS.map((k) => {
-          const Icon = k.icon;
           return (
-            <Card key={k.label} className={cn("border-l-4", k.bar)}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{k.label}</CardTitle>
-                <span className={cn("flex size-9 items-center justify-center rounded-lg", k.tone)}><Icon className="size-5" /></span>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold tracking-tight">{k.value}</div>
-                <p className={cn("mt-1 flex items-center gap-1 text-xs font-medium", k.subTone)}>
+            <div key={k.label} className="surface p-5">
+                              <p className="section-label">{k.label}</p>
+                              <p className="metric-value mt-2">{k.value}</p>
+                              <p className={cn("mt-1 flex items-center gap-1 text-xs font-medium", k.subTone)}>
                   {k.up && <TrendingUp className="size-3" />}
                   {k.down && <TrendingDown className="size-3" />}
                   {k.sub}
                 </p>
-              </CardContent>
-            </Card>
+                            </div>
           );
         })}
       </div>
