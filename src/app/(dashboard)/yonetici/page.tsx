@@ -273,7 +273,7 @@ export default async function YoneticiPage({
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title="Yönetici Paneli"
         description="İşletmenin kazanç istatistikleri, kârlılık ve büyüme analizi."
@@ -369,7 +369,7 @@ export default async function YoneticiPage({
       </Card>
 
       {/* Üstüne ekleme: Sağlık skoru + Risk */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -422,7 +422,7 @@ export default async function YoneticiPage({
             ) : (
               <ul className="space-y-2">
                 {risks.map((r, i) => (
-                  <li key={i} className={cn("flex items-start gap-2.5 rounded-lg border-l-4 bg-card p-3 text-sm shadow-xs", r.tone === "danger" ? "border-l-danger" : "border-l-warning")}>
+                  <li key={i} className={cn("flex items-start gap-2.5 rounded-lg border-l-4 bg-card p-3 text-sm shadow-soft", r.tone === "danger" ? "border-l-danger" : "border-l-warning")}>
                     <ShieldAlert className={cn("mt-0.5 size-4 shrink-0", r.tone === "danger" ? "text-danger" : "text-amber-600")} />
                     {r.text}
                   </li>

@@ -59,9 +59,9 @@ export default async function DashboardLayout({
   const badges = { overdueCari: overdue.size };
 
   return (
-    <div className="flex min-h-svh">
-      {/* Masaüstü yan menü (sticky, tam boy) */}
-      <aside className="sticky top-0 hidden h-svh w-64 shrink-0 border-r md:block">
+    <div className="flex min-h-svh bg-background">
+      {/* Masaüstü: ikon şeridi + açılır bölüm paneli (sticky, tam boy) */}
+      <aside className="sticky top-0 hidden h-svh shrink-0 md:block">
         <SidebarNav
           businessName={businessName}
           displayName={displayName}
@@ -74,7 +74,7 @@ export default async function DashboardLayout({
       <div className="flex min-w-0 flex-1 flex-col">
         {impersonating && <ViewAsBanner businessName={businessName} manageMode={manageMode} />}
         {/* Üst bar — masaüstünde arama + bildirim, mobilde hamburger + bildirim */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b bg-card/80 px-4 backdrop-blur-md">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur-md md:px-6">
           <div className="flex items-center gap-2 md:hidden">
             <MobileNav
               businessName={businessName}
@@ -87,7 +87,9 @@ export default async function DashboardLayout({
           <TopBar notifications={notifications} />
         </header>
 
-        <main className="flex-1 bg-muted/30 p-4 md:p-6">{children}</main>
+        <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
+          <div className="page-shell">{children}</div>
+        </main>
       </div>
 
       <Toaster />

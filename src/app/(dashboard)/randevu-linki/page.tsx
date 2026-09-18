@@ -15,7 +15,7 @@ export default async function RandevuLinkiPage() {
 
   if (error || !settings) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8">
         <PageHeader title="Randevu Linki" description="Online randevu linki yönetimi." />
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -81,7 +81,7 @@ export default async function RandevuLinkiPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title="Randevu Linki"
         description="Müşterilerinin tek bir linkten kendi randevusunu almasını sağla. Linki paylaş, hizmetleri ve çalışma saatlerini buradan yönet."

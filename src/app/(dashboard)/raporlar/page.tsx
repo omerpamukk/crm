@@ -293,7 +293,7 @@ export default async function RaporlarPage() {
     sourceData.length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title="Raporlar"
         description="İşletmenin gelir, hizmet ve dönüşüm performansına analitik bakış."
@@ -377,7 +377,7 @@ export default async function RaporlarPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-5 lg:grid-cols-2">
             {/* Hizmet bazlı ciro */}
             <Card>
               <CardHeader>

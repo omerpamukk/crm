@@ -73,7 +73,7 @@ export function AdsView({ initialCampaigns }: { initialCampaigns: AdCampaign[] }
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* KPI'lar */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {KPIS.map((k) => {
@@ -96,7 +96,7 @@ export function AdsView({ initialCampaigns }: { initialCampaigns: AdCampaign[] }
       </div>
 
       {/* AI bilgi şeridi */}
-      <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/[0.06] to-violet-500/[0.06] p-4">
+      <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] p-4">
         <Sparkles className="mt-0.5 size-5 shrink-0 text-primary" />
         <p className="text-sm">
           <span className="font-semibold">AI Destekli Reklam Yönetimi</span>{" "}
@@ -119,7 +119,7 @@ export function AdsView({ initialCampaigns }: { initialCampaigns: AdCampaign[] }
         </Button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2">
         {campaigns.map((c) => {
           const p = PLATFORM[c.platform];
           const Logo = p.logo;
@@ -204,7 +204,7 @@ export function AdsView({ initialCampaigns }: { initialCampaigns: AdCampaign[] }
         <Card className="border-primary/30 bg-primary/[0.03]">
           <CardContent className="p-5">
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-500 text-white">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Zap className="size-4" />
               </span>
               <h3 className="font-semibold text-primary">AI Optimizasyon Önerisi</h3>

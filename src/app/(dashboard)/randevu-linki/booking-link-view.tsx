@@ -90,7 +90,7 @@ export function BookingLinkView({
   const bookable = services.filter((s) => s.bookable !== false);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Link bandı */}
       <Card
         className={cn(
@@ -100,7 +100,7 @@ export function BookingLinkView({
       >
         <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-white">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Link2 className="size-5" />
             </span>
             <div className="min-w-0">
@@ -388,7 +388,7 @@ function PreviewPanel({
     <div className="flex justify-center">
       <div className="w-full max-w-sm overflow-hidden rounded-[2rem] border-8 border-foreground/90 bg-background shadow-xl">
         {/* Telefon başlığı */}
-        <div className="bg-gradient-to-br from-primary to-violet-500 px-5 py-6 text-center text-white">
+        <div className="bg-primary px-5 py-6 text-center text-primary-foreground">
           <p className="text-xs/4 opacity-80">Online Randevu</p>
           <p className="mt-1 text-lg font-bold">Randevunu Oluştur</p>
         </div>

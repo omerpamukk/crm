@@ -71,7 +71,7 @@ export default function SeoPage() {
   const [robots, setRobots] = useState("index, follow");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader title="SEO" description="Sitenin arama motoru performansını izle, meta etiketlerini ve teknik SEO'yu yönet." />
 
       {/* Skor KPI'ları */}
@@ -95,7 +95,7 @@ export default function SeoPage() {
         })}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2">
         {/* Detaylı analiz */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -134,7 +134,7 @@ export default function SeoPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2">
         {/* Meta etiketleri */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">

@@ -35,7 +35,7 @@ const KPIS = [
 ];
 
 const NEWSLETTERS = [
-  { id: "n1", title: "Mayıs Kampanyası 🎉", meta: "Gönderildi — 15 May 2026 · 1.140 alıcı · %44 açılma", status: "sent" as const },
+  { id: "n1", title: "Mayıs Kampanyası", meta: "Gönderildi — 15 May 2026 · 1.140 alıcı · %44 açılma", status: "sent" as const },
   { id: "n2", title: "Yeni Hizmet Duyurusu", meta: "Gönderildi — 28 Nis 2026 · 1.102 alıcı · %39 açılma", status: "sent" as const },
   { id: "n3", title: "Haziran Bülteni", meta: "Son düzenleme: bugün", status: "draft" as const },
 ];
@@ -62,7 +62,7 @@ export default function BultenPage() {
   const [gdpr, setGdpr] = useState({ optin: true, unsub: true });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader title="Bülten" description="Abonelerini yönet, bülten gönder ve otomatik bülten dizilerini kur.">
         <Button onClick={() => toast.info("Yeni bülten editörü yakında.")}>
           <Plus className="size-4" />
@@ -88,7 +88,7 @@ export default function BultenPage() {
         })}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2">
         {/* Bültenler */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -182,7 +182,7 @@ export default function BultenPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2">
         {/* Gönderici ayarları */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">

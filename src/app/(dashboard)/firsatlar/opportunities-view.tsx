@@ -276,7 +276,7 @@ export function OpportunitiesView({ categories }: { categories: OppCategory[] })
         {summaryTiles.map((t) => {
           const Icon = t.icon;
           return (
-            <div key={t.label} className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-xs">
+            <div key={t.label} className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-soft">
               <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-lg", t.tone)}>
                 <Icon className="size-5" />
               </span>
@@ -329,7 +329,7 @@ export function OpportunitiesView({ categories }: { categories: OppCategory[] })
           const m = META[c.key];
           const Icon = m?.icon ?? Sparkles;
           return (
-            <div key={c.key} className={cn("rounded-xl border border-l-4 bg-card p-5 shadow-xs transition-shadow hover:shadow-md", m?.bar)}>
+            <div key={c.key} className={cn("rounded-xl border border-l-4 bg-card p-5 shadow-soft transition-shadow hover:shadow-md", m?.bar)}>
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", m?.iconCls)}>

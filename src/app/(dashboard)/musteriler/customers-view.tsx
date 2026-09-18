@@ -200,7 +200,7 @@ export function CustomersView({
       </div>
 
       {/* Filtre çubuğu */}
-      <div className="space-y-3 rounded-lg border bg-card p-3">
+      <div className="surface space-y-3 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <FilterSelect label="Hizmet" value={service} onChange={setService} options={[{ v: "all", l: "Tümü" }, ...serviceOptions.map((s) => ({ v: s, l: s }))]} />
           <FilterSelect label="Kalan Seans" value={kalan} onChange={setKalan} options={[{ v: "all", l: "Tümü" }, { v: "var", l: "Seansı var" }, { v: "az", l: "Az kaldı (≤2)" }, { v: "bitti", l: "Paketi bitti" }]} />
@@ -240,7 +240,7 @@ export function CustomersView({
       )}
 
       {/* Tablo */}
-      <div className="overflow-x-auto rounded-lg border bg-card">
+      <div className="surface overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">

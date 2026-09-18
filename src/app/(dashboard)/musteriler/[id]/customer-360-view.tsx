@@ -154,16 +154,16 @@ export function Customer360View({
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <Link href="/musteriler" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
         <ArrowLeft className="size-4" /> Müşteriler
       </Link>
 
       {/* Profil başlığı */}
-      <Card className="card-accent border-l-primary">
+      <Card className="border-l-primary">
         <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex items-start gap-4">
-            <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-violet-500 text-lg font-bold text-white">
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-semibold text-primary">
               {initials(customer.full_name)}
             </span>
             <div className="min-w-0">
@@ -208,7 +208,7 @@ export function Customer360View({
         {metrics.map((m) => {
           const Icon = m.icon;
           return (
-            <Card key={m.label} className={cn("card-accent", m.bar)}>
+            <Card key={m.label} className={cn("", m.bar)}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">{m.label}</span>
@@ -258,7 +258,7 @@ export function Customer360View({
 
         {/* GENEL */}
         <TabsContent value="genel" className="mt-4">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-5 lg:grid-cols-2">
             <Card>
               <CardContent className="space-y-3 p-5">
                 <p className="flex items-center gap-2 font-semibold"><CalendarCheck className="size-4 text-primary" />Sıradaki Randevu</p>

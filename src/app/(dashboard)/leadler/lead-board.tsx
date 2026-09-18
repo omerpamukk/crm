@@ -4,6 +4,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  closestCorners,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   Plus,
   GripVertical,
   MoreHorizontal,
@@ -108,9 +123,49 @@ export function LeadBoard({
   const staffName = (id: string | null) =>
     id ? staff.find((s) => s.id === id)?.full_name ?? null : null;
 
-  const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
-  const [draggingColId, setDraggingColId] = useState<string | null>(null);
-  const [overColId, setOverColId] = useState<string | null>(null);
+  // dnd-kit: aktif sürüklenen öğe (kart veya sütun)
+  const [activeDrag, setActiveDrag] = useState<
+    { type: "card"; id: string } | { type: "column"; id: string } | null
+  >(null);
+
+  // Fare, dokunmatik ve klavye ile sürükleme (mobil dahil, erişilebilir)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 180, tolerance: 6 },
+    }),
+    useSensor(KeyboardSensor)
+  );
+
+  function handleDragStart(e: DragStartEvent) {
+    const d = e.active.data.current as
+      | { type: "card" | "column"; id: string }
+      | undefined;
+    if (d) setActiveDrag({ type: d.type, id: d.id });
+  }
+
+  function handleDragEnd(e: DragEndEvent) {
+    const drag = activeDrag;
+    setActiveDrag(null);
+    if (!drag || !e.over) return;
+
+    const overData = e.over.data.current as
+      | { type: "column-drop" | "column"; stageId: string }
+      | undefined;
+    const toStageId = overData?.stageId ?? String(e.over.id);
+
+    if (drag.type === "card") handleCardDrop(drag.id, toStageId);
+    else handleColumnDrop(drag.id, toStageId);
+  }
+
+  const draggingCard =
+    activeDrag?.type === "card"
+      ? leadList.find((l) => l.id === activeDrag.id) ?? null
+      : null;
+  const draggingColumn =
+    activeDrag?.type === "column"
+      ? stageList.find((s) => s.id === activeDrag.id) ?? null
+      : null;
 
   // Inline yeniden adlandırma
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -245,54 +300,30 @@ export function LeadBoard({
 
   return (
     <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveDrag(null)}
+      >
       <div className="flex gap-4 overflow-x-auto pb-4">
         {stageList.map((stage) => {
           const colLeads = leadList.filter(
             (l) => l.pipeline_stage_id === stage.id
           );
-          const isOver = overColId === stage.id;
           return (
-            <div
+            <BoardColumn
               key={stage.id}
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (draggingCardId) setOverColId(stage.id);
-              }}
-              onDragLeave={() =>
-                setOverColId((s) => (s === stage.id ? null : s))
-              }
-              onDrop={(e) => {
-                e.preventDefault();
-                setOverColId(null);
-                const cardId = e.dataTransfer.getData("text/card");
-                const colId = e.dataTransfer.getData("text/column");
-                if (cardId) handleCardDrop(cardId, stage.id);
-                else if (colId) handleColumnDrop(colId, stage.id);
-              }}
-              className={cn(
-                "flex w-72 shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors",
-                isOver && "ring-2 ring-primary",
-                draggingColId === stage.id && "opacity-60"
-              )}
+              stage={stage}
+              isDragging={activeDrag?.type === "column" && activeDrag.id === stage.id}
             >
               {/* Sütun başlığı */}
               <div
                 className="flex items-center gap-1.5 rounded-t-xl border-b px-2 py-2"
                 style={{ borderTopColor: stage.color, borderTopWidth: 3 }}
               >
-                <span
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData("text/column", stage.id);
-                    e.dataTransfer.effectAllowed = "move";
-                    setDraggingColId(stage.id);
-                  }}
-                  onDragEnd={() => setDraggingColId(null)}
-                  className="cursor-grab text-muted-foreground active:cursor-grabbing"
-                  title="Sürükleyerek sırala"
-                >
-                  <GripVertical className="size-4" />
-                </span>
+                <ColumnDragHandle stageId={stage.id} />
 
                 {editingId === stage.id ? (
                   <Input
@@ -375,20 +406,7 @@ export function LeadBoard({
                   </p>
                 ) : (
                   colLeads.map((lead) => (
-                    <div
-                      key={lead.id}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData("text/card", lead.id);
-                        e.dataTransfer.effectAllowed = "move";
-                        setDraggingCardId(lead.id);
-                      }}
-                      onDragEnd={() => setDraggingCardId(null)}
-                      className={cn(
-                        "cursor-grab rounded-lg border bg-card p-3 shadow-xs active:cursor-grabbing",
-                        draggingCardId === lead.id && "opacity-50"
-                      )}
-                    >
+                    <SortableLeadCard key={lead.id} leadId={lead.id}>
                       <div className="flex items-start justify-between gap-2">
                         <Link
                           href={`/musteriler/${lead.id}`}
@@ -445,11 +463,11 @@ export function LeadBoard({
                           </span>
                         )}
                       </div>
-                    </div>
+                    </SortableLeadCard>
                   ))
                 )}
               </div>
-            </div>
+            </BoardColumn>
           );
         })}
 
@@ -465,6 +483,23 @@ export function LeadBoard({
           </Button>
         </div>
       </div>
+
+        {/* Sürüklenirken imlecin altında taşınan öğenin önizlemesi */}
+        <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.2,0,0,1)" }}>
+          {draggingCard ? (
+            <div className="w-72 rotate-2 rounded-lg border bg-card p-3 shadow-soft-lg">
+              <p className="font-medium leading-tight">{draggingCard.full_name}</p>
+              {draggingCard.phone && (
+                <p className="mt-1 text-xs text-muted-foreground">{draggingCard.phone}</p>
+              )}
+            </div>
+          ) : draggingColumn ? (
+            <div className="w-72 rounded-xl border bg-card px-3 py-2 shadow-soft-lg">
+              <p className="text-sm font-semibold">{draggingColumn.name}</p>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {/* Detay çekmecesi */}
       {detailCustomer && (
@@ -549,5 +584,97 @@ export function LeadBoard({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/**
+ * Sütun kabı: hem bırakma hedefi (kart buraya bırakılır) hem de
+ * sıralanabilir öğe (sütunun kendisi taşınabilir).
+ */
+function BoardColumn({
+  stage,
+  isDragging,
+  children,
+}: {
+  stage: PipelineStage;
+  isDragging: boolean;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `col-${stage.id}`,
+    data: { type: "column-drop", stageId: stage.id },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex w-72 shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors",
+        isOver && "ring-2 ring-primary",
+        isDragging && "opacity-60"
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Sütunu taşımak için tutamak — dnd-kit sortable'a bağlı. */
+function ColumnDragHandle({ stageId }: { stageId: string }) {
+  const { setNodeRef, attributes, listeners, isDragging } = useSortable({
+    id: `colhandle-${stageId}`,
+    data: { type: "column", id: stageId, stageId },
+  });
+
+  return (
+    <span
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      title="Sürükleyerek sırala"
+      className={cn(
+        "cursor-grab touch-none text-muted-foreground active:cursor-grabbing",
+        isDragging && "opacity-50"
+      )}
+    >
+      <GripVertical className="size-4" />
+      <span className="sr-only">Sütunu taşı</span>
+    </span>
+  );
+}
+
+/** Sürüklenebilir lead kartı. */
+function SortableLeadCard({
+  leadId,
+  children,
+}: {
+  leadId: string;
+  children: React.ReactNode;
+}) {
+  const {
+    setNodeRef,
+    attributes,
+    listeners,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: `card-${leadId}`,
+    data: { type: "card", id: leadId },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={cn(
+        "cursor-grab touch-none rounded-lg border bg-card p-3 shadow-soft transition-shadow active:cursor-grabbing",
+        isDragging ? "opacity-40" : "hover:shadow-soft-lg"
+      )}
+    >
+      {children}
+    </div>
   );
 }

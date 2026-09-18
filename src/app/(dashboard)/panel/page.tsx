@@ -223,61 +223,65 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Başlık + dönem seçici + aksiyonlar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight">Merhaba {displayName}</h1>
-          <p className="mt-0.5 text-sm capitalize text-muted-foreground">{todayLabel}</p>
+          <p className="text-sm capitalize text-muted-foreground">{todayLabel}</p>
+          <h1 className="page-title mt-1">Merhaba {displayName}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center rounded-md border p-0.5">
+          <div className="flex items-center rounded-lg border bg-card p-1 shadow-soft">
             {PERIODS.map((p) => (
               <Link key={p.key} href={p.key === "ay" ? "/panel" : `/panel?d=${p.key}`} className={cn(buttonVariants({ variant: period === p.key ? "secondary" : "ghost", size: "sm" }))}>
                 {p.label}
               </Link>
             ))}
           </div>
+          <Link href="/tahsilat" className={cn(buttonVariants({ variant: "outline" }))}><Banknote className="size-4" />Ödeme Al</Link>
           <NewCustomerButton />
-          <Link href="/tahsilat" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}><Banknote className="size-4" />Ödeme Al</Link>
         </div>
       </div>
 
-      {/* Günün özeti — tek satır, kutu yok */}
+      {/* Günün özeti */}
       <p
-        className="flex items-start gap-2 text-sm text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground"
+        className="text-[0.9375rem] leading-relaxed text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground"
         dangerouslySetInnerHTML={{ __html: summary.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>") }}
       />
 
-      {/* KPI kartları */}
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border lg:grid-cols-4">
+      {/* KPI kartları — ferah dilde her biri ayrı yüzey */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
-          <Link key={kpi.label} href={kpi.href} className="group bg-card p-4 transition-colors hover:bg-accent/50">
+          <Link
+            key={kpi.label}
+            href={kpi.href}
+            className="focus-ring surface group p-5 transition-all hover:-translate-y-0.5 hover:shadow-soft-lg"
+          >
             <p className="section-label">{kpi.label}</p>
-            <p className={cn("metric-value mt-1.5", kpi.accent)}>{kpi.value}</p>
+            <p className={cn("metric-value mt-2", kpi.accent)}>{kpi.value}</p>
             {kpi.trend && (
-              <p className={cn("mt-1 flex items-center gap-1 text-xs font-medium", kpi.trend.up ? "text-positive" : "text-danger")}>
+              <p className={cn("mt-1.5 flex items-center gap-1 text-xs font-medium", kpi.trend.up ? "text-positive" : "text-danger")}>
                 {kpi.trend.up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}{kpi.trend.text}
               </p>
             )}
-            {kpi.sub && <p className="mt-1 text-xs text-muted-foreground">{kpi.sub}</p>}
-            {kpi.spark && <div className="-mb-1 mt-2.5"><Sparkline data={kpi.spark} /></div>}
+            {kpi.sub && <p className="mt-1.5 text-xs text-muted-foreground">{kpi.sub}</p>}
+            {kpi.spark && <div className="-mb-1 mt-3"><Sparkline data={kpi.spark} /></div>}
           </Link>
         ))}
       </div>
 
       {/* Dönem performansı */}
-      <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border bg-border">
+      <div className="surface grid grid-cols-1 divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         {periodStats.map((s) => (
-          <div key={s.label} className="bg-card p-4">
+          <div key={s.label} className="p-5">
             <p className="section-label">{s.label}</p>
-            <p className="mt-1 text-lg font-semibold tabular-nums tracking-tight">{s.value}</p>
+            <p className="mt-2 text-xl font-semibold tabular-nums tracking-tight">{s.value}</p>
           </div>
         ))}
       </div>
 
       {/* Bugünün programı + fırsatlar */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="flex items-center gap-2 text-base"><Clock className="size-4 text-primary" />Bugünün Programı</CardTitle>
@@ -342,7 +346,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
       </div>
 
       {/* Gelir trendi + tahsil edilecek */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Gelir Trendi</CardTitle>
@@ -384,7 +388,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
       </div>
 
       {/* Öncelikler / acil / son müşteriler */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-3">
         <Card>
           <CardHeader><CardTitle>Bugünün Öncelikleri</CardTitle></CardHeader>
           <CardContent>

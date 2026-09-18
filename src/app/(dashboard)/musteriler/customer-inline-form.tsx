@@ -83,7 +83,7 @@ export function CustomerInlineForm({
   }
 
   return (
-    <div className="rounded-xl border bg-card p-5 shadow-xs">
+    <div className="rounded-xl border bg-card p-5 shadow-soft">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-base font-semibold">
           <UserPlus className="size-4 text-primary" />

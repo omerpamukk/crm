@@ -60,7 +60,7 @@ export default function StokPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader title="Stok Yönetimi" description="Ürün stoklarını, kritik seviyeleri ve tüketimi takip et.">
         <Button onClick={() => toast.info("Ürün ekleme yakında.")}>
           <Plus className="size-4" />

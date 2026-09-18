@@ -61,7 +61,7 @@ export function PlannerView() {
   const pending = PENDING.filter((p) => filter === "all" || p.channel === filter);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <button
@@ -113,7 +113,7 @@ export function PlannerView() {
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         {WEEK.map((d) => (
-          <div key={d.day} className="min-h-28 rounded-xl border bg-card p-2 shadow-xs">
+          <div key={d.day} className="min-h-28 rounded-xl border bg-card p-2 shadow-soft">
             <div className="mb-1.5 flex items-center justify-between">
               <span className="text-[10px] font-semibold uppercase text-muted-foreground">{d.day}</span>
               <span className="text-sm font-semibold">{d.date}</span>
@@ -137,7 +137,7 @@ export function PlannerView() {
 
       <div>
         <h3 className="mb-2 text-sm font-semibold">Bekleyen İçerikler</h3>
-        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+        <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
           <div className="hidden grid-cols-[1.4fr_0.9fr_0.9fr_1fr_0.7fr_auto] gap-3 border-b bg-muted/40 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
             <span>İçerik</span>
             <span>Kanal</span>

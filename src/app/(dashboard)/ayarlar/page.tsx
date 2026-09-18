@@ -82,7 +82,7 @@ function Field({ label, hint, defaultValue, placeholder, disabled }: { label: st
 
 export default function AyarlarPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader title="Ayarlar" description="İşletme bilgilerini, çalışma saatlerini, bildirimleri ve entegrasyonları yönet.">
         <Button onClick={() => toast.success("Ayarlar kaydedildi (demo).")}>
           <Save className="size-4" />
@@ -104,7 +104,7 @@ export default function AyarlarPage() {
 
         {/* Temel Bilgiler */}
         <TabsContent value="temel" className="mt-4">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-5 lg:grid-cols-2">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="flex items-center gap-2 text-base"><Building2 className="size-4 text-primary" />Firma Bilgileri</CardTitle>
@@ -269,7 +269,7 @@ function Notifications() {
   const [digests, setDigests] = useState({ morning: true, evening: true });
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-5 lg:grid-cols-2">
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Bell className="size-4 text-primary" />CRM Bildirimleri</CardTitle></CardHeader>
         <CardContent className="space-y-1">
@@ -331,7 +331,7 @@ function Integrations() {
     { name: "TikTok Business", sub: "Bağlı değil", logo: TiktokLogo, connected: false },
   ];
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-5 lg:grid-cols-2">
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Plug className="size-4 text-primary" />Sosyal &amp; Mesajlaşma</CardTitle></CardHeader>
         <CardContent className="space-y-2">
@@ -391,7 +391,7 @@ function Subscription() {
     { label: "Bu Ay SMS", value: "248 / 500", pct: 50, color: "bg-amber-500" },
   ];
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-5 lg:grid-cols-2">
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Crown className="size-4 text-primary" />Mevcut Paket</CardTitle></CardHeader>
         <CardContent className="space-y-4">

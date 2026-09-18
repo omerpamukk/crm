@@ -124,7 +124,7 @@ export default async function MusterilerPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title="Müşteriler"
         description="Dönüşmüş müşterilerini yönet, filtrele ve geçmişlerini takip et."
@@ -139,18 +139,18 @@ export default async function MusterilerPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {kpis.map((kpi) => (
-              <div key={kpi.label} className="bg-card p-4">
+              <div key={kpi.label} className="surface p-5">
                 <p className="section-label">{kpi.label}</p>
-                <p className={`metric-value mt-1.5 ${kpi.accent}`}>{kpi.value}</p>
+                <p className={`metric-value mt-2 ${kpi.accent}`}>{kpi.value}</p>
                 {kpi.trend && (
-                  <p className="mt-1 flex items-center gap-1 text-xs font-medium text-positive">
+                  <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-positive">
                     <TrendingUp className="size-3" />
                     {kpi.trend}
                   </p>
                 )}
-                {kpi.sub && <p className="mt-1 text-xs text-muted-foreground">{kpi.sub}</p>}
+                {kpi.sub && <p className="mt-1.5 text-xs text-muted-foreground">{kpi.sub}</p>}
               </div>
             ))}
           </div>

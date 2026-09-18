@@ -66,7 +66,7 @@ const DEMO_CATEGORIES: OppCategory[] = [
   {
     key: "birthday", title: "Doğum Günü Yaklaşanlar", subtitle: "Önümüzdeki 30 gün içinde",
     count: 7, footerHref: "/musteriler", footerLabel: "Müşterilere Git",
-    items: [it("Zeynep Arslan", "05333334455", "Bugün 🎉", null), it("Ahmet Çelik", "05334445566", "3 gün sonra", null), it("Selin Kaya", "05335556677", "6 gün sonra", null)],
+    items: [it("Zeynep Arslan", "05333334455", "Bugün", null), it("Ahmet Çelik", "05334445566", "3 gün sonra", null), it("Selin Kaya", "05335556677", "6 gün sonra", null)],
   },
   {
     key: "periodic", title: "Tekrar İşlem Zamanı Gelenler", subtitle: "Periyodik bakım vakti geldi",
@@ -183,8 +183,8 @@ export default async function FirsatlarPage() {
     .sort((a, b) => a.d - b.d)
     .map(({ c, d }) => ({
       id: c.id, customerId: c.id, name: c.full_name, phone: c.phone,
-      meta: d === 0 ? "Bugün 🎉" : `${d} gün sonra`, value: null,
-      waMsg: `İyi ki doğdunuz ${c.full_name}! 🎉 Size özel bir hediyemiz var, bekleriz.`,
+      meta: d === 0 ? "Bugün" : `${d} gün sonra`, value: null,
+      waMsg: `İyi ki doğdunuz ${c.full_name}! Size özel bir hediyemiz var, bekleriz.`,
       call: false,
     }));
 
@@ -236,7 +236,7 @@ export default async function FirsatlarPage() {
   const categories = DEMO ? DEMO_CATEGORIES : realCategories;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title="Gelir Fırsatları"
         description="Mevcut verilerinden otomatik hesaplanan, aksiyon alınabilir müşteri grupları."

@@ -1,6 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  closestCorners,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Plus, CheckCircle2, Bell, User, GripVertical, Zap, Trash2, AlignLeft, CalendarClock, Tag, X, Check, Pencil, History, MoveRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -101,9 +116,27 @@ function relTime(at: number) {
 export default function GorevlerPage() {
   const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS);
   const [tasks, setTasks] = useState<Task[]>(INITIAL);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [overCol, setOverCol] = useState<string | null>(null);
-  const [didDrag, setDidDrag] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const activeTask = activeId ? tasks.find((t) => t.id === activeId) ?? null : null;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
+    useSensor(KeyboardSensor)
+  );
+
+  function handleDragStart(e: DragStartEvent) {
+    setActiveId(String(e.active.id).replace(/^task-/, ""));
+  }
+
+  function handleDragEnd(e: DragEndEvent) {
+    const id = activeId;
+    setActiveId(null);
+    if (!id || !e.over) return;
+    const overData = e.over.data.current as { colId?: string } | undefined;
+    const toCol = overData?.colId;
+    if (toCol) moveTask(id, toCol);
+  }
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: "", desc: "", assignee: "Tüm Ekip", priority: "normal" as Priority, when: "Bugün", colId: "todo", customer: "" });
@@ -166,7 +199,7 @@ export default function GorevlerPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader title="Görev Sistemi" description="Listeleri Trello gibi yönet: kart ekle, sürükle, kartın içine girip düzenle; müşteri bağla, geçmişi gör.">
         <Button onClick={() => openAdd(columns[0]?.id ?? "todo")}>
           <Plus className="size-4" />
@@ -174,22 +207,19 @@ export default function GorevlerPage() {
         </Button>
       </PageHeader>
 
-      <div className="rounded-2xl bg-gradient-to-br from-indigo-500/8 via-violet-500/8 to-sky-500/10 p-3 ring-1 ring-black/5 sm:p-4 dark:from-indigo-500/10 dark:via-violet-500/10 dark:to-sky-500/10">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveId(null)}
+      >
+      <div className="rounded-xl border bg-muted/30 p-3 sm:p-4">
         <div className="flex gap-3 overflow-x-auto pb-1">
           {columns.map((col) => {
             const items = tasks.filter((t) => t.colId === col.id);
-            const over = overCol === col.id;
             return (
-              <div
-                key={col.id}
-                onDragOver={(e) => { e.preventDefault(); if (draggingId) setOverCol(col.id); }}
-                onDragLeave={() => setOverCol((s) => (s === col.id ? null : s))}
-                onDrop={(e) => { e.preventDefault(); setOverCol(null); const id = e.dataTransfer.getData("text/task"); if (id) moveTask(id, col.id); setDraggingId(null); }}
-                className={cn(
-                  "flex w-72 shrink-0 flex-col self-start rounded-xl border border-white/60 bg-white/55 shadow-sm backdrop-blur-md transition-all dark:border-white/10 dark:bg-white/5",
-                  over && "bg-primary/10 ring-2 ring-primary"
-                )}
-              >
+              <TaskColumn key={col.id} colId={col.id}>
                 <div className="group/col flex items-center gap-2 px-3 py-2.5">
                   <span className={cn("size-2.5 shrink-0 rounded-full", col.dot)} />
                   {editingCol === col.id ? (
@@ -205,20 +235,17 @@ export default function GorevlerPage() {
 
                 <div className="flex-1 space-y-2 px-2 pb-2">
                   {items.length === 0 && (
-                    <p className={cn("rounded-lg border border-dashed border-foreground/15 py-8 text-center text-sm text-muted-foreground", over && "border-primary text-primary")}>{over ? "Buraya bırak" : "Görev yok"}</p>
+                    <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">Görev yok</p>
                   )}
                   {items.map((t) => {
                     const done = isDone(t.colId);
                     const pri = PRIORITY[t.priority];
                     const cust = t.customer ? CUST_STATUS[t.customer.status] : null;
                     return (
-                      <div
+                      <SortableTaskCard
                         key={t.id}
-                        draggable
-                        onDragStart={(e) => { e.dataTransfer.setData("text/task", t.id); e.dataTransfer.effectAllowed = "move"; setDraggingId(t.id); setDidDrag(true); }}
-                        onDragEnd={() => { setDraggingId(null); setTimeout(() => setDidDrag(false), 0); }}
-                        onClick={() => { if (!didDrag) setEditId(t.id); }}
-                        className={cn("group cursor-pointer overflow-hidden rounded-lg bg-card shadow-sm ring-1 ring-black/5 transition-all hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing dark:ring-white/10", draggingId === t.id && "rotate-2 opacity-60")}
+                        taskId={t.id}
+                        onOpen={() => setEditId(t.id)}
                       >
                         <div className="flex gap-1 px-3 pt-2.5">
                           <span className={cn("h-1.5 w-9 rounded-full", done ? "bg-emerald-500" : pri.bar)} />
@@ -254,19 +281,19 @@ export default function GorevlerPage() {
                             </div>
                           )}
                         </div>
-                      </div>
+                      </SortableTaskCard>
                     );
                   })}
 
                   <button onClick={() => openAdd(col.id)} className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"><Plus className="size-3.5" />Görev ekle</button>
                 </div>
-              </div>
+              </TaskColumn>
             );
           })}
 
           <div className="w-72 shrink-0 self-start">
             {addingList ? (
-              <div className="rounded-xl border border-white/60 bg-white/70 p-2 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5">
+              <div className="surface p-2">
                 <input autoFocus value={newListName} onChange={(e) => setNewListName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addList(); if (e.key === "Escape") { setAddingList(false); setNewListName(""); } }} placeholder="Liste adı…" className="mb-2 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none" />
                 <div className="flex gap-1.5">
                   <Button size="sm" onClick={addList}><Check className="size-4" />Ekle</Button>
@@ -274,11 +301,25 @@ export default function GorevlerPage() {
                 </div>
               </div>
             ) : (
-              <button onClick={() => setAddingList(true)} className="flex w-full items-center gap-1.5 rounded-xl border border-dashed border-foreground/20 bg-white/30 px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/60 hover:text-foreground dark:bg-white/5"><Plus className="size-4" />Liste ekle</button>
+              <button onClick={() => setAddingList(true)} className="flex w-full items-center gap-1.5 rounded-xl border border-dashed bg-card/60 px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground"><Plus className="size-4" />Liste ekle</button>
             )}
           </div>
         </div>
       </div>
+
+        <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.2,0,0,1)" }}>
+          {activeTask ? (
+            <div className="w-72 rotate-2 rounded-lg border bg-card p-3 shadow-soft-lg">
+              <p className="text-sm font-semibold leading-tight">
+                {activeTask.emoji} {activeTask.title}
+              </p>
+              {activeTask.assignee && (
+                <p className="mt-1 text-xs text-muted-foreground">{activeTask.assignee}</p>
+              )}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {/* YENİ GÖREV */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -440,6 +481,71 @@ function ColumnPicker({ columns, value, onChange }: { columns: Column[]; value: 
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/** Görev listesi kabı — kartların bırakılabileceği hedef. */
+function TaskColumn({
+  colId,
+  children,
+}: {
+  colId: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `col-${colId}`,
+    data: { colId },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex w-72 shrink-0 flex-col self-start rounded-xl border bg-card shadow-soft transition-colors",
+        isOver && "ring-2 ring-primary"
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Sürüklenebilir görev kartı; sürükleme yoksa tıklayınca detayı açar. */
+function SortableTaskCard({
+  taskId,
+  onOpen,
+  children,
+}: {
+  taskId: string;
+  onOpen: () => void;
+  children: React.ReactNode;
+}) {
+  const {
+    setNodeRef,
+    attributes,
+    listeners,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `task-${taskId}`, data: { id: taskId } });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      onClick={() => {
+        // Sürükleme sırasında tıklama tetiklenmesin
+        if (!isDragging) onOpen();
+      }}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={cn(
+        "group cursor-pointer touch-none overflow-hidden rounded-lg border bg-card shadow-soft transition-all",
+        isDragging ? "opacity-40" : "hover:-translate-y-0.5 hover:shadow-soft-lg"
+      )}
+    >
+      {children}
     </div>
   );
 }

@@ -216,7 +216,7 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 text-white hover:opacity-90">
+        <Button className="gap-2 bg-primary text-primary-foreground hover:opacity-90">
           <Store className="size-4" />
           Ajans Paneli Oluştur
         </Button>
@@ -228,7 +228,7 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
         {/* Başlık (sabit) */}
         <DialogHeader className="shrink-0 gap-1.5 border-b px-6 py-5">
           <div className="flex items-center gap-2.5">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-white">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
               {isEditing ? <Pencil className="size-5" /> : <Store className="size-5" />}
             </span>
             <div>
@@ -373,7 +373,7 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
                         editingId === a.id && "border-primary/50 bg-primary/[0.04] ring-1 ring-primary/15"
                       )}
                     >
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-500 text-xs font-semibold text-white">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-semibold text-primary">
                         {a.name.slice(0, 2).toUpperCase()}
                       </span>
                       <div className="min-w-0 flex-1">
@@ -432,7 +432,7 @@ export function AgencyPanelDialog({ existing }: { existing: AgencyAccess[] }) {
               {isEditing ? "Vazgeç" : "İptal"}
             </Button>
             <Button
-              className="gap-2 bg-gradient-to-r from-primary to-violet-500 text-white hover:opacity-90"
+              className="gap-2 bg-primary text-primary-foreground hover:opacity-90"
               onClick={handleSubmit}
               disabled={submitting}
             >

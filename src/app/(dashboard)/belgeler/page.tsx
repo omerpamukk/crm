@@ -42,7 +42,7 @@ export default function BelgelerPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader title="Belge İmzalama" description="Sözleşme ve onam formlarını yükle, dijital olarak imzala ve sakla.">
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => toast.info("İmza ayarlama (demo).")}>
@@ -60,9 +60,9 @@ export default function BelgelerPage() {
       <button
         type="button"
         onClick={() => toast.info("Belge yükleme (demo).")}
-        className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed bg-card/50 px-6 py-12 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.03]"
+        className="flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed bg-card/50 px-6 py-12 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.03]"
       >
-        <span className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <span className="flex size-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <Upload className="size-7" />
         </span>
         <div>

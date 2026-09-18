@@ -43,7 +43,7 @@ export default async function PaketlerPage() {
   const customers = customersRes.data ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title="Paketler"
         description="Müşterilere tanımlı seans paketlerini ve kalan haklarını takip et."
@@ -69,7 +69,7 @@ export default async function PaketlerPage() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+        <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">

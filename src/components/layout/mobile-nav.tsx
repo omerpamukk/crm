@@ -41,6 +41,7 @@ export function MobileNav({
           roleLabel={roleLabel}
           badges={badges}
           onNavigate={() => setOpen(false)}
+          variant="full"
         />
       </SheetContent>
     </Sheet>

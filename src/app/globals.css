@@ -57,22 +57,22 @@
 }
 
 /* =============================================================
-   Tasarım dili: Sakin & Profesyonel
-   - Nötrler gerçekten nötr (slate), renk yalnızca anlam taşır
-   - Gradient yok, ağır gölge yok; ayrım border ile yapılır
-   - Tek vurgu rengi (primary) yalnızca aksiyon ve aktif durumda
+   Tasarım dili: Ferah & Modern SaaS
+   - Bol boşluk, büyük tipografi, yumuşak yüzeyler
+   - Sayfa zemini hafif gri; içerik yüzeyleri beyaz ve yumuşak köşeli
+   - Renk yalnızca anlam taşır; tek vurgu rengi aksiyon ve aktif durumda
    ============================================================= */
 :root {
   /* Nötr slate skalası — çok hafif soğuk, ama "mor" değil */
-  --background: oklch(0.985 0.002 250);
-  --foreground: oklch(0.21 0.012 255);
+  --background: oklch(0.978 0.003 250);
+  --foreground: oklch(0.19 0.014 255);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.012 255);
+  --card-foreground: oklch(0.19 0.014 255);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.012 255);
+  --popover-foreground: oklch(0.19 0.014 255);
 
   /* Tek vurgu rengi — sakin indigo, yalnızca aksiyonlarda */
-  --primary: oklch(0.52 0.15 265);
+  --primary: oklch(0.52 0.16 265);
   --primary-foreground: oklch(1 0 0);
 
   /* Anlam renkleri — yalnızca durum bildirir, dekorasyon değil */
@@ -93,14 +93,14 @@
   --accent-foreground: oklch(0.32 0.012 255);
   --destructive: oklch(0.58 0.2 20);
 
-  /* Border görünür olmalı — ayrımı gölge değil çizgi yapar */
-  --border: oklch(0.915 0.004 250);
-  --input: oklch(0.898 0.005 250);
-  --ring: oklch(0.52 0.15 265);
+  /* Border yumuşak — yüzeyleri ayırır ama çizgi gibi durmaz */
+  --border: oklch(0.925 0.004 250);
+  --input: oklch(0.9 0.005 250);
+  --ring: oklch(0.52 0.16 265);
 
-  /* Elevation neredeyse yok — yalnızca yüzen katmanlar için */
-  --shadow-soft: 0 1px 2px oklch(0.21 0.012 255 / 0.05);
-  --shadow-soft-lg: 0 4px 12px -2px oklch(0.21 0.012 255 / 0.08), 0 2px 4px -2px oklch(0.21 0.012 255 / 0.04);
+  /* Yumuşak elevation — ferah dilde yüzeyler hafifçe kalkık durur */
+  --shadow-soft: 0 1px 2px oklch(0.19 0.014 255 / 0.04), 0 1px 3px oklch(0.19 0.014 255 / 0.03);
+  --shadow-soft-lg: 0 8px 24px -6px oklch(0.19 0.014 255 / 0.1), 0 2px 6px -2px oklch(0.19 0.014 255 / 0.05);
 
   /* Grafik paleti — tek tondan türetilmiş, okunabilir sıra */
   --chart-1: oklch(0.52 0.15 265);
@@ -109,16 +109,16 @@
   --chart-4: oklch(0.72 0.08 160);
   --chart-5: oklch(0.6 0.05 255);
 
-  --radius: 0.5rem; /* 8px */
+  --radius: 0.75rem; /* 12px — ferah dilde köşeler daha yumuşak */
 
-  --sidebar: oklch(0.985 0.002 250);
-  --sidebar-foreground: oklch(0.21 0.012 255);
-  --sidebar-primary: oklch(0.52 0.15 265);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.19 0.014 255);
+  --sidebar-primary: oklch(0.52 0.16 265);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.955 0.004 250);
-  --sidebar-accent-foreground: oklch(0.21 0.012 255);
-  --sidebar-border: oklch(0.915 0.004 250);
-  --sidebar-ring: oklch(0.52 0.15 265);
+  --sidebar-accent: oklch(0.96 0.004 250);
+  --sidebar-accent-foreground: oklch(0.19 0.014 255);
+  --sidebar-border: oklch(0.925 0.004 250);
+  --sidebar-ring: oklch(0.52 0.16 265);
 }
 
 .dark {
@@ -149,12 +149,12 @@
   --accent-foreground: oklch(0.96 0.003 250);
   --destructive: oklch(0.68 0.18 20);
 
-  --border: oklch(0.3 0.01 255);
-  --input: oklch(0.34 0.01 255);
+  --border: oklch(0.31 0.01 255);
+  --input: oklch(0.35 0.01 255);
   --ring: oklch(0.65 0.15 265);
 
   --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.3);
-  --shadow-soft-lg: 0 4px 12px -2px oklch(0 0 0 / 0.45), 0 2px 4px -2px oklch(0 0 0 / 0.3);
+  --shadow-soft-lg: 0 8px 24px -6px oklch(0 0 0 / 0.5), 0 2px 6px -2px oklch(0 0 0 / 0.35);
 
   --chart-1: oklch(0.65 0.15 265);
   --chart-2: oklch(0.7 0.11 230);
@@ -207,7 +207,7 @@
     box-shadow: var(--shadow-soft-lg);
   }
 
-  /* --- Sakin tasarım dilinin yardımcıları --- */
+  /* --- Ferah & Modern SaaS dilinin yardımcıları --- */
 
   /* Bölüm başlığı: küçük, soluk, harf aralığı açık */
   .section-label {
@@ -218,11 +218,19 @@
     color: var(--muted-foreground);
   }
 
+  /* Sayfa başlığı — ferah dilde iri ve nefesli */
+  .page-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+  }
+
   /* Metrik değeri: büyük, sıkı, hizalı rakamlar */
   .metric-value {
-    font-size: 1.5rem;
+    font-size: 1.75rem;
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
     font-variant-numeric: tabular-nums;
     line-height: 1.15;
   }
@@ -239,5 +247,62 @@
   /* Satır listesi: kart yerine ayraçla bölünmüş sıralar */
   .row-list > * + * {
     border-top: 1px solid var(--border);
+  }
+
+  /* Yüzey: ferah dilin temel bloğu — beyaz, yumuşak köşe, hafif kalkık */
+  .surface {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-soft);
+  }
+
+  /* İçerik genişliği — çok geniş ekranda satırlar okunabilir kalsın */
+  .page-shell {
+    width: 100%;
+    max-width: 90rem;
+    margin-inline: auto;
+  }
+
+  /* Yükleniyor iskeleti */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--muted) 25%,
+      color-mix(in oklch, var(--muted), var(--card) 60%) 37%,
+      var(--muted) 63%
+    );
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.4s ease infinite;
+    border-radius: var(--radius-md);
+  }
+
+  /* Odak halkası — klavye kullanıcıları için tutarlı */
+  .focus-ring {
+    outline: none;
+  }
+  .focus-ring:focus-visible {
+    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* Hareket hassasiyeti olan kullanıcılar için tüm animasyonları kıs */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

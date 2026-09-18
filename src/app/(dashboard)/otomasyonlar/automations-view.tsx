@@ -105,7 +105,7 @@ function metaOf(a: { actionId: string }) {
 const INITIAL: Automation[] = [
   { id: "a1", title: "Randevu Hatırlatma", active: true, triggerId: "randevu_oncesi", triggerParam: "24", actionId: "wa", message: "Merhaba {ad}, yarınki randevunuzu hatırlatmak isteriz 🌸 Görüşmek üzere!" },
   { id: "a2", title: "Randevu Sonrası Teşekkür", active: true, triggerId: "randevu_tamamlandi", actionId: "wa", message: "Bizi tercih ettiğiniz için teşekkürler {ad}! Deneyiminizi değerlendirir misiniz? 💜" },
-  { id: "a3", title: "Doğum Günü Kutlaması", active: true, triggerId: "dogum_gunu", actionId: "indirim", message: "İyi ki doğdunuz {ad}! 🎂 Size özel %15 indirim hediyemiz sizi bekliyor." },
+  { id: "a3", title: "Doğum Günü Kutlaması", active: true, triggerId: "dogum_gunu", actionId: "indirim", message: "İyi ki doğdunuz {ad}! Size özel %15 indirim hediyemiz sizi bekliyor." },
   { id: "a4", title: "Gecikmiş Ödeme Hatırlatma", active: true, triggerId: "odeme_gecikti", triggerParam: "7", actionId: "wa", message: "Merhaba {ad}, ödemenizle ilgili nazik bir hatırlatma yapmak istedik 💜" },
   { id: "a5", title: "Paketi Bitene Yenileme Teklifi", active: false, triggerId: "paket_bitiyor", triggerParam: "1", actionId: "wa", message: "{ad}, paketinizde son seansınız kaldı — yenilemede size özel fırsatımız var!" },
   { id: "a6", title: "Pasif Müşteri Geri Kazanım", active: false, triggerId: "pasif_musteri", triggerParam: "60", actionId: "sms", message: "Sizi özledik {ad}! Dönüşünüze özel bir sürprizimiz var, bekleriz." },
@@ -115,7 +115,7 @@ const TEMPLATES: Omit<Automation, "id" | "active">[] = [
   { title: "Randevu Hatırlatma (24 saat)", triggerId: "randevu_oncesi", triggerParam: "24", actionId: "wa", message: "Merhaba {ad}, yarınki randevunuzu hatırlatmak isteriz 🌸" },
   { title: "Randevu Sonrası Değerlendirme", triggerId: "randevu_tamamlandi", actionId: "wa", message: "Teşekkürler {ad}! Deneyiminizi değerlendirir misiniz?" },
   { title: "No-show Takibi", triggerId: "noshow", actionId: "wa", message: "Merhaba {ad}, kaçırdığınız randevu için yeni bir tarih ayarlayalım mı?" },
-  { title: "Doğum Günü İndirimi", triggerId: "dogum_gunu", actionId: "indirim", message: "İyi ki doğdunuz {ad}! 🎂 Size özel indirim hediyemiz var." },
+  { title: "Doğum Günü İndirimi", triggerId: "dogum_gunu", actionId: "indirim", message: "İyi ki doğdunuz {ad}! Size özel indirim hediyemiz var." },
   { title: "Yeni Lead Karşılama", triggerId: "yeni_lead", actionId: "wa", message: "Merhaba {ad}, ilginiz için teşekkürler! Size nasıl yardımcı olabiliriz?" },
   { title: "Geri Kazanım (60 gün)", triggerId: "pasif_musteri", triggerParam: "60", actionId: "sms", message: "Sizi özledik {ad}! Dönüşünüze özel bir fırsatımız var." },
 ];

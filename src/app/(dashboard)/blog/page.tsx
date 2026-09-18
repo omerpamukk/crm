@@ -36,7 +36,7 @@ export default function BlogPage() {
   const [posts, setPosts] = useState(DEMO_POSTS);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader title="Blog" description="Blog yazılarınla SEO gücünü artır, organik trafik kazan.">
         {active && (
           <Button onClick={() => toast.info("Yeni yazı editörü yakında.")}>
@@ -50,7 +50,7 @@ export default function BlogPage() {
         <>
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center gap-4 px-6 py-12 text-center">
-              <span className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <span className="flex size-16 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Newspaper className="size-8" />
               </span>
               <div>
@@ -64,7 +64,7 @@ export default function BlogPage() {
                 <div><p className="text-2xl font-bold text-positive">3x</p><p className="text-xs text-muted-foreground">Müşteri Bağlılığı</p></div>
                 <div><p className="text-2xl font-bold text-amber-600">+62</p><p className="text-xs text-muted-foreground">SEO Puanı</p></div>
               </div>
-              <Button size="lg" onClick={() => { setActive(true); toast.success("Blog aktifleştirildi 🎉"); }}>
+              <Button size="lg" onClick={() => { setActive(true); toast.success("Blog aktifleştirildi"); }}>
                 <Zap className="size-4" />
                 Blogu Aktifleştir
               </Button>

@@ -67,7 +67,7 @@ export default function SayfalarPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader title="Web Yönetimi — Sayfalar" description="Web sitenin sayfalarını, alan adını ve medyasını buradan yönet.">
         <Button onClick={() => toast.info("Yeni sayfa oluşturma yakında.")}>
           <Plus className="size-4" />
@@ -159,7 +159,7 @@ export default function SayfalarPage() {
                 {g.pages.map((p) => {
                   const Icon = p.icon;
                   return (
-                    <li key={p.id} className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-xs">
+                    <li key={p.id} className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-soft">
                       <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                         <Icon className="size-4" />
                       </span>

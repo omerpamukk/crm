@@ -71,7 +71,7 @@ function ReminderList({ items }: { items: Reminder[] }) {
       {list.map((r) => {
         const Icon = r.icon;
         return (
-          <div key={r.id} className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-xs">
+          <div key={r.id} className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-soft">
             <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-lg", r.tone)}>
               <Icon className="size-5" />
             </span>
@@ -89,7 +89,7 @@ function ReminderList({ items }: { items: Reminder[] }) {
 
 export function RemindersView() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <section>
         <div className="mb-2 flex items-center justify-between gap-2">
           <h3 className="flex items-center gap-2 text-sm font-semibold">

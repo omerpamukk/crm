@@ -90,7 +90,7 @@ export default async function CariPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title="Cari Hesap"
         description="Her müşterinin satış, tahsilat, alacak ve ödeme takibi tek ekranda."

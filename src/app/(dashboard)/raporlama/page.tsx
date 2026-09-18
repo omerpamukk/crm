@@ -43,7 +43,7 @@ export default function RaporlamaPage() {
   const exp = (fmt: string, name: string) => toast.success(`${name} — ${fmt} olarak indiriliyor (demo).`);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader title="Rapor Oluştur" description="Dönem seç, rapor türünü belirle ve Excel/PDF olarak dışa aktar; otomatik özetleri kur." />
 
       {/* Rapor oluşturucu */}
@@ -105,7 +105,7 @@ export default function RaporlamaPage() {
       {/* Otomatik özet raporları */}
       <div>
         <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold"><Clock className="size-5 text-primary" />Otomatik Özet Raporları</h2>
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-5 lg:grid-cols-2">
           <DigestCard
             kind="morning"
             title="Sabah Özeti"
@@ -114,7 +114,7 @@ export default function RaporlamaPage() {
             time="09:00"
             items={["Günlük randevular", "Yanıtsız mesajlar", "Bekleyen görevler", "Dünkü satış", "Google yorumları", "Kritik stok"]}
             checked={[true, true, true, true, true, false]}
-            preview={["📅 6 randevu planlı", "📨 4 yanıtsız mesaj bekliyor", "✅ 3 bekleyen görev", "💰 Dün ₺12.400 satış"]}
+            preview={["📅 6 randevu planlı", "📨 4 yanıtsız mesaj bekliyor", "3 bekleyen görev", "💰 Dün ₺12.400 satış"]}
             previewTitle="Önizleme — 31 Mayıs 2026"
             recipients={["Atahan T.", "Ayşe Y."]}
           />
@@ -126,7 +126,7 @@ export default function RaporlamaPage() {
             time="20:00"
             items={["Günlük satış toplamı", "Tamamlanan seanslar", "Mesaj istatistiği", "Görev özeti", "Google puanı", "Yarın randevular"]}
             checked={[true, true, true, true, true, false]}
-            preview={["💰 Toplam ₺12.400 satış", "✅ 5 seans tamamlandı", "📌 4 görev tamamlandı", "⭐ Google: 4.9 / 5.0"]}
+            preview={["💰 Toplam ₺12.400 satış", "5 seans tamamlandı", "📌 4 görev tamamlandı", "⭐ Google: 4.9 / 5.0"]}
             previewTitle="Önizleme — 30 Mayıs 2026"
             recipients={["Atahan T.", "Zeynep D.", "Mehmet K."]}
           />

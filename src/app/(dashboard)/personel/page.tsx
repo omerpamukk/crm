@@ -27,7 +27,7 @@ export default async function PersonelPage() {
   const staff = (data ?? []) as Staff[];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title="Personel"
         description="Çalışanlarını, ünvanlarını ve komisyon oranlarını yönet."
@@ -43,7 +43,7 @@ export default async function PersonelPage() {
           action={<NewStaffButton />}
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+        <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
