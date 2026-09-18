@@ -1,25 +1,17 @@
 import Link from "next/link";
 import {
-  Users,
-  CalendarDays,
   Clock,
-  UserPlus,
   Banknote,
-  Wallet,
   TrendingUp,
   TrendingDown,
-  Sparkles,
   PackageX,
   Clock3,
   Cake,
   ArrowRight,
-  Zap,
-  ListChecks,
   CalendarPlus,
   CalendarCheck,
   CheckCircle2,
   MessageCircle,
-  Lightbulb,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
@@ -189,7 +181,6 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const pendingAppt = pendingCount.count ?? 0;
   const leadTotal = leadsCount.count ?? 0;
   const completedToday = completedTodayRes.count ?? 0;
-  const completionPct = todayAppointments.length > 0 ? Math.round((completedToday / todayAppointments.length) * 100) : 0;
   const monthRevenue = ((periodPayRes.data ?? []) as { amount: number | null }[]).reduce((s, p) => s + (p.amount ?? 0), 0);
 
   // Akıllı günün özeti
@@ -197,14 +188,14 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   summaryParts.push(todayAppointments.length > 0 ? `Bugün **${todayAppointments.length} randevu**, ${completedToday} tamamlandı` : "Bugün planlı randevu yok");
   if (todayRevenue > 0) summaryParts.push(`**${formatPrice(todayRevenue)}** tahsilat`);
   if (overdueDebtors.length > 0) summaryParts.push(`${overdueDebtors.length} gecikmiş ödeme — en acil **${overdueDebtors[0].name}** (${formatPrice(overdueDebtors[0].debt)})`);
-  if (birthdayToday.length > 0) summaryParts.push(`🎂 ${birthdayToday.length} doğum günü`);
+  if (birthdayToday.length > 0) summaryParts.push(`${birthdayToday.length} doğum günü`);
   const summary = summaryParts.join(" · ") + ".";
 
   const kpis = [
-    { label: "Bu Ay Ciro", value: formatPrice(monthRevenue), icon: Banknote, tone: "bg-positive/10 text-positive", bar: "border-l-positive", trend: periodPct !== null ? { up: periodPct >= 0, text: `${periodMeta.comp} %${Math.abs(periodPct)}` } : null, href: "/tahsilat", spark: sparkData },
-    { label: "Bekleyen Randevu", value: pendingAppt.toLocaleString("tr-TR"), icon: CalendarDays, tone: "bg-warning/12 text-amber-600", bar: "border-l-warning", sub: `Bugün ${todayAppointments.length} randevu`, href: "/randevular" },
-    { label: "Tahsil Edilecek", value: formatPrice(totalDebt), icon: Wallet, tone: "bg-danger/10 text-danger", bar: "border-l-danger", sub: `${debtors.length} müşteri · ${overdueDebtors.length} gecikmiş`, href: "/cari", accent: totalDebt > 0 ? "text-danger" : "" },
-    { label: "Toplam Müşteri", value: customerTotal.toLocaleString("tr-TR"), icon: Users, tone: "bg-primary/10 text-primary", bar: "border-l-primary", sub: `${leadTotal} aktif lead`, href: "/musteriler" },
+    { label: "Bu Ay Ciro", value: formatPrice(monthRevenue), trend: periodPct !== null ? { up: periodPct >= 0, text: `${periodMeta.comp} %${Math.abs(periodPct)}` } : null, href: "/tahsilat", spark: sparkData },
+    { label: "Bekleyen Randevu", value: pendingAppt.toLocaleString("tr-TR"), sub: `Bugün ${todayAppointments.length} randevu`, href: "/randevular" },
+    { label: "Tahsil Edilecek", value: formatPrice(totalDebt), sub: `${debtors.length} müşteri · ${overdueDebtors.length} gecikmiş`, href: "/cari", accent: totalDebt > 0 ? "text-danger" : "" },
+    { label: "Toplam Müşteri", value: customerTotal.toLocaleString("tr-TR"), sub: `${leadTotal} aktif lead`, href: "/musteriler" },
   ];
 
   const priorities = [
@@ -216,91 +207,73 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
 
   const urgent: { id: string; title: string; detail: string; href: string; tone: "danger" | "positive" }[] = [];
   for (const d of overdueDebtors.slice(0, 3)) urgent.push({ id: `debt-${d.id}`, title: "Gecikmiş ödeme", detail: `${d.name} · ${formatPrice(d.debt)}`, href: `/musteriler/${d.id}`, tone: "danger" });
-  for (const b of birthdayToday.slice(0, 3)) urgent.push({ id: `bd-${b.id}`, title: "Bugün doğum günü 🎂", detail: `${b.full_name} · tebrik et`, href: `/musteriler/${b.id}`, tone: "positive" });
+  for (const b of birthdayToday.slice(0, 3)) urgent.push({ id: `bd-${b.id}`, title: "Bugün doğum günü", detail: `${b.full_name} · tebrik et`, href: `/musteriler/${b.id}`, tone: "positive" });
 
   const opportunities = [
-    { label: "Paketi bitmek üzere", count: endingCount, icon: PackageX, tone: "text-amber-600 bg-warning/12" },
-    { label: "90+ gündür gelmeyen", count: inactive90, icon: Clock3, tone: "text-danger bg-danger/10" },
-    { label: "Bu hafta doğum günü", count: birthdayWeek.length, icon: Cake, tone: "text-positive bg-positive/10" },
+    { label: "Paketi bitmek üzere", count: endingCount, icon: PackageX },
+    { label: "90+ gündür gelmeyen", count: inactive90, icon: Clock3 },
+    { label: "Bu hafta doğum günü", count: birthdayWeek.length, icon: Cake },
   ];
 
   const todayLabel = now.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
   const periodStats = [
-    { label: "Dönem Ciro", value: formatPrice(periodRevenue), icon: Banknote, tone: "text-positive" },
-    { label: "Dönem Randevu", value: String(periodAppts), icon: CalendarDays, tone: "text-primary" },
-    { label: "Yeni Müşteri", value: `+${periodNewCust}`, icon: UserPlus, tone: "text-primary" },
+    { label: "Dönem Ciro", value: formatPrice(periodRevenue) },
+    { label: "Dönem Randevu", value: String(periodAppts) },
+    { label: "Yeni Müşteri", value: `+${periodNewCust}` },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Karşılama bandı + dönem seçici + akıllı özet + dönem performansı */}
-      <div className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/[0.08] via-card to-card p-5 shadow-soft">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{todayLabel}</p>
-            <h1 className="mt-0.5 text-2xl font-bold">Merhaba {displayName} 👋</h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center rounded-lg border bg-card p-0.5">
-              {PERIODS.map((p) => (
-                <Link key={p.key} href={p.key === "ay" ? "/panel" : `/panel?d=${p.key}`} className={cn(buttonVariants({ variant: period === p.key ? "secondary" : "ghost", size: "sm" }))}>
-                  {p.label}
-                </Link>
-              ))}
-            </div>
-            <NewCustomerButton />
-            <Link href="/tahsilat" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}><Banknote className="size-4" />Ödeme Al</Link>
-          </div>
+      {/* Başlık + dönem seçici + aksiyonlar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+        <div className="min-w-0">
+          <h1 className="text-lg font-semibold tracking-tight">Merhaba {displayName}</h1>
+          <p className="mt-0.5 text-sm capitalize text-muted-foreground">{todayLabel}</p>
         </div>
-
-        {/* Akıllı özet */}
-        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/[0.04] p-3">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Lightbulb className="size-4" /></span>
-          <p className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: summary.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
-        </div>
-
-        {/* Dönem performansı */}
-        <div className="mt-3 grid grid-cols-3 gap-3">
-          {periodStats.map((s) => {
-            const Icon = s.icon;
-            return (
-              <div key={s.label} className="flex items-center gap-2.5 rounded-xl border bg-card/70 p-3">
-                <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted", s.tone)}><Icon className="size-4" /></span>
-                <div className="min-w-0">
-                  <p className="truncate text-xs text-muted-foreground">{s.label}</p>
-                  <p className={cn("truncate text-base font-bold tabular-nums", s.tone)}>{s.value}</p>
-                </div>
-              </div>
-            );
-          })}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center rounded-md border p-0.5">
+            {PERIODS.map((p) => (
+              <Link key={p.key} href={p.key === "ay" ? "/panel" : `/panel?d=${p.key}`} className={cn(buttonVariants({ variant: period === p.key ? "secondary" : "ghost", size: "sm" }))}>
+                {p.label}
+              </Link>
+            ))}
+          </div>
+          <NewCustomerButton />
+          <Link href="/tahsilat" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}><Banknote className="size-4" />Ödeme Al</Link>
         </div>
       </div>
 
+      {/* Günün özeti — tek satır, kutu yok */}
+      <p
+        className="flex items-start gap-2 text-sm text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground"
+        dangerouslySetInnerHTML={{ __html: summary.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>") }}
+      />
+
       {/* KPI kartları */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {kpis.map((kpi) => {
-          const Icon = kpi.icon;
-          return (
-            <Link key={kpi.label} href={kpi.href}>
-              <Card className={cn("h-full border-l-4 transition-all hover:-translate-y-0.5 hover:shadow-soft-lg", kpi.bar)}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
-                  <span className={cn("flex size-9 items-center justify-center rounded-lg", kpi.tone)}><Icon className="size-5" /></span>
-                </CardHeader>
-                <CardContent>
-                  <div className={cn("text-2xl font-bold tracking-tight tabular-nums", kpi.accent)}>{kpi.value}</div>
-                  {kpi.trend && (
-                    <p className={cn("mt-1 flex items-center gap-1 text-xs font-medium", kpi.trend.up ? "text-positive" : "text-danger")}>
-                      {kpi.trend.up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}{kpi.trend.text}
-                    </p>
-                  )}
-                  {kpi.sub && <p className="mt-1 text-xs text-muted-foreground">{kpi.sub}</p>}
-                  {kpi.spark && <div className="-mb-2 mt-2"><Sparkline data={kpi.spark} /></div>}
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border lg:grid-cols-4">
+        {kpis.map((kpi) => (
+          <Link key={kpi.label} href={kpi.href} className="group bg-card p-4 transition-colors hover:bg-accent/50">
+            <p className="section-label">{kpi.label}</p>
+            <p className={cn("metric-value mt-1.5", kpi.accent)}>{kpi.value}</p>
+            {kpi.trend && (
+              <p className={cn("mt-1 flex items-center gap-1 text-xs font-medium", kpi.trend.up ? "text-positive" : "text-danger")}>
+                {kpi.trend.up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}{kpi.trend.text}
+              </p>
+            )}
+            {kpi.sub && <p className="mt-1 text-xs text-muted-foreground">{kpi.sub}</p>}
+            {kpi.spark && <div className="-mb-1 mt-2.5"><Sparkline data={kpi.spark} /></div>}
+          </Link>
+        ))}
+      </div>
+
+      {/* Dönem performansı */}
+      <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border bg-border">
+        {periodStats.map((s) => (
+          <div key={s.label} className="bg-card p-4">
+            <p className="section-label">{s.label}</p>
+            <p className="mt-1 text-lg font-semibold tabular-nums tracking-tight">{s.value}</p>
+          </div>
+        ))}
       </div>
 
       {/* Bugünün programı + fırsatlar */}
@@ -311,13 +284,10 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
             <div className="flex items-center gap-3">
               {todayAppointments.length > 0 && (
                 <div className="flex items-center gap-2">
-                  <div className="relative size-9 rounded-full" style={{ background: `conic-gradient(#16A34A ${completionPct * 3.6}deg, var(--muted) 0deg)` }}>
-                    <div className="absolute inset-[3px] flex items-center justify-center rounded-full bg-card text-[10px] font-bold">{completionPct}%</div>
-                  </div>
-                  <span className="text-xs text-muted-foreground">{completedToday}/{todayAppointments.length}</span>
+                  <span className="text-xs tabular-nums text-muted-foreground">{completedToday}/{todayAppointments.length} tamamlandı</span>
                 </div>
               )}
-              <Link href="/takvim" className="text-sm text-primary hover:underline">Takvim →</Link>
+              <Link href="/takvim" className="text-xs text-muted-foreground transition-colors hover:text-foreground">Takvim →</Link>
             </div>
           </CardHeader>
           <CardContent>
@@ -332,7 +302,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
                 {todayAppointments.slice(0, 6).map((a) => (
                   <li key={a.id} className="flex items-center justify-between gap-3 py-2.5">
                     <div className="flex items-center gap-3">
-                      <span className="w-12 shrink-0 text-center text-sm font-bold tabular-nums text-primary">{formatTime(a.starts_at)}</span>
+                      <span className="w-12 shrink-0 text-sm font-medium tabular-nums text-muted-foreground">{formatTime(a.starts_at)}</span>
                       <div className="min-w-0">
                         {a.customer_id ? (
                           <Link href={`/musteriler/${a.customer_id}`} className="block truncate text-sm font-medium leading-tight hover:text-primary hover:underline">{a.customer?.full_name ?? "—"}</Link>
@@ -349,18 +319,21 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
           </CardContent>
         </Card>
 
-        <Card className="card-accent border-l-primary">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="flex items-center gap-2 text-base"><Sparkles className="size-4 text-primary" />Para Kazandıracak Fırsatlar</CardTitle>
-            <Link href="/firsatlar" className="text-xs text-primary hover:underline">Tümü →</Link>
+            <CardTitle>Gelir Fırsatları</CardTitle>
+            <Link href="/firsatlar" className="text-xs text-muted-foreground transition-colors hover:text-foreground">Tümü →</Link>
           </CardHeader>
-          <CardContent className="space-y-1.5">
+          <CardContent className="row-list">
             {opportunities.map((o) => {
               const Icon = o.icon;
               return (
-                <Link key={o.label} href="/firsatlar" className="flex items-center justify-between gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-muted">
-                  <span className="flex items-center gap-2 text-sm"><span className={cn("flex size-8 items-center justify-center rounded-lg", o.tone)}><Icon className="size-4" /></span>{o.label}</span>
-                  <span className="text-sm font-semibold tabular-nums">{o.count} kişi</span>
+                <Link key={o.label} href="/firsatlar" className="-mx-2 flex items-center justify-between gap-2 rounded-md px-2 py-2.5 transition-colors hover:bg-accent/50">
+                  <span className="flex items-center gap-2.5 text-sm">
+                    <Icon className="size-4 shrink-0 text-muted-foreground" />
+                    {o.label}
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">{o.count}</span>
                 </Link>
               );
             })}
@@ -372,7 +345,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base"><TrendingUp className="size-4 text-primary" />Gelir Trendi</CardTitle>
+            <CardTitle>Gelir Trendi</CardTitle>
             <CardDescription>Son 6 ayda tahsil edilen ödemeler.</CardDescription>
           </CardHeader>
           <CardContent><RevenueAreaChart data={revenueData} /></CardContent>
@@ -380,14 +353,14 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="flex items-center gap-2 text-base"><Banknote className="size-4 text-positive" />Tahsil Edilecek</CardTitle>
-            <span className="text-sm font-bold text-positive">{formatPrice(totalDebt)}</span>
+            <CardTitle>Tahsil Edilecek</CardTitle>
+            <span className="text-sm font-semibold tabular-nums">{formatPrice(totalDebt)}</span>
           </CardHeader>
           <CardContent>
             {debtors.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">Açık ödeme yok 🎉</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">Açık ödeme yok.</p>
             ) : (
-              <ul className="space-y-1">
+              <ul className="space-y-0.5">
                 {debtors.slice(0, 5).map((d) => (
                   <li key={d.id} className="flex items-center gap-1.5">
                     <Link href={`/musteriler/${d.id}`} className="flex flex-1 items-center justify-between gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted">
@@ -413,17 +386,17 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
       {/* Öncelikler / acil / son müşteriler */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-base"><ListChecks className="size-4 text-primary" />Bugünün Öncelikleri</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Bugünün Öncelikleri</CardTitle></CardHeader>
           <CardContent>
             {priorities.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">Her şey güncel, harika! ✨</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">Her şey güncel.</p>
             ) : (
-              <ul className="space-y-1">
+              <ul className="row-list">
                 {priorities.map((p) => (
                   <li key={p.label}>
-                    <Link href={p.href} className="flex items-center justify-between gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted">
-                      <span className="flex items-center gap-2"><ArrowRight className="size-3.5 text-muted-foreground" />{p.label}</span>
-                      <Badge variant={p.tone}>{p.count}</Badge>
+                    <Link href={p.href} className="-mx-2 flex items-center justify-between gap-2 rounded-md px-2 py-2.5 text-sm transition-colors hover:bg-accent/50">
+                      <span className="flex items-center gap-2.5"><ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />{p.label}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">{p.count}</span>
                     </Link>
                   </li>
                 ))}
@@ -432,18 +405,21 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
           </CardContent>
         </Card>
 
-        <Card className={cn(urgent.length > 0 && "border-danger/30")}>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Zap className="size-4 text-danger" />Acil Aksiyonlar</CardTitle></CardHeader>
+        <Card>
+          <CardHeader><CardTitle>Acil Aksiyonlar</CardTitle></CardHeader>
           <CardContent>
             {urgent.length === 0 ? (
               <p className="flex items-center justify-center gap-2 py-4 text-center text-sm text-muted-foreground"><CheckCircle2 className="size-4 text-positive" />Acil bir şey yok.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="row-list">
                 {urgent.map((u) => (
                   <li key={u.id}>
-                    <Link href={u.href} className={cn("block rounded-lg border-l-4 bg-card p-2.5 shadow-xs transition-colors hover:bg-muted/50", u.tone === "danger" ? "border-l-danger" : "border-l-positive")}>
-                      <p className="text-sm font-medium leading-tight">{u.title}</p>
-                      <p className="text-xs text-muted-foreground">{u.detail}</p>
+                    <Link href={u.href} className="-mx-2 flex items-start gap-2.5 rounded-md px-2 py-2.5 transition-colors hover:bg-accent/50">
+                      <span className={cn("status-dot mt-1.5", u.tone === "danger" ? "bg-danger" : "bg-positive")} />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium leading-tight">{u.title}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{u.detail}</span>
+                      </span>
                     </Link>
                   </li>
                 ))}
@@ -454,8 +430,8 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="flex items-center gap-2 text-base"><UserPlus className="size-4 text-primary" />Son Eklenen Müşteriler</CardTitle>
-            <Link href="/musteriler" className="text-xs text-primary hover:underline">Tümü →</Link>
+            <CardTitle>Son Eklenen Müşteriler</CardTitle>
+            <Link href="/musteriler" className="text-xs text-muted-foreground transition-colors hover:text-foreground">Tümü →</Link>
           </CardHeader>
           <CardContent>
             {recentCustomers.length === 0 ? (
@@ -464,9 +440,9 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
               <ul className="divide-y">
                 {recentCustomers.map((c) => (
                   <li key={c.id}>
-                    <Link href={`/musteriler/${c.id}`} className="flex items-center justify-between gap-3 rounded-md px-1 py-2 transition-colors hover:bg-muted">
-                      <span className="flex items-center gap-2.5">
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">{c.full_name.slice(0, 2).toLocaleUpperCase("tr")}</span>
+                    <Link href={`/musteriler/${c.id}`} className="-mx-2 flex items-center justify-between gap-3 rounded-md px-2 py-2.5 transition-colors hover:bg-accent/50">
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full border bg-muted/50 text-[10px] font-medium text-muted-foreground">{c.full_name.slice(0, 2).toLocaleUpperCase("tr")}</span>
                         <span className="truncate text-sm font-medium">{c.full_name}</span>
                       </span>
                       <span className="shrink-0 text-xs text-muted-foreground">{formatDate(c.created_at)}</span>

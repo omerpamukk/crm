@@ -200,7 +200,7 @@ export function CustomersView({
       </div>
 
       {/* Filtre çubuğu */}
-      <div className="space-y-3 rounded-xl border bg-card p-3 shadow-xs">
+      <div className="space-y-3 rounded-lg border bg-card p-3">
         <div className="flex flex-wrap items-center gap-2">
           <FilterSelect label="Hizmet" value={service} onChange={setService} options={[{ v: "all", l: "Tümü" }, ...serviceOptions.map((s) => ({ v: s, l: s }))]} />
           <FilterSelect label="Kalan Seans" value={kalan} onChange={setKalan} options={[{ v: "all", l: "Tümü" }, { v: "var", l: "Seansı var" }, { v: "az", l: "Az kaldı (≤2)" }, { v: "bitti", l: "Paketi bitti" }]} />
@@ -240,7 +240,7 @@ export function CustomersView({
       )}
 
       {/* Tablo */}
-      <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
+      <div className="overflow-x-auto rounded-lg border bg-card">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
@@ -271,7 +271,7 @@ export function CustomersView({
                   <TableRow key={c.id}>
                     <TableCell>
                       <div className="flex items-center gap-2.5">
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full border bg-muted/50 text-[11px] font-medium text-muted-foreground">
                           {c.full_name.slice(0, 2).toLocaleUpperCase("tr")}
                         </span>
                         <div className="min-w-0">

@@ -18,22 +18,54 @@ import {
   YAxis,
 } from "recharts";
 
+/**
+ * Grafik renkleri tema tokenlarından gelir; böylece açık/koyu temada
+ * ve palet değiştiğinde grafikler kendiliğinden uyumlu kalır.
+ */
+const C = {
+  primary: "var(--primary)",
+  positive: "var(--positive)",
+  danger: "var(--danger)",
+  grid: "var(--border)",
+  axis: "var(--muted-foreground)",
+  cursor: "color-mix(in oklch, var(--muted-foreground) 12%, transparent)",
+} as const;
+
 const PIE_COLORS = [
-  "#5B5BD6",
-  "#16A34A",
-  "#F59E0B",
-  "#E11D48",
-  "#0EA5E9",
-  "#8B5CF6",
-  "#64748B",
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
 ];
+
+/** Tooltip'i kart yüzeyine oturtur (varsayılan beyaz kutu dark'ta kırılıyor). */
+const TOOLTIP_STYLE = {
+  contentStyle: {
+    background: "var(--popover)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius)",
+    color: "var(--popover-foreground)",
+    fontSize: 12,
+    boxShadow: "var(--shadow-soft-lg)",
+  },
+  labelStyle: { color: "var(--muted-foreground)", marginBottom: 2 },
+  itemStyle: { color: "var(--popover-foreground)" },
+} as const;
+
+const AXIS = {
+  tickLine: false,
+  axisLine: false,
+  fontSize: 12,
+  stroke: C.axis,
+} as const;
 
 const tl = (v: number) => `₺${v.toLocaleString("tr-TR")}`;
 
 /** Eksensiz mini trend grafiği (KPI kartları için). */
 export function Sparkline({
   data,
-  color = "#16A34A",
+  color = C.primary,
 }: {
   data: { value: number }[];
   color?: string;
@@ -43,11 +75,11 @@ export function Sparkline({
       <AreaChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="spark" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+            <stop offset="0%" stopColor={color} stopOpacity={0.16} />
             <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.75} fill="url(#spark)" dot={false} />
+        <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill="url(#spark)" dot={false} />
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -63,28 +95,22 @@ export function RevenueAreaChart({
       <AreaChart data={data} margin={{ left: 4, right: 8, top: 8 }}>
         <defs>
           <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#5B5BD6" stopOpacity={0.35} />
-            <stop offset="100%" stopColor="#5B5BD6" stopOpacity={0} />
+            <stop offset="0%" stopColor={C.primary} stopOpacity={0.18} />
+            <stop offset="100%" stopColor={C.primary} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <XAxis
-          dataKey="label"
-          tickLine={false}
-          axisLine={false}
-          fontSize={12}
-        />
+        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false} />
+        <XAxis dataKey="label" {...AXIS} />
         <YAxis
-          tickLine={false}
-          axisLine={false}
-          fontSize={12}
+          {...AXIS}
           width={56}
           tickFormatter={(v) => `₺${(Number(v) / 1000).toFixed(0)}k`}
         />
-        <Tooltip formatter={(v) => tl(Number(v))} />
+        <Tooltip formatter={(v) => tl(Number(v))} {...TOOLTIP_STYLE} />
         <Area
           type="monotone"
           dataKey="value"
-          stroke="#5B5BD6"
+          stroke={C.primary}
           strokeWidth={2}
           fill="url(#rev)"
         />
@@ -103,32 +129,24 @@ export function TrendChart({
       <ComposedChart data={data} margin={{ left: 4, right: 8, top: 12 }}>
         <defs>
           <linearGradient id="trend" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#5B5BD6" stopOpacity={0.25} />
-            <stop offset="100%" stopColor="#5B5BD6" stopOpacity={0} />
+            <stop offset="0%" stopColor={C.primary} stopOpacity={0.18} />
+            <stop offset="100%" stopColor={C.primary} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
+        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false} />
+        <XAxis dataKey="label" {...AXIS} />
         <YAxis
           yAxisId="left"
-          tickLine={false}
-          axisLine={false}
-          fontSize={12}
+          {...AXIS}
           width={52}
           tickFormatter={(v) => `₺${(Number(v) / 1000).toFixed(0)}k`}
         />
-        <YAxis
-          yAxisId="right"
-          orientation="right"
-          tickLine={false}
-          axisLine={false}
-          fontSize={12}
-          width={40}
-        />
+        <YAxis yAxisId="right" orientation="right" {...AXIS} width={40} />
         <Tooltip
           formatter={(v, name) =>
             name === "Ciro (₺)" ? [tl(Number(v)), name] : [Number(v), name]
           }
+          {...TOOLTIP_STYLE}
         />
         <Legend iconType="plainline" wrapperStyle={{ fontSize: 12 }} />
         <Area
@@ -136,8 +154,8 @@ export function TrendChart({
           type="monotone"
           dataKey="ciro"
           name="Ciro (₺)"
-          stroke="#5B5BD6"
-          strokeWidth={2.5}
+          stroke={C.primary}
+          strokeWidth={2}
           fill="url(#trend)"
         />
         <Line
@@ -145,19 +163,19 @@ export function TrendChart({
           type="monotone"
           dataKey="musteri"
           name="Müşteri"
-          stroke="#16A34A"
+          stroke="var(--chart-3)"
           strokeWidth={2}
-          dot={{ r: 3 }}
+          dot={false}
         />
         <Line
           yAxisId="right"
           type="monotone"
           dataKey="hizmet"
           name="Hizmet"
-          stroke="#F59E0B"
+          stroke="var(--chart-4)"
           strokeWidth={2}
-          strokeDasharray="5 5"
-          dot={{ r: 3 }}
+          strokeDasharray="4 4"
+          dot={false}
         />
       </ComposedChart>
     </ResponsiveContainer>
@@ -172,21 +190,21 @@ export function RevenueExpenseChart({
   return (
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={data} margin={{ left: 4, right: 8, top: 8 }} barGap={4}>
-        <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
+        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false} />
+        <XAxis dataKey="label" {...AXIS} />
         <YAxis
-          tickLine={false}
-          axisLine={false}
-          fontSize={12}
+          {...AXIS}
           width={56}
           tickFormatter={(v) => `₺${(Number(v) / 1000).toFixed(0)}k`}
         />
         <Tooltip
           formatter={(v, name) => [tl(Number(v)), name]}
-          cursor={{ fill: "#f1f5f9" }}
+          cursor={{ fill: C.cursor }}
+          {...TOOLTIP_STYLE}
         />
         <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-        <Bar dataKey="gelir" name="Gelir" fill="#16A34A" radius={[4, 4, 0, 0]} />
-        <Bar dataKey="gider" name="Gider" fill="#E11D48" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="gelir" name="Gelir" fill={C.positive} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="gider" name="Gider" fill={C.danger} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -200,17 +218,15 @@ export function SalesBarChart({
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data} margin={{ left: 4, right: 8, top: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
+        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false} />
+        <XAxis dataKey="label" {...AXIS} />
         <YAxis
-          tickLine={false}
-          axisLine={false}
-          fontSize={12}
+          {...AXIS}
           width={52}
           tickFormatter={(v) => `₺${(Number(v) / 1000).toFixed(0)}k`}
         />
-        <Tooltip formatter={(v) => tl(Number(v))} cursor={{ fill: "#f1f5f9" }} />
-        <Bar dataKey="value" name="Satış" fill="#5B5BD6" radius={[6, 6, 0, 0]} maxBarSize={48} />
+        <Tooltip formatter={(v) => tl(Number(v))} cursor={{ fill: C.cursor }} {...TOOLTIP_STYLE} />
+        <Bar dataKey="value" name="Satış" fill={C.primary} radius={[4, 4, 0, 0]} maxBarSize={48} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -225,16 +241,9 @@ export function ServiceBarChart({
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16 }}>
         <XAxis type="number" hide />
-        <YAxis
-          type="category"
-          dataKey="name"
-          tickLine={false}
-          axisLine={false}
-          width={110}
-          fontSize={12}
-        />
-        <Tooltip formatter={(v) => tl(Number(v))} cursor={{ fill: "#f1f5f9" }} />
-        <Bar dataKey="value" radius={[0, 6, 6, 0]} fill="#5B5BD6" />
+        <YAxis type="category" dataKey="name" {...AXIS} width={110} />
+        <Tooltip formatter={(v) => tl(Number(v))} cursor={{ fill: C.cursor }} {...TOOLTIP_STYLE} />
+        <Bar dataKey="value" radius={[0, 4, 4, 0]} fill={C.primary} maxBarSize={28} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -252,15 +261,17 @@ export function SourcePieChart({
           data={data}
           dataKey="value"
           nameKey="name"
-          innerRadius={55}
-          outerRadius={90}
+          innerRadius={58}
+          outerRadius={88}
           paddingAngle={2}
+          stroke="var(--card)"
+          strokeWidth={2}
         >
           {data.map((_, i) => (
             <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
           ))}
         </Pie>
-        <Tooltip />
+        <Tooltip {...TOOLTIP_STYLE} />
       </PieChart>
     </ResponsiveContainer>
   );

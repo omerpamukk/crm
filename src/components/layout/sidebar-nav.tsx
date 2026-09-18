@@ -60,11 +60,11 @@ export function SidebarNav({
     <div className="flex h-full w-full flex-col bg-card">
       {/* Logo / işletme başlığı */}
       <div className="flex h-16 shrink-0 items-center gap-3 border-b px-4">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-white shadow-sm">
-          <Flower2 className="size-5" />
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-card text-primary">
+          <Flower2 className="size-4" />
         </span>
         <div className="min-w-0">
-          <p className="truncate font-semibold leading-tight">{businessName}</p>
+          <p className="truncate text-sm font-semibold leading-tight">{businessName}</p>
           <p className="text-xs text-muted-foreground">İşletme Paneli</p>
         </div>
       </div>
@@ -118,7 +118,7 @@ export function SidebarNav({
                   <div className="mt-0.5 mb-1 ml-4 border-l pl-2">
                     {section.comingSoon ? (
                       <p className="px-2.5 py-2 text-xs text-muted-foreground/70">
-                        Çok yakında 🚀
+                        Çok yakında
                       </p>
                     ) : (
                       <ul className="space-y-0.5">
@@ -134,33 +134,26 @@ export function SidebarNav({
                                 href={item.href}
                                 onClick={onNavigate}
                                 className={cn(
-                                  "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+                                  "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
                                   active
-                                    ? "bg-primary font-medium text-primary-foreground shadow-sm"
-                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    ? "bg-accent font-medium text-foreground"
+                                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                                 )}
                               >
-                                <Icon className="size-4 shrink-0" />
+                                <Icon
+                                  className={cn(
+                                    "size-4 shrink-0",
+                                    active && "text-primary"
+                                  )}
+                                />
                                 <span className="flex-1">{item.label}</span>
                                 {item.tag && (
-                                  <span
-                                    className={cn(
-                                      "rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
-                                      active
-                                        ? "bg-primary-foreground/20 text-primary-foreground"
-                                        : "bg-gradient-to-br from-primary to-violet-500 text-white"
-                                    )}
-                                  >
+                                  <span className="rounded border px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
                                     {item.tag}
                                   </span>
                                 )}
                                 {badgeCount > 0 && (
-                                  <span
-                                    className={cn(
-                                      "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold",
-                                      active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-danger text-white"
-                                    )}
-                                  >
+                                  <span className="flex h-4 min-w-4 items-center justify-center rounded px-1 text-[10px] font-semibold text-danger tabular-nums">
                                     {badgeCount}
                                   </span>
                                 )}

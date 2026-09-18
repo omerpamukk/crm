@@ -56,95 +56,120 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* =============================================================
+   Tasarım dili: Sakin & Profesyonel
+   - Nötrler gerçekten nötr (slate), renk yalnızca anlam taşır
+   - Gradient yok, ağır gölge yok; ayrım border ile yapılır
+   - Tek vurgu rengi (primary) yalnızca aksiyon ve aktif durumda
+   ============================================================= */
 :root {
-  /* Nötrler hafif soğuk (indigo) tonlu — premium, jenerik gri değil */
-  --background: oklch(0.995 0.0015 275);
-  --foreground: oklch(0.22 0.025 275);
+  /* Nötr slate skalası — çok hafif soğuk, ama "mor" değil */
+  --background: oklch(0.985 0.002 250);
+  --foreground: oklch(0.21 0.012 255);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.025 275);
+  --card-foreground: oklch(0.21 0.012 255);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.025 275);
-  --primary: #5b5bd6;
-  --primary-foreground: #ffffff;
-  --positive: #16a34a;
-  --positive-foreground: #ffffff;
-  --warning: #f59e0b;
-  --warning-foreground: #1c1917;
-  --danger: #e11d48;
-  --danger-foreground: #ffffff;
-  --info: #3b82f6;
-  --info-foreground: #ffffff;
-  --secondary: oklch(0.965 0.006 275);
-  --secondary-foreground: oklch(0.28 0.025 275);
-  --muted: oklch(0.968 0.006 275);
-  --muted-foreground: oklch(0.55 0.022 275);
-  --accent: oklch(0.965 0.006 275);
-  --accent-foreground: oklch(0.28 0.025 275);
-  --destructive: #e11d48;
-  --border: oklch(0.922 0.008 275);
-  --input: oklch(0.922 0.008 275);
-  --ring: #5b5bd6;
-  /* Yumuşak elevation (ağır border yerine) */
-  --shadow-soft: 0 1px 2px rgba(26, 26, 46, 0.04), 0 6px 16px -10px rgba(26, 26, 46, 0.12);
-  --shadow-soft-lg: 0 2px 4px rgba(26, 26, 46, 0.05), 0 12px 28px -12px rgba(26, 26, 46, 0.16);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --popover-foreground: oklch(0.21 0.012 255);
+
+  /* Tek vurgu rengi — sakin indigo, yalnızca aksiyonlarda */
+  --primary: oklch(0.52 0.15 265);
+  --primary-foreground: oklch(1 0 0);
+
+  /* Anlam renkleri — yalnızca durum bildirir, dekorasyon değil */
+  --positive: oklch(0.58 0.13 155);
+  --positive-foreground: oklch(1 0 0);
+  --warning: oklch(0.72 0.14 75);
+  --warning-foreground: oklch(0.25 0.03 75);
+  --danger: oklch(0.58 0.2 20);
+  --danger-foreground: oklch(1 0 0);
+  --info: oklch(0.6 0.13 240);
+  --info-foreground: oklch(1 0 0);
+
+  --secondary: oklch(0.968 0.003 250);
+  --secondary-foreground: oklch(0.32 0.012 255);
+  --muted: oklch(0.972 0.003 250);
+  --muted-foreground: oklch(0.55 0.012 255);
+  --accent: oklch(0.968 0.003 250);
+  --accent-foreground: oklch(0.32 0.012 255);
+  --destructive: oklch(0.58 0.2 20);
+
+  /* Border görünür olmalı — ayrımı gölge değil çizgi yapar */
+  --border: oklch(0.915 0.004 250);
+  --input: oklch(0.898 0.005 250);
+  --ring: oklch(0.52 0.15 265);
+
+  /* Elevation neredeyse yok — yalnızca yüzen katmanlar için */
+  --shadow-soft: 0 1px 2px oklch(0.21 0.012 255 / 0.05);
+  --shadow-soft-lg: 0 4px 12px -2px oklch(0.21 0.012 255 / 0.08), 0 2px 4px -2px oklch(0.21 0.012 255 / 0.04);
+
+  /* Grafik paleti — tek tondan türetilmiş, okunabilir sıra */
+  --chart-1: oklch(0.52 0.15 265);
+  --chart-2: oklch(0.62 0.11 230);
+  --chart-3: oklch(0.68 0.09 195);
+  --chart-4: oklch(0.72 0.08 160);
+  --chart-5: oklch(0.6 0.05 255);
+
   --radius: 0.5rem; /* 8px */
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  --sidebar: oklch(0.985 0.002 250);
+  --sidebar-foreground: oklch(0.21 0.012 255);
+  --sidebar-primary: oklch(0.52 0.15 265);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.955 0.004 250);
+  --sidebar-accent-foreground: oklch(0.21 0.012 255);
+  --sidebar-border: oklch(0.915 0.004 250);
+  --sidebar-ring: oklch(0.52 0.15 265);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: #6d6ae3;
-  --primary-foreground: #ffffff;
-  --positive: #16a34a;
-  --positive-foreground: #ffffff;
-  --warning: #f59e0b;
-  --warning-foreground: #1c1917;
-  --danger: #e11d48;
-  --danger-foreground: #ffffff;
-  --info: #3b82f6;
-  --info-foreground: #ffffff;
-  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
-  --shadow-soft-lg: 0 2px 6px rgba(0, 0, 0, 0.35), 0 16px 36px -14px rgba(0, 0, 0, 0.6);
-  --secondary: oklch(0.269 0.012 275);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: #e11d48;
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: #6d6ae3;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.17 0.008 255);
+  --foreground: oklch(0.96 0.003 250);
+  --card: oklch(0.21 0.009 255);
+  --card-foreground: oklch(0.96 0.003 250);
+  --popover: oklch(0.23 0.009 255);
+  --popover-foreground: oklch(0.96 0.003 250);
+
+  --primary: oklch(0.65 0.15 265);
+  --primary-foreground: oklch(0.15 0.01 255);
+
+  --positive: oklch(0.7 0.14 155);
+  --positive-foreground: oklch(0.15 0.01 255);
+  --warning: oklch(0.78 0.13 75);
+  --warning-foreground: oklch(0.2 0.02 75);
+  --danger: oklch(0.68 0.18 20);
+  --danger-foreground: oklch(0.15 0.01 255);
+  --info: oklch(0.7 0.12 240);
+  --info-foreground: oklch(0.15 0.01 255);
+
+  --secondary: oklch(0.27 0.01 255);
+  --secondary-foreground: oklch(0.96 0.003 250);
+  --muted: oklch(0.26 0.009 255);
+  --muted-foreground: oklch(0.68 0.01 255);
+  --accent: oklch(0.27 0.01 255);
+  --accent-foreground: oklch(0.96 0.003 250);
+  --destructive: oklch(0.68 0.18 20);
+
+  --border: oklch(0.3 0.01 255);
+  --input: oklch(0.34 0.01 255);
+  --ring: oklch(0.65 0.15 265);
+
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.3);
+  --shadow-soft-lg: 0 4px 12px -2px oklch(0 0 0 / 0.45), 0 2px 4px -2px oklch(0 0 0 / 0.3);
+
+  --chart-1: oklch(0.65 0.15 265);
+  --chart-2: oklch(0.7 0.11 230);
+  --chart-3: oklch(0.75 0.09 195);
+  --chart-4: oklch(0.79 0.08 160);
+  --chart-5: oklch(0.66 0.05 255);
+
+  --sidebar: oklch(0.19 0.008 255);
+  --sidebar-foreground: oklch(0.96 0.003 250);
+  --sidebar-primary: oklch(0.65 0.15 265);
+  --sidebar-primary-foreground: oklch(0.15 0.01 255);
+  --sidebar-accent: oklch(0.26 0.009 255);
+  --sidebar-accent-foreground: oklch(0.96 0.003 250);
+  --sidebar-border: oklch(0.3 0.01 255);
+  --sidebar-ring: oklch(0.65 0.15 265);
 }
 
 @layer base {
@@ -175,15 +200,44 @@
 }
 
 @layer utilities {
-  /* Premium yumuşak elevation — ağır border yerine */
   .shadow-soft {
     box-shadow: var(--shadow-soft);
   }
   .shadow-soft-lg {
     box-shadow: var(--shadow-soft-lg);
   }
-  /* İmza motifi: sol kenarı renkli aksiyon kartı */
-  .card-accent {
-    border-left-width: 4px;
+
+  /* --- Sakin tasarım dilinin yardımcıları --- */
+
+  /* Bölüm başlığı: küçük, soluk, harf aralığı açık */
+  .section-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  /* Metrik değeri: büyük, sıkı, hizalı rakamlar */
+  .metric-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+  }
+
+  /* Durum noktası — renkli ikon kutucuğunun yerini alır */
+  .status-dot {
+    display: inline-block;
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 9999px;
+    flex-shrink: 0;
+  }
+
+  /* Satır listesi: kart yerine ayraçla bölünmüş sıralar */
+  .row-list > * + * {
+    border-top: 1px solid var(--border);
   }
 }

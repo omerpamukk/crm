@@ -117,10 +117,10 @@ export default async function MusterilerPage() {
   const debtorCount = enriched.filter((c) => c.openDebt > 0).length;
 
   const kpis = [
-    { label: "Aktif Müşteri", value: activeCount.toLocaleString("tr-TR"), icon: Users, tone: "bg-primary/10 text-primary", bar: "border-l-primary", trend: newThisMonth > 0 ? `+${newThisMonth} bu ay` : null, sub: null as string | null, accent: "" },
-    { label: "Bu Ay Seans", value: monthSessions.toLocaleString("tr-TR"), icon: CalendarCheck, tone: "bg-positive/10 text-positive", bar: "border-l-positive", trend: null, sub: null as string | null, accent: "" },
-    { label: "Bu Ay Yeni Müşteri", value: `+${newThisMonth}`, icon: TrendingUp, tone: "bg-primary/10 text-primary", bar: "border-l-primary", trend: null, sub: null as string | null, accent: "" },
-    { label: "Açık Alacak", value: formatPrice(totalOpenDebt), icon: Wallet, tone: "bg-danger/10 text-danger", bar: "border-l-danger", trend: null, sub: debtorCount > 0 ? `${debtorCount} borçlu müşteri` : null, accent: totalOpenDebt > 0 ? "text-danger" : "" },
+    { label: "Aktif Müşteri", value: activeCount.toLocaleString("tr-TR"), trend: newThisMonth > 0 ? `+${newThisMonth} bu ay` : null, sub: null as string | null, accent: "" },
+    { label: "Bu Ay Seans", value: monthSessions.toLocaleString("tr-TR"), trend: null, sub: null as string | null, accent: "" },
+    { label: "Bu Ay Yeni Müşteri", value: `+${newThisMonth}`, trend: null, sub: null as string | null, accent: "" },
+    { label: "Açık Alacak", value: formatPrice(totalOpenDebt), trend: null, sub: debtorCount > 0 ? `${debtorCount} borçlu müşteri` : null, accent: totalOpenDebt > 0 ? "text-danger" : "" },
   ];
 
   return (
@@ -139,30 +139,20 @@ export default async function MusterilerPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {kpis.map((kpi) => {
-              const Icon = kpi.icon;
-              return (
-                <Card key={kpi.label} className={`border-l-4 ${kpi.bar}`}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
-                    <span className={`flex size-9 items-center justify-center rounded-lg ${kpi.tone}`}>
-                      <Icon className="size-5" />
-                    </span>
-                  </CardHeader>
-                  <CardContent>
-                    <div className={`text-2xl font-bold tracking-tight tabular-nums ${kpi.accent}`}>{kpi.value}</div>
-                    {kpi.trend && (
-                      <p className="mt-1 flex items-center gap-1 text-xs font-medium text-positive">
-                        <TrendingUp className="size-3" />
-                        {kpi.trend}
-                      </p>
-                    )}
-                    {kpi.sub && <p className="mt-1 text-xs text-muted-foreground">{kpi.sub}</p>}
-                  </CardContent>
-                </Card>
-              );
-            })}
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border lg:grid-cols-4">
+            {kpis.map((kpi) => (
+              <div key={kpi.label} className="bg-card p-4">
+                <p className="section-label">{kpi.label}</p>
+                <p className={`metric-value mt-1.5 ${kpi.accent}`}>{kpi.value}</p>
+                {kpi.trend && (
+                  <p className="mt-1 flex items-center gap-1 text-xs font-medium text-positive">
+                    <TrendingUp className="size-3" />
+                    {kpi.trend}
+                  </p>
+                )}
+                {kpi.sub && <p className="mt-1 text-xs text-muted-foreground">{kpi.sub}</p>}
+              </div>
+            ))}
           </div>
 
           <CustomersView customers={enriched} services={serviceNames} tags={allTags} />

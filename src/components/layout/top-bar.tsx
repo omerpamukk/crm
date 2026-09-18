@@ -89,7 +89,7 @@ export function TopBar({ notifications }: { notifications: AppNotification[] }) 
                 <p className="text-xs text-muted-foreground">İşletmenin bugünkü gündemi</p>
               </div>
               {notifications.length === 0 ? (
-                <p className="px-3 py-8 text-center text-sm text-muted-foreground">Her şey güncel ✨</p>
+                <p className="px-3 py-8 text-center text-sm text-muted-foreground">Her şey güncel</p>
               ) : (
                 <ul className="max-h-96 overflow-y-auto py-1">
                   {notifications.map((n) => {
