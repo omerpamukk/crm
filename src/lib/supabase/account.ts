@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { createClient, ACTING_COOKIE, ACTING_MODE_COOKIE } from "@/lib/supabase/server";
 import type { UserRole } from "@/types/database";
+import { ROLE_LABEL } from "@/lib/permissions";
 
 export interface AccountContext {
   userId: string;
@@ -94,7 +95,11 @@ export async function getAccountContext(): Promise<AccountContext> {
       : profile.businesses
   ) as { name: string } | null;
 
-  const role = (profile.role as UserRole) ?? "owner";
+  const rawRole = profile.role as string | null;
+  const role: UserRole =
+    rawRole === "owner" || rawRole === "reception" || rawRole === "specialist"
+      ? rawRole
+      : "reception";
 
   return {
     userId: user.id,
@@ -103,7 +108,7 @@ export async function getAccountContext(): Promise<AccountContext> {
     businessId: profile.business_id,
     businessName: business?.name ?? "İşletmen",
     role,
-    roleLabel: role === "owner" ? "Yönetici" : "Personel",
+    roleLabel: ROLE_LABEL[role],
     impersonating: false,
     manageMode: false,
   };

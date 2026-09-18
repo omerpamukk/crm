@@ -1,6 +1,7 @@
 import { UserCog, Phone, Mail } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { requireCapability } from "@/lib/supabase/guard";
 import type { Staff } from "@/types/database";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
@@ -18,6 +19,9 @@ import { NewStaffButton } from "./new-staff-button";
 import { StaffRowActions } from "./staff-row-actions";
 
 export default async function PersonelPage() {
+  // Komisyon oranları hassas veri — yalnızca işletme sahibi.
+  await requireCapability("personel_yonet");
+
   const supabase = await createClient();
   const { data } = await supabase
     .from("staff")

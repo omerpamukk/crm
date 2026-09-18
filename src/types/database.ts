@@ -3,7 +3,11 @@
  * supabase/migrations/0001_init.sql + 0002_*.sql ile eşleşir.
  */
 
-export type UserRole = "owner" | "staff";
+/**
+ * Firma içi roller (0015_roles.sql).
+ * Yetki matrisi: src/lib/permissions.ts
+ */
+export type UserRole = "owner" | "reception" | "specialist";
 
 export type InteractionType =
   | "mesaj"
@@ -62,6 +66,9 @@ export interface Profile {
   business_id: string | null;
   full_name: string | null;
   role: UserRole;
+  phone?: string | null;
+  /** Uzman rolündeki kullanıcının bağlı olduğu personel kaydı (0015). */
+  staff_id?: string | null;
 }
 
 /** Süper-admin (ajans) kullanıcıları — platform_admins (0008). */

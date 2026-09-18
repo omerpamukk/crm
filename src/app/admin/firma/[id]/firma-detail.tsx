@@ -13,7 +13,8 @@ import { toast } from "sonner";
 import { SECTORS } from "@/lib/constants";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Business, Subscription, SubscriptionStatus } from "@/types/database";
+import type { Business, Subscription, SubscriptionStatus, UserRole } from "@/types/database";
+import { ROLES } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -25,7 +26,7 @@ import {
 } from "./actions";
 import { enterViewAs } from "../../view-as-actions";
 
-export type FirmaUser = { id: string; full_name: string | null; role: "owner" | "staff"; email: string; phone: string | null; banned: boolean };
+export type FirmaUser = { id: string; full_name: string | null; role: UserRole; email: string; phone: string | null; banned: boolean };
 
 const STATUS_META: Record<SubscriptionStatus, { label: string; cls: string }> = {
   active: { label: "Aktif", cls: "bg-positive/12 text-positive" },
@@ -86,7 +87,7 @@ export function FirmaDetail({
   });
   // Kullanıcı ekle
   const [addOpen, setAddOpen] = useState(false);
-  const [nu, setNu] = useState({ fullName: "", email: "", phone: "", password: "", pwMode: "auto", role: "staff" });
+  const [nu, setNu] = useState({ fullName: "", email: "", phone: "", password: "", pwMode: "auto", role: "reception" });
   // Şifre sıfırla
   const [pwUser, setPwUser] = useState<FirmaUser | null>(null);
   const [pwMode, setPwMode] = useState("auto");
@@ -183,7 +184,7 @@ export function FirmaDetail({
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
                 <CardTitle className="text-base">Kullanıcılar</CardTitle>
-                <p className="mt-0.5 text-xs text-muted-foreground">{users.filter((u) => u.role === "owner").length} yönetici · {users.filter((u) => u.role === "staff").length} personel{users.some((u) => u.banned) ? ` · ${users.filter((u) => u.banned).length} pasif` : ""}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{users.filter((u) => u.role === "owner").length} yönetici · {users.filter((u) => u.role === "reception").length} resepsiyon · {users.filter((u) => u.role === "specialist").length} uzman{users.some((u) => u.banned) ? ` · ${users.filter((u) => u.banned).length} pasif` : ""}</p>
               </div>
               {perms.kullanici_yonet && <Button size="sm" onClick={() => setAddOpen(true)}><UserPlus className="size-4" />Kullanıcı Ekle</Button>}
             </CardHeader>
@@ -208,9 +209,10 @@ export function FirmaDetail({
                     </div>
                     {perms.kullanici_yonet ? (
                       <>
-                        <select value={u.role} onChange={(e) => run(() => changeUserRole(business.id, u.id, e.target.value as "owner" | "staff"), "Rol güncellendi")} disabled={pending} className="h-8 rounded-lg border border-input bg-background px-2 text-xs">
-                          <option value="owner">Yönetici</option>
-                          <option value="staff">Personel</option>
+                        <select value={u.role} onChange={(e) => run(() => changeUserRole(business.id, u.id, e.target.value as UserRole), "Rol güncellendi")} disabled={pending} className="h-8 rounded-lg border border-input bg-background px-2 text-xs">
+                          {ROLES.map((r) => (
+                            <option key={r.key} value={r.key}>{r.label}</option>
+                          ))}
                         </select>
                         <Button variant="outline" size="sm" disabled={pending} onClick={() => { setPwUser(u); setPwMode("auto"); setPwValue(""); }}><KeyRound className="size-3.5" />Şifre</Button>
                         {u.banned ? (
@@ -350,13 +352,13 @@ export function FirmaDetail({
                 <button type="button" onClick={() => setNu((p) => ({ ...p, pwMode: "auto" }))} className={cn("flex-1 rounded-md py-1.5 font-medium", nu.pwMode === "auto" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Otomatik üret</button>
                 <button type="button" onClick={() => setNu((p) => ({ ...p, pwMode: "custom" }))} className={cn("flex-1 rounded-md py-1.5 font-medium", nu.pwMode === "custom" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Kendim belirle</button>
               </div>
-              {nu.pwMode === "custom" && <input value={nu.password} onChange={(e) => setNu((p) => ({ ...p, password: e.target.value }))} placeholder="En az 8 karakter" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />}
+              {nu.pwMode === "custom" && <input type="password" autoComplete="new-password" value={nu.password} onChange={(e) => setNu((p) => ({ ...p, password: e.target.value }))} placeholder="En az 8 karakter" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />}
             </div>
-            <Sel label="Rol" value={nu.role} onChange={(v) => setNu((p) => ({ ...p, role: v }))} opts={[["staff", "Personel"], ["owner", "Yönetici"]]} />
+            <Sel label="Rol" value={nu.role} onChange={(v) => setNu((p) => ({ ...p, role: v }))} opts={ROLES.map((r) => [r.key, r.label] as [string, string])} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>İptal</Button>
-            <Button disabled={pending} onClick={() => { setAddOpen(false); run(() => addUserToBusiness(business.id, { fullName: nu.fullName, email: nu.email, phone: nu.phone, role: nu.role, password: nu.pwMode === "custom" ? nu.password : undefined }), "Kullanıcı eklendi"); setNu({ fullName: "", email: "", phone: "", password: "", pwMode: "auto", role: "staff" }); }}>Oluştur</Button>
+            <Button disabled={pending} onClick={() => { setAddOpen(false); run(() => addUserToBusiness(business.id, { fullName: nu.fullName, email: nu.email, phone: nu.phone, role: nu.role, password: nu.pwMode === "custom" ? nu.password : undefined }), "Kullanıcı eklendi"); setNu({ fullName: "", email: "", phone: "", password: "", pwMode: "auto", role: "reception" }); }}>Oluştur</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -370,7 +372,7 @@ export function FirmaDetail({
             <button type="button" onClick={() => setPwMode("auto")} className={cn("flex-1 rounded-md py-1.5 font-medium", pwMode === "auto" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Otomatik üret</button>
             <button type="button" onClick={() => setPwMode("custom")} className={cn("flex-1 rounded-md py-1.5 font-medium", pwMode === "custom" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Kendim belirle</button>
           </div>
-          {pwMode === "custom" && <input value={pwValue} onChange={(e) => setPwValue(e.target.value)} placeholder="Yeni şifre (en az 8 karakter)" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />}
+          {pwMode === "custom" && <input type="password" autoComplete="new-password" value={pwValue} onChange={(e) => setPwValue(e.target.value)} placeholder="Yeni şifre (en az 8 karakter)" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />}
           <DialogFooter>
             <Button variant="outline" onClick={() => setPwUser(null)}>İptal</Button>
             <Button disabled={pending} onClick={() => { const id = pwUser?.id; setPwUser(null); if (id) run(() => resetUserPassword(business.id, id, pwMode === "custom" ? pwValue : undefined), "Şifre güncellendi"); }}>Şifreyi Belirle</Button>

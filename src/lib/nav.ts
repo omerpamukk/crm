@@ -33,6 +33,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import type { UserRole } from "@/types/database";
+import { can, type Capability } from "@/lib/permissions";
+
 export interface NavItem {
   href: string;
   label: string;
@@ -41,6 +44,11 @@ export interface NavItem {
   badge?: string;
   /** Sabit metin etiketi (ör. "AI", "YENİ"). */
   tag?: string;
+  /**
+   * Bu öğeyi görmek için gereken yetenek (src/lib/permissions.ts).
+   * Tanımsızsa herkes görür.
+   */
+  cap?: Capability;
 }
 
 export interface NavSection {
@@ -62,8 +70,8 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: Home,
     items: [
       { href: "/panel", label: "Genel Bakış", icon: LayoutDashboard },
-      { href: "/yonetici", label: "Yönetici Paneli", icon: Crown },
-      { href: "/raporlar", label: "Raporlar", icon: BarChart3 },
+      { href: "/yonetici", label: "Yönetici Paneli", icon: Crown, cap: "raporlar" },
+      { href: "/raporlar", label: "Raporlar", icon: BarChart3, cap: "raporlar" },
       { href: "/musteriler", label: "Müşteriler", icon: Users },
       { href: "/leadler", label: "Lead'ler", icon: Columns3 },
       { href: "/firsatlar", label: "Gelir Fırsatları", icon: Sparkles },
@@ -123,8 +131,8 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: Building2,
     items: [
       { href: "/hizmetler", label: "Hizmetler & Fiyatlar", icon: Scissors },
-      { href: "/personel", label: "Personel", icon: UserCog },
-      { href: "/giderler", label: "Gider Yönetimi", icon: Receipt },
+      { href: "/personel", label: "Personel", icon: UserCog, cap: "personel_yonet" },
+      { href: "/giderler", label: "Gider Yönetimi", icon: Receipt, cap: "finans" },
       { href: "/yorumlar", label: "Google Maps & Yorumlar", icon: MapPin },
     ],
   },
@@ -134,13 +142,24 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: Settings,
     items: [
       { href: "/gorevler", label: "Görev Sistemi", icon: ListTodo },
-      { href: "/ayarlar", label: "Ayarlar", icon: SlidersHorizontal },
+      { href: "/ayarlar", label: "Ayarlar", icon: SlidersHorizontal, cap: "ayarlar" },
     ],
   },
 ];
 
 /** Tüm menü öğeleri (düz liste gerekirse). */
 export const NAV_ITEMS: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
+
+/**
+ * Menüyü role göre süzer: yetkisiz öğeler gizlenir, boş kalan bölüm düşer.
+ * Bu yalnızca görsel gizleme — asıl koruma server action'larda ve RLS'te.
+ */
+export function navSectionsForRole(role: UserRole): NavSection[] {
+  return NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => !item.cap || can(role, item.cap)),
+  })).filter((section) => section.items.length > 0);
+}
 
 /** Verilen yola karşılık gelen bölümün anahtarı (aktif bölümü açmak için). */
 export function sectionKeyForPath(pathname: string): string | null {

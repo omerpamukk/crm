@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { requireCapability } from "@/lib/supabase/guard";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
@@ -102,6 +103,9 @@ export default async function YoneticiPage({
 }: {
   searchParams: Promise<{ range?: string; from?: string; to?: string }>;
 }) {
+  // İşletme geneli finansal özet — yalnızca işletme sahibi.
+  await requireCapability("raporlar");
+
   const { range = "1y", from, to } = await searchParams;
   const supabase = await createClient();
   const now = new Date();

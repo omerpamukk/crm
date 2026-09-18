@@ -57,7 +57,7 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
     return {
       id: p.id,
       full_name: p.full_name,
-      role: p.role === "staff" ? "staff" : "owner",
+      role: p.role === "owner" || p.role === "specialist" ? p.role : "reception",
       email: m?.email ?? "—",
       phone: m?.phone ?? null,
       banned: m?.banned ?? false,

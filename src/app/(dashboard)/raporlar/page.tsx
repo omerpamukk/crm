@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { requireCapability } from "@/lib/supabase/guard";
 import { formatPrice } from "@/lib/format";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -57,6 +58,9 @@ function pickOne<T>(value: T | T[] | null): T | null {
 }
 
 export default async function RaporlarPage() {
+  // Ciro, komisyon ve kâr verisi — yalnızca işletme sahibi.
+  await requireCapability("raporlar");
+
   const supabase = await createClient();
 
   const now = new Date();

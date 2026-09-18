@@ -5,8 +5,14 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertPerm, assertOwner } from "@/lib/supabase/admin-context";
 import { logAdminAction } from "@/lib/supabase/audit";
+import type { UserRole } from "@/types/database";
 
 type Result = { ok: boolean; error?: string; password?: string; credentials?: { email: string; password: string } };
+
+/** Serbest metni geçerli bir role indirger; bilinmeyen değer en kısıtlı role düşer. */
+function normalizeRole(role: string): UserRole {
+  return role === "owner" || role === "specialist" ? role : "reception";
+}
 
 function genPassword(): string {
   const base = (typeof crypto !== "undefined" && crypto.randomUUID)
@@ -112,7 +118,7 @@ export async function addUserToBusiness(
   }
   const { error: pErr } = await admin
     .from("profiles")
-    .upsert({ id: created.user.id, business_id: businessId, role: input.role === "staff" ? "staff" : "owner", full_name: fullName }, { onConflict: "id" });
+    .upsert({ id: created.user.id, business_id: businessId, role: normalizeRole(input.role), full_name: fullName }, { onConflict: "id" });
   if (pErr) {
     await admin.auth.admin.deleteUser(created.user.id);
     return { ok: false, error: `Profil bağlanamadı: ${pErr.message}` };
@@ -122,7 +128,7 @@ await logAdminAction("kullanici_ekle", { businessId, detail: email });
   return { ok: true, credentials: { email, password } };
 }
 
-export async function changeUserRole(businessId: string, userId: string, role: "owner" | "staff"): Promise<Result> {
+export async function changeUserRole(businessId: string, userId: string, role: UserRole): Promise<Result> {
   const err = await assertPerm("kullanici_yonet");
   if (err) return { ok: false, error: err };
   const admin = createAdminClient();

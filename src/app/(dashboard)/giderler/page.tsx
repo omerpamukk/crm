@@ -1,6 +1,7 @@
 import { Receipt, Banknote, TrendingUp, Wallet } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { requireCapability } from "@/lib/supabase/guard";
 import { formatPrice, formatDate } from "@/lib/format";
 import {
   expenseCategoryLabel,
@@ -31,6 +32,9 @@ import { NewExpenseButton } from "./new-expense-button";
 import { ExpenseRowActions } from "./expense-row-actions";
 
 export default async function GiderlerPage() {
+  // Giderler yalnızca işletme sahibine açık (RLS de ayrıca kısıtlar).
+  await requireCapability("finans");
+
   const supabase = await createClient();
 
   const now = new Date();

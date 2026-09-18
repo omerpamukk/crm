@@ -111,7 +111,7 @@ export function EkipView({ rows }: { rows: AdminRow[] }) {
                 <button type="button" onClick={() => setNu((p) => ({ ...p, pwMode: "auto" }))} className={cn("flex-1 rounded-md py-1.5 font-medium", nu.pwMode === "auto" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Otomatik üret</button>
                 <button type="button" onClick={() => setNu((p) => ({ ...p, pwMode: "custom" }))} className={cn("flex-1 rounded-md py-1.5 font-medium", nu.pwMode === "custom" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Kendim belirle</button>
               </div>
-              {nu.pwMode === "custom" && <input value={nu.password} onChange={(e) => setNu((p) => ({ ...p, password: e.target.value }))} placeholder="En az 8 karakter" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />}
+              {nu.pwMode === "custom" && <input type="password" autoComplete="new-password" value={nu.password} onChange={(e) => setNu((p) => ({ ...p, password: e.target.value }))} placeholder="En az 8 karakter" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />}
             </div>
             <RolePresets perms={nu.perms} onPick={(perms) => setNu((p) => ({ ...p, perms }))} />
             <PermPicker perms={nu.perms} onToggle={(k) => setNu((p) => ({ ...p, perms: toggle(p.perms, k) }))} fine />

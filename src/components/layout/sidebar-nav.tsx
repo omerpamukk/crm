@@ -14,7 +14,7 @@ import {
   LifeBuoy,
 } from "lucide-react";
 
-import { NAV_SECTIONS, type NavItem } from "@/lib/nav";
+import { NAV_SECTIONS, type NavItem, type NavSection } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
@@ -72,10 +72,13 @@ export function SidebarNav({
   counts,
   onNavigate,
   variant = "desktop",
+  sections = NAV_SECTIONS,
 }: {
   businessName: string;
   displayName: string;
   roleLabel: string;
+  /** Role göre süzülmüş menü (layout'tan gelir). */
+  sections?: NavSection[];
   badges?: Record<string, number>;
   /** Menü öğesi başına gösterilecek toplam kayıt sayısı (href → sayı). */
   counts?: Record<string, number>;
@@ -127,7 +130,7 @@ export function SidebarNav({
   }
 
   const isCollapsed = variant === "desktop" && collapsed;
-  const [main, ...rest] = NAV_SECTIONS;
+  const [main, ...rest] = sections;
 
   return (
     <div
