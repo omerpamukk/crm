@@ -35,6 +35,19 @@ Kurulum sonrası Supabase panelinde:
 - **Authentication > URL Configuration** → Site URL ve
   `<alan-adı>/auth/callback` Redirect URL olarak eklenmeli
 
+### Zamanlanmış görevler
+
+`vercel.json` tek bir cron tanımlar: `/api/cron/reminders`, her gün
+05:00 UTC (08:00 TR). **Vercel Hobby planı günde birden fazla cron
+çalıştırmaya izin vermez** — daha sık bir ifade yazılırsa deploy
+doğrulamada reddedilir. Pro plana geçilirse aralık sıklaştırılabilir.
+
+Elle tetiklemek için:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" <alan-adı>/api/cron/reminders
+```
+
 ## Komutlar
 
 | Komut | Açıklama |

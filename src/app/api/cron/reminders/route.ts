@@ -9,14 +9,26 @@ import { sendMessage } from "@/lib/messaging/send";
  * Vercel Cron tarafından çağrılır (vercel.json). Vadesi gelmiş
  * `reminders` kayıtlarını alır, gönderir ve sonucu işler.
  *
+ * ⚠️ Hobby planı günde YALNIZCA BİR cron çalıştırmaya izin veriyor;
+ * bu yüzden günlük tek tur (05:00 UTC = 08:00 TR). Daha sık gönderim
+ * gerekirse Pro plana geçilmeli — o zaman vercel.json'daki ifade
+ * 15 dakikalık aralığa çekilebilir.
+ *
+ * Günde tek tur çalıştığı için bu uç nokta elle de tetiklenebilir:
+ *   curl -H "Authorization: Bearer $CRON_SECRET" <alan-adı>/api/cron/reminders
+ *
  * Güvenlik: CRON_SECRET tanımlıysa Authorization başlığı doğrulanır.
  * Vercel Cron bu başlığı otomatik ekler.
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Tek turda işlenecek en fazla kayıt (zaman aşımına düşmemek için). */
-const BATCH = 50;
+/**
+ * Tek turda işlenecek en fazla kayıt. Günde tek tur çalıştığımız için
+ * günün tamamını kapsayacak kadar geniş; maxDuration 60sn'ye sığması
+ * gözetilerek sınırlı tutuldu.
+ */
+const BATCH = 200;
 
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
