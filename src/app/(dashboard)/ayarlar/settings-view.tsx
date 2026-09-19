@@ -48,16 +48,51 @@ const CRM_NOTIFS = [
   "Kritik stok uyarısı",
 ];
 
-const LOGS = [
-  { t: "31 May 11:42", tone: "bg-primary", text: <><b>@Ayşe</b> Aktif Müşteri <b>@Zeynep Arslan</b>&apos;a 2.000₺ cilt bakımı seansı ekledi.</> },
-  { t: "31 May 10:15", tone: "bg-positive", text: <><b>@Atahan</b> yeni müşteri <b>Büşra Kaya</b>&apos;yı sisteme ekledi.</> },
-  { t: "30 May 16:30", tone: "bg-amber-500", text: <><b>@Zeynep</b> <b>@Ahmet Çelik</b>&apos;in 7.000₺ ödemesini &quot;Gecikmiş&quot; olarak işaretledi.</> },
-  { t: "30 May 14:00", tone: "bg-danger", text: <><b>@Ayşe</b> <b>Seda Yılmaz</b> adlı potansiyel müşteriyi sildi.</> },
-  { t: "29 May 09:45", tone: "bg-primary", text: <><b>@Atahan</b> Personel <b>Ayşe Yılmaz</b>&apos;ın maaşını ₺18.000&apos;dan ₺18.500&apos;a güncelledi.</> },
-  { t: "29 May 08:02", tone: "bg-muted-foreground", text: <><b>@Mehmet</b> sisteme giriş yaptı. <span className="text-muted-foreground">IP: 192.168.x.x</span></> },
-  { t: "28 May 17:20", tone: "bg-positive", text: <><b>@Zeynep</b> Google yorum <b>&quot;Fatma D.&quot;</b>&apos;ye yanıt gönderdi.</> },
-  { t: "27 May 12:10", tone: "bg-primary", text: <><b>@Atahan</b> Lazer Epilasyon paket fiyatını ₺34.000&apos;dan ₺36.000&apos;a güncelledi.</> },
-];
+/** Denetim kaydı etiketleri (0017_business_audit.sql). */
+const ACTION_LABEL: Record<string, string> = {
+  ekle: "ekledi",
+  guncelle: "güncelledi",
+  sil: "sildi",
+};
+const ENTITY_LABEL: Record<string, string> = {
+  musteri: "müşteri",
+  odeme: "ödeme",
+  gider: "gider",
+  paket: "paket",
+  randevu: "randevu",
+  personel: "personel",
+  ayarlar: "ayarları",
+};
+const ACTION_TONE: Record<string, string> = {
+  ekle: "bg-positive",
+  guncelle: "bg-primary",
+  sil: "bg-danger",
+};
+
+function exportAuditCsv(rows: SettingsData["auditLog"]) {
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const head = ["Tarih", "Kullanıcı", "İşlem", "Kayıt", "Özet"].join(";");
+  const body = rows
+    .map((r) =>
+      [
+        new Date(r.created_at).toLocaleString("tr-TR"),
+        r.actor_label,
+        ACTION_LABEL[r.action] ?? r.action,
+        ENTITY_LABEL[r.entity] ?? r.entity,
+        r.summary ?? "",
+      ]
+        .map(esc)
+        .join(";")
+    )
+    .join("\n");
+  const blob = new Blob([`\ufeff${head}\n${body}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `islem-kayitlari-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 function Switch({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
@@ -109,6 +144,7 @@ export interface SettingsData {
   owner: { full_name: string; phone: string; email: string; roleLabel: string };
   workingDays: WorkingDay[];
   subscription: Pick<Subscription, "plan" | "status" | "price" | "started_at" | "expires_at"> | null;
+  auditLog: { id: string; created_at: string; actor_label: string; action: string; entity: string; summary: string | null }[];
 }
 
 export function SettingsView({ data }: { data: SettingsData }) {
@@ -233,31 +269,46 @@ export function SettingsView({ data }: { data: SettingsData }) {
 
         {/* Sistem Logları */}
         <TabsContent value="log" className="mt-4 space-y-4">
-          <DemoBanner>
-            İşletme içi denetim kaydı henüz tutulmuyor — aşağıdakiler örnek
-            kayıtlar. Gerçek log altyapısı sonraki aşamada eklenecek.
-          </DemoBanner>
           <Card>
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
-              <CardTitle className="text-base">Son 30 günün tüm işlem kayıtları</CardTitle>
-              <div className="flex gap-2">
-                <select className="h-9 rounded-lg border border-input bg-background px-3 text-sm"><option>Tüm İşlemler</option><option>Müşteri</option><option>Ödeme</option><option>Personel</option></select>
-                <select className="h-9 rounded-lg border border-input bg-background px-3 text-sm"><option>Tüm Kullanıcılar</option><option>Atahan</option><option>Ayşe</option><option>Zeynep</option></select>
+              <div>
+                <CardTitle className="text-base">İşlem kayıtları</CardTitle>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Son 50 kayıt · yalnızca yöneticiler görebilir
+                </p>
               </div>
+              {data.auditLog.length > 0 && (
+                <Button variant="outline" size="sm" onClick={() => exportAuditCsv(data.auditLog)}>
+                  <FileSpreadsheet className="size-4" />
+                  CSV indir
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
-              <ul className="divide-y">
-                {LOGS.map((l, i) => (
-                  <li key={i} className="flex items-start gap-3 py-3 text-sm">
-                    <span className="w-24 shrink-0 text-xs text-muted-foreground">{l.t}</span>
-                    <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", l.tone)} />
-                    <span className="flex-1">{l.text}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="flex justify-center pt-3">
-                <Button variant="outline" size="sm" onClick={() => toast.success("Loglar Excel'e aktarılıyor (demo).")}><FileSpreadsheet className="size-4" />Tüm Logları Excel&apos;e Aktar</Button>
-              </div>
+              {data.auditLog.length === 0 ? (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  Henüz kayıt yok. Silme ve ödeme işlemleri buraya düşecek.
+                </p>
+              ) : (
+                <ul className="divide-y">
+                  {data.auditLog.map((l) => (
+                    <li key={l.id} className="flex items-start gap-3 py-3 text-sm">
+                      <span className="w-28 shrink-0 text-xs text-muted-foreground">
+                        {new Date(l.created_at).toLocaleString("tr-TR", {
+                          day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                        })}
+                      </span>
+                      <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", ACTION_TONE[l.action] ?? "bg-muted-foreground")} />
+                      <span className="flex-1">
+                        <b>{l.actor_label}</b>{" "}
+                        {ENTITY_LABEL[l.entity] ?? l.entity}{" "}
+                        {ACTION_LABEL[l.action] ?? l.action}
+                        {l.summary && <> — <span className="text-muted-foreground">{l.summary}</span></>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

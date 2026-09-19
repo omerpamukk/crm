@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   Flower2,
   Scissors,
@@ -15,7 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-import { submitBooking } from "./actions";
+import { submitBooking, getBookedSlots } from "./actions";
 
 export interface BookingConfig {
   valid: boolean;
@@ -61,6 +61,9 @@ export function BookingFlow({ token, config }: { token: string; config: BookingC
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [kvkk, setKvkk] = useState(false);
+  // Seçilen gündeki dolu saatler — sunucudan gelir, listeden çıkarılır.
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
 
   const service = services.find((s) => s.id === serviceId) ?? null;
 
@@ -93,6 +96,38 @@ export function BookingFlow({ token, config }: { token: string; config: BookingC
     return out;
   }, [startTime, endTime, slot]);
 
+  // Gün seçilince o günün dolu saatlerini getir
+  useEffect(() => {
+    if (!date) {
+      setBookedSlots([]);
+      return;
+    }
+    let cancelled = false;
+    getBookedSlots(token, date)
+      .then((slots) => {
+        if (!cancelled) setBookedSlots(slots);
+      })
+      .catch(() => {
+        if (!cancelled) setBookedSlots([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [date, token]);
+
+  // Bugün için geçmiş saatleri ve dolu slotları ele
+  const availableTimes = useMemo(() => {
+    const today = new Date();
+    const isToday = date === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const nowMin = today.getHours() * 60 + today.getMinutes();
+    return times.filter((t) => {
+      if (bookedSlots.includes(t)) return false;
+      if (!isToday) return true;
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m > nowMin;
+    });
+  }, [times, bookedSlots, date]);
+
   const dateLabel = (iso: string) => {
     const d = new Date(`${iso}T00:00:00`);
     return `${WD[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`;
@@ -109,6 +144,7 @@ export function BookingFlow({ token, config }: { token: string; config: BookingC
         phone,
         serviceId: service.id,
         startsAt,
+        kvkk,
       });
       if (!res.ok) setError(res.error ?? "Bir hata oluştu.");
       else setDone(true);
@@ -139,7 +175,7 @@ export function BookingFlow({ token, config }: { token: string; config: BookingC
   const canNext =
     (step === 1 && !!serviceId) ||
     (step === 2 && !!date && !!time) ||
-    (step === 3 && name.trim().length > 1 && phone.trim().length >= 7);
+    (step === 3 && name.trim().length > 1 && phone.trim().length >= 7 && kvkk);
 
   return (
     <Shell businessName={config.business_name}>
@@ -254,8 +290,13 @@ export function BookingFlow({ token, config }: { token: string; config: BookingC
               <h2 className="mb-2 flex items-center gap-1.5 font-semibold">
                 <Clock className="size-4" /> Saat seç
               </h2>
+              {availableTimes.length === 0 && (
+                <p className="rounded-lg border border-dashed py-6 text-center text-sm text-muted-foreground">
+                  Bu gün için uygun saat kalmadı. Başka bir gün seçin.
+                </p>
+              )}
               <div className="grid grid-cols-4 gap-2">
-                {times.map((t) => {
+                {availableTimes.map((t) => {
                   const on = time === t;
                   return (
                     <button
@@ -307,6 +348,22 @@ export function BookingFlow({ token, config }: { token: string; config: BookingC
               className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
             />
           </div>
+
+          {/* KVKK açık rıza — yasal zorunluluk */}
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border bg-muted/30 p-3">
+            <input
+              type="checkbox"
+              checked={kvkk}
+              onChange={(e) => setKvkk(e.target.checked)}
+              className="mt-0.5 size-4 shrink-0 accent-primary"
+            />
+            <span className="text-xs leading-relaxed text-muted-foreground">
+              Randevu oluşturmak amacıyla ad, soyad ve telefon bilgimin
+              işlenmesine ve randevu hatırlatmaları için benimle iletişime
+              geçilmesine <b className="text-foreground">açık rıza</b> veriyorum
+              (KVKK).
+            </span>
+          </label>
         </div>
       )}
 

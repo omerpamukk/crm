@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessId } from "@/lib/supabase/business";
+import { logBusinessAction } from "@/lib/supabase/business-audit";
 import { customerSchema, type CustomerInput } from "./schema";
 
 type ActionResult = { error?: string };
@@ -174,6 +175,13 @@ export async function deleteCustomer(id: string): Promise<ActionResult> {
   const businessId = await getBusinessId(supabase);
   if (!businessId) return { error: "Oturum bulunamadı." };
 
+  // Silmeden önce adı al — log kaydında görünsün
+  const { data: before } = await supabase
+    .from("customers")
+    .select("full_name")
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("customers")
     .delete()
@@ -184,6 +192,14 @@ export async function deleteCustomer(id: string): Promise<ActionResult> {
     console.error("deleteCustomer:", error);
     return { error: "Müşteri silinemedi." };
   }
+
+  await logBusinessAction(supabase, {
+    businessId,
+    action: "sil",
+    entity: "musteri",
+    entityId: id,
+    summary: (before as { full_name: string } | null)?.full_name ?? "Müşteri",
+  });
 
   revalidatePath("/musteriler");
   return {};

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessId } from "@/lib/supabase/business";
+import { logBusinessAction } from "@/lib/supabase/business-audit";
 import { paymentSchema, NONE, type PaymentInput } from "./schema";
 
 type ActionResult = { error?: string };
@@ -36,7 +37,19 @@ export async function createPayment(input: PaymentInput): Promise<ActionResult> 
     created_by: user?.id ?? null,
   });
 
-  if (error) return { error: `Ödeme kaydedilemedi: ${error.message}` };
+  if (error) {
+    console.error("createPayment:", error);
+    return { error: "Ödeme kaydedilemedi." };
+  }
+
+  const amount = Number(values.amount.replace(",", "."));
+  await logBusinessAction(supabase, {
+    businessId,
+    action: "ekle",
+    entity: "odeme",
+    summary: `${new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY" }).format(amount)} · ${values.method?.trim() || "nakit"}`,
+    detail: { customer_id: values.customer_id, package_id: hasPackage ? values.package_id : null },
+  });
 
   // Pakete bağlıysa DB trigger paid_amount/payment_status'u günceller.
   revalidatePath("/tahsilat");

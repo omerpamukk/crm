@@ -132,6 +132,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/hizmetler", label: "Hizmetler & Fiyatlar", icon: Scissors },
       { href: "/personel", label: "Personel", icon: UserCog, cap: "personel_yonet" },
+      { href: "/stok", label: "Stok", icon: Package },
       { href: "/giderler", label: "Gider Yönetimi", icon: Receipt, cap: "finans" },
       { href: "/yorumlar", label: "Google Maps & Yorumlar", icon: MapPin },
     ],

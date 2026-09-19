@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessId } from "@/lib/supabase/business";
+import { logBusinessAction } from "@/lib/supabase/business-audit";
 import { expenseSchema, type ExpenseInput } from "./schema";
 
 type ActionResult = { error?: string };
@@ -71,13 +72,33 @@ export async function deleteExpense(id: string): Promise<ActionResult> {
   const businessId = await getBusinessId(supabase);
   if (!businessId) return { error: "Oturum bulunamadı." };
 
+  const { data: before } = await supabase
+    .from("expenses")
+    .select("title, amount")
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("expenses")
     .delete()
     .eq("id", id)
     .eq("business_id", businessId);
 
-  if (error) return { error: `Gider silinemedi: ${error.message}` };
+  if (error) {
+    console.error("deleteExpense:", error);
+    return { error: "Gider silinemedi." };
+  }
+
+  const row = before as { title: string; amount: number } | null;
+  await logBusinessAction(supabase, {
+    businessId,
+    action: "sil",
+    entity: "gider",
+    entityId: id,
+    summary: row
+      ? `${row.title} · ${new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY" }).format(row.amount)}`
+      : "Gider",
+  });
 
   revalidatePath("/giderler");
   revalidatePath("/raporlar");

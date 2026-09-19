@@ -29,7 +29,7 @@ export default async function AyarlarPage() {
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
 
-  const [bizRes, subRes, profileRes] = await Promise.all([
+  const [bizRes, subRes, profileRes, logRes] = await Promise.all([
     supabase
       .from("businesses")
       .select("id, name, sector, phone, email, address, logo_url, working_hours")
@@ -45,6 +45,12 @@ export default async function AyarlarPage() {
       .select("full_name, phone")
       .eq("id", (await supabase.auth.getUser()).data.user?.id ?? "")
       .maybeSingle(),
+    // İşletme içi denetim kaydı (0017). Tablo yoksa sessizce boş döner.
+    supabase
+      .from("business_audit_log")
+      .select("id, created_at, actor_label, action, entity, summary")
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
 
   const biz = bizRes.data as Partial<Business> | null;
@@ -69,6 +75,7 @@ export default async function AyarlarPage() {
       Subscription,
       "plan" | "status" | "price" | "started_at" | "expires_at"
     > | null) ?? null,
+    auditLog: (logRes.data ?? []) as SettingsData["auditLog"],
   };
 
   return <SettingsView data={data} />;

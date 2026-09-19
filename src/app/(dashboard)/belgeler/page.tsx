@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
+import { DemoBanner } from "@/components/shared/demo-banner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -55,6 +56,11 @@ export default function BelgelerPage() {
           </Button>
         </div>
       </PageHeader>
+
+      <DemoBanner>
+        Belge yükleme ve dijital imza henüz aktif değil; aşağıdakiler örnek
+        kayıtlar. Yüklenen belgeler kaydedilmez.
+      </DemoBanner>
 
       {/* Yükleme alanı */}
       <button

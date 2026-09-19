@@ -24,6 +24,78 @@ function toRow(values: AppointmentInput) {
 }
 
 /**
+ * Randevu çakışma ve müsaitlik kontrolü.
+ *
+ * Personel seçilmemişse kontrol yapılmaz. Vardiya hiç tanımlanmamışsa
+ * müsaitlik kısıtı uygulanmaz (geriye dönük uyumluluk) — ama aynı saate
+ * ikinci randevu her durumda engellenir.
+ *
+ * Döndürdüğü metin kullanıcıya gösterilir; null = sorun yok.
+ */
+async function findScheduleProblem(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  staffId: string | null,
+  startsAt: string,
+  serviceId: string | null,
+  excludeId?: string
+): Promise<string | null> {
+  if (!staffId) return null;
+
+  // Hizmet süresi (yoksa 30 dk)
+  let duration = 30;
+  if (serviceId) {
+    const { data } = await supabase
+      .from("services")
+      .select("duration_min")
+      .eq("id", serviceId)
+      .maybeSingle();
+    duration = (data as { duration_min: number | null } | null)?.duration_min ?? 30;
+  }
+
+  const { data: conflicts, error: conflictErr } = await supabase.rpc(
+    "check_appointment_conflict",
+    {
+      p_staff_id: staffId,
+      p_starts_at: startsAt,
+      p_duration: duration,
+      p_exclude_id: excludeId ?? null,
+    }
+  );
+
+  // Fonksiyon henüz kurulmadıysa (migration çalışmamışsa) engelleme.
+  if (conflictErr) {
+    console.error("check_appointment_conflict:", conflictErr);
+    return null;
+  }
+
+  const list = (conflicts ?? []) as { conflict_start: string; customer_name: string }[];
+  if (list.length > 0) {
+    const c = list[0];
+    const time = new Date(c.conflict_start).toLocaleTimeString("tr-TR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return `Bu personelin ${time} saatinde ${c.customer_name} ile randevusu var. Başka saat veya personel seçin.`;
+  }
+
+  const { data: available, error: availErr } = await supabase.rpc("is_staff_available", {
+    p_staff_id: staffId,
+    p_starts_at: startsAt,
+  });
+
+  if (availErr) {
+    console.error("is_staff_available:", availErr);
+    return null;
+  }
+
+  if (available === false) {
+    return "Personel bu saatte çalışmıyor (vardiya dışı veya izinli).";
+  }
+
+  return null;
+}
+
+/**
  * Lead için randevu oluşturulunca onu "Randevu Planlandı" sütununa taşır.
  * Sütun silinmiş/yeniden adlandırılmışsa sessizce atlar.
  */
@@ -75,11 +147,24 @@ export async function createAppointment(
   if (!businessId) return { error: "Oturum bulunamadı." };
 
   const row = toRow(parsed.data);
+
+  // Çift rezervasyon ve vardiya kontrolü
+  const problem = await findScheduleProblem(
+    supabase,
+    row.staff_member_id,
+    row.starts_at,
+    row.service_id
+  );
+  if (problem) return { error: problem };
+
   const { error } = await supabase
     .from("appointments")
     .insert({ business_id: businessId, ...row });
 
-  if (error) return { error: `Randevu eklenemedi: ${error.message}` };
+  if (error) {
+    console.error("createAppointment:", error);
+    return { error: "Randevu eklenemedi." };
+  }
 
   // Zaman çizelgesine otomatik kayıt
   const {
@@ -119,13 +204,28 @@ export async function updateAppointment(
   const businessId = await getBusinessId(supabase);
   if (!businessId) return { error: "Oturum bulunamadı." };
 
+  const row = toRow(parsed.data);
+
+  // Çakışma kontrolü — düzenlenen randevunun kendisi hariç tutulur
+  const problem = await findScheduleProblem(
+    supabase,
+    row.staff_member_id,
+    row.starts_at,
+    row.service_id,
+    id
+  );
+  if (problem) return { error: problem };
+
   const { error } = await supabase
     .from("appointments")
-    .update(toRow(parsed.data))
+    .update(row)
     .eq("id", id)
     .eq("business_id", businessId);
 
-  if (error) return { error: `Randevu güncellenemedi: ${error.message}` };
+  if (error) {
+    console.error("updateAppointment:", error);
+    return { error: "Randevu güncellenemedi." };
+  }
 
   revalidatePath("/randevular");
   return {};
