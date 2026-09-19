@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -102,27 +103,47 @@ export default function GirisPage() {
               id="email"
               type="email"
               autoComplete="email"
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? "email-error" : undefined}
               {...register("email")}
             />
             {errors.email && (
-              <p className="text-sm text-danger">{errors.email.message}</p>
+              <p id="email-error" role="alert" className="text-sm text-danger">
+                {errors.email.message}
+              </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Şifre</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Şifre</Label>
+              <Link
+                href="/sifremi-unuttum"
+                className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Şifremi unuttum
+              </Link>
+            </div>
             <Input
               id="password"
               type="password"
               autoComplete="current-password"
+              aria-invalid={!!errors.password}
+              aria-describedby={errors.password ? "password-error" : undefined}
               {...register("password")}
             />
             {errors.password && (
-              <p className="text-sm text-danger">{errors.password.message}</p>
+              <p id="password-error" role="alert" className="text-sm text-danger">
+                {errors.password.message}
+              </p>
             )}
           </div>
 
-          {formError && <p className="text-sm text-danger">{formError}</p>}
+          {formError && (
+            <p role="alert" className="text-sm text-danger">
+              {formError}
+            </p>
+          )}
         </CardContent>
 
         <CardFooter className="mt-6 flex-col gap-3">
