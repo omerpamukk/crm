@@ -19,7 +19,6 @@ import {
   Moon,
   Copy,
   Crown,
-  CheckCircle2,
   FileSpreadsheet,
   Code2,
 } from "lucide-react";
@@ -27,7 +26,6 @@ import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
-import { DemoBanner } from "@/components/shared/demo-banner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -36,17 +34,44 @@ import { SECTORS } from "@/lib/constants";
 import { formatPrice, formatDate } from "@/lib/format";
 import type { Subscription } from "@/types/database";
 
-import { updateBusinessInfo, updateOwnerProfile, updateWorkingHours } from "./actions";
-import type { WorkingDay } from "./schema";
+import {
+  updateBusinessInfo,
+  updateOwnerProfile,
+  updateWorkingHours,
+  updateNotificationSettings,
+  saveIntegration,
+  disconnectIntegration,
+  testIntegration,
+} from "./actions";
+import type { WorkingDay, NotificationSettingInput, NotifKey, Provider } from "./schema";
 
-const CRM_NOTIFS = [
-  "Yeni lead geldiğinde bildir",
-  "Gecikmiş ödeme uyarısı",
-  "Randevu hatırlatması",
-  "Görev deadline yaklaşınca",
-  "Google yorum geldiğinde",
-  "Kritik stok uyarısı",
-];
+/** Bildirim anahtarlarının okunur karşılığı. */
+const NOTIF_LABEL: Record<NotifKey, { title: string; desc: string }> = {
+  yeni_lead: { title: "Yeni lead geldiğinde bildir", desc: "Online randevu veya form üzerinden yeni kayıt düştüğünde." },
+  gecikmis_odeme: { title: "Gecikmiş ödeme uyarısı", desc: "Paket borcu vadesini geçen müşteriler için." },
+  randevu_hatirlatma: { title: "Randevu hatırlatması", desc: "Yaklaşan randevular için müşteriye ve personele." },
+  gorev_deadline: { title: "Görev tarihi yaklaşınca", desc: "Termin tarihine 1 gün kalan görevler." },
+  yeni_yorum: { title: "Yeni yorum geldiğinde", desc: "Google İşletme Profili bağlandığında etkinleşir." },
+  kritik_stok: { title: "Kritik stok uyarısı", desc: "Ürün miktarı kritik seviyenin altına düştüğünde." },
+  sabah_ozeti: { title: "Sabah Özeti", desc: "Günlük randevular, leadler, görevler ve tahsilatlar." },
+  gun_sonu_ozeti: { title: "Gün Sonu Özeti", desc: "Günlük satış, seans, mesaj ve tamamlanan görevler." },
+};
+
+/** Özet bildirimleri ayrı kartta gösterilir (saat seçimi var). */
+const DIGEST_KEYS: NotifKey[] = ["sabah_ozeti", "gun_sonu_ozeti"];
+
+const CHANNEL_LABEL: Record<string, string> = {
+  panel: "Panel",
+  sms: "SMS",
+  email: "E-posta",
+  whatsapp: "WhatsApp",
+};
+
+const ROLE_LABEL: Record<string, string> = {
+  owner: "Yönetici",
+  reception: "Resepsiyon",
+  specialist: "Uzman",
+};
 
 /** Denetim kaydı etiketleri (0017_business_audit.sql). */
 const ACTION_LABEL: Record<string, string> = {
@@ -145,6 +170,15 @@ export interface SettingsData {
   workingDays: WorkingDay[];
   subscription: Pick<Subscription, "plan" | "status" | "price" | "started_at" | "expires_at"> | null;
   auditLog: { id: string; created_at: string; actor_label: string; action: string; entity: string; summary: string | null }[];
+  notifications: NotificationSettingInput[];
+  /** credentials burada YOK — sunucuda kalır, asla client'a gelmez. */
+  integrations: {
+    provider: Provider;
+    status: "connected" | "disconnected" | "error";
+    account_label: string | null;
+    last_error: string | null;
+    connected_at: string | null;
+  }[];
 }
 
 export function SettingsView({ data }: { data: SettingsData }) {
@@ -246,20 +280,12 @@ export function SettingsView({ data }: { data: SettingsData }) {
 
         {/* Bildirimler */}
         <TabsContent value="bildirim" className="mt-4 space-y-4">
-          <DemoBanner>
-            Bildirim tercihleri henüz kaydedilmiyor; gönderim için SMS veya
-            e-posta bağlantısı gerekiyor. Aşağıdaki ayarlar örnek amaçlı.
-          </DemoBanner>
-          <Notifications />
+          <Notifications initial={data.notifications} />
         </TabsContent>
 
         {/* Entegrasyonlar */}
         <TabsContent value="entegrasyon" className="mt-4 space-y-4">
-          <DemoBanner>
-            Entegrasyon bağlantıları henüz aktif değil. Hesaplar bağlandığında
-            bu ekrandan yönetilecek.
-          </DemoBanner>
-          <Integrations />
+          <Integrations rows={data.integrations} />
         </TabsContent>
 
         {/* Abonelik */}
@@ -407,90 +433,390 @@ function WorkingHours({ initial }: { initial: WorkingDay[] }) {
   );
 }
 
-function Notifications() {
-  const [notifs, setNotifs] = useState(CRM_NOTIFS.map(() => true));
-  const [digests, setDigests] = useState({ morning: true, evening: true });
+function Notifications({ initial }: { initial: NotificationSettingInput[] }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [items, setItems] = useState(initial);
+  const [dirty, setDirty] = useState(false);
+
+  function patch(key: NotifKey, next: Partial<NotificationSettingInput>) {
+    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...next } : i)));
+    setDirty(true);
+  }
+
+  function toggleChannel(key: NotifKey, ch: string) {
+    const item = items.find((i) => i.key === key);
+    if (!item) return;
+    const has = item.channels.includes(ch as never);
+    patch(key, {
+      channels: (has
+        ? item.channels.filter((c) => c !== ch)
+        : [...item.channels, ch]) as NotificationSettingInput["channels"],
+    });
+  }
+
+  function toggleRole(key: NotifKey, role: string) {
+    const item = items.find((i) => i.key === key);
+    if (!item) return;
+    const has = item.recipient_roles.includes(role as never);
+    patch(key, {
+      recipient_roles: (has
+        ? item.recipient_roles.filter((r) => r !== role)
+        : [...item.recipient_roles, role]) as NotificationSettingInput["recipient_roles"],
+    });
+  }
+
+  function save() {
+    start(async () => {
+      const res = await updateNotificationSettings({ items });
+      if (res.error) toast.error(res.error);
+      else {
+        toast.success("Bildirim tercihleri kaydedildi.");
+        setDirty(false);
+        router.refresh();
+      }
+    });
+  }
+
+  const events = items.filter((i) => !DIGEST_KEYS.includes(i.key));
+  const digests = items.filter((i) => DIGEST_KEYS.includes(i.key));
 
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
-      <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Bell className="size-4 text-primary" />CRM Bildirimleri</CardTitle></CardHeader>
-        <CardContent className="space-y-1">
-          {CRM_NOTIFS.map((n, i) => (
-            <div key={n} className="flex items-center justify-between gap-2 py-2">
-              <span className="text-sm">{n}</span>
-              <Switch on={notifs[i]} onClick={() => setNotifs((p) => p.map((v, j) => (j === i ? !v : v)))} />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          Panel bildirimleri hemen çalışır. SMS, e-posta ve WhatsApp için
+          ilgili bağlantının <b>Entegrasyonlar</b> sekmesinde kurulu olması gerekir.
+        </p>
+        <Button size="sm" disabled={pending || !dirty} onClick={save}>
+          <Save className="size-4" />
+          {pending ? "Kaydediliyor…" : "Kaydet"}
+        </Button>
+      </div>
 
-      <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Copy className="size-4 text-primary" />Özet Mesajları</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          {[
-            { key: "morning" as const, icon: Sun, title: "Sabah Özeti (09:00)", desc: "Günlük randevular, leadler, görevler ve tahsilatlar.", staff: ["Yönetici", "Tüm Personel"], staffChecked: [true, true] },
-            { key: "evening" as const, icon: Moon, title: "Gün Sonu Özeti (20:00)", desc: "Günlük satış, seans, mesaj, tamamlanan görevler.", staff: ["Yönetici", "Personel"], staffChecked: [true, false] },
-          ].map((d) => {
-            const Icon = d.icon;
-            return (
-              <div key={d.key} className="rounded-lg border p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="flex items-center gap-2 font-semibold"><Icon className={cn("size-4", d.key === "morning" ? "text-amber-500" : "text-violet-500")} />{d.title}</p>
-                  <Switch on={digests[d.key]} onClick={() => setDigests((s) => ({ ...s, [d.key]: !s[d.key] }))} />
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">{d.desc}</p>
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="mb-1 text-xs font-medium text-muted-foreground">Gönderilecekler:</p>
-                    <div className="flex flex-wrap gap-3">
-                      {d.staff.map((s, i) => (
-                        <label key={s} className="flex items-center gap-1.5"><input type="checkbox" defaultChecked={d.staffChecked[i]} className="size-4 accent-primary" />{s}</label>
-                      ))}
-                    </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Bell className="size-4 text-primary" />
+              Olay Bildirimleri
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {events.map((n) => (
+              <div key={n.key} className="border-b py-3 last:border-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{NOTIF_LABEL[n.key].title}</p>
+                    <p className="text-xs text-muted-foreground">{NOTIF_LABEL[n.key].desc}</p>
                   </div>
-                  <div>
-                    <p className="mb-1 text-xs font-medium text-muted-foreground">Kanal:</p>
-                    <div className="flex flex-wrap gap-3">
-                      <label className="flex items-center gap-1.5"><input type="checkbox" defaultChecked className="size-4 accent-primary" />WhatsApp</label>
-                      <label className="flex items-center gap-1.5"><input type="checkbox" className="size-4 accent-primary" />SMS</label>
-                    </div>
-                  </div>
+                  <Switch on={n.enabled} onClick={() => patch(n.key, { enabled: !n.enabled })} />
                 </div>
+                {n.enabled && (
+                  <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-2 text-xs">
+                    {(["panel", "sms", "email", "whatsapp"] as const).map((ch) => (
+                      <label key={ch} className="flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          className="size-3.5 accent-primary"
+                          checked={n.channels.includes(ch)}
+                          onChange={() => toggleChannel(n.key, ch)}
+                        />
+                        {CHANNEL_LABEL[ch]}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
-            );
-          })}
-        </CardContent>
-      </Card>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Copy className="size-4 text-primary" />
+              Özet Mesajları
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {digests.map((d) => {
+              const Icon = d.key === "sabah_ozeti" ? Sun : Moon;
+              return (
+                <div key={d.key} className="rounded-lg border p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="flex items-center gap-2 font-semibold">
+                      <Icon className={cn("size-4", d.key === "sabah_ozeti" ? "text-amber-500" : "text-violet-500")} />
+                      {NOTIF_LABEL[d.key].title}
+                    </p>
+                    <Switch on={d.enabled} onClick={() => patch(d.key, { enabled: !d.enabled })} />
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">{NOTIF_LABEL[d.key].desc}</p>
+
+                  {d.enabled && (
+                    <div className="mt-3 space-y-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        <label htmlFor={`t-${d.key}`} className="text-xs font-medium text-muted-foreground">
+                          Gönderim saati
+                        </label>
+                        <input
+                          id={`t-${d.key}`}
+                          type="time"
+                          value={d.send_at ?? "09:00"}
+                          onChange={(e) => patch(d.key, { send_at: e.target.value })}
+                          className="h-9 rounded-lg border border-input bg-background px-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <p className="mb-1 text-xs font-medium text-muted-foreground">Gönderilecekler:</p>
+                        <div className="flex flex-wrap gap-3 text-xs">
+                          {(["owner", "reception", "specialist"] as const).map((r) => (
+                            <label key={r} className="flex items-center gap-1.5">
+                              <input
+                                type="checkbox"
+                                className="size-3.5 accent-primary"
+                                checked={d.recipient_roles.includes(r)}
+                                onChange={() => toggleRole(d.key, r)}
+                              />
+                              {ROLE_LABEL[r]}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-xs font-medium text-muted-foreground">Kanal:</p>
+                        <div className="flex flex-wrap gap-3 text-xs">
+                          {(["panel", "sms", "email", "whatsapp"] as const).map((ch) => (
+                            <label key={ch} className="flex items-center gap-1.5">
+                              <input
+                                type="checkbox"
+                                className="size-3.5 accent-primary"
+                                checked={d.channels.includes(ch)}
+                                onChange={() => toggleChannel(d.key, ch)}
+                              />
+                              {CHANNEL_LABEL[ch]}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
 
-function Integrations() {
-  const INTEGR = [
-    { name: "Instagram Business", sub: "@defnebeauty_demo", logo: InstagramLogo, connected: true },
-    { name: "WhatsApp Business API", sub: "+90 532 000 0000", logo: WhatsappLogo, connected: true },
-    { name: "E-posta Servisi (SMTP)", sub: "SendGrid", logo: EmailLogo, connected: true },
-    { name: "TikTok Business", sub: "Bağlı değil", logo: TiktokLogo, connected: false },
-  ];
+/** Bağlanabilir sağlayıcılar ve istedikleri kimlik alanları. */
+const CONNECTABLE: {
+  provider: Provider;
+  name: string;
+  hint: string;
+  logo: typeof InstagramLogo;
+  fields: { key: string; label: string; placeholder?: string; secret?: boolean }[];
+}[] = [
+  {
+    provider: "sms",
+    name: "SMS (Netgsm)",
+    hint: "Randevu hatırlatma ve toplu SMS için",
+    logo: EmailLogo,
+    fields: [
+      { key: "usercode", label: "Kullanıcı kodu", placeholder: "850XXXXXXX" },
+      { key: "password", label: "Şifre", secret: true },
+      { key: "msgheader", label: "Mesaj başlığı", placeholder: "FIRMAADI" },
+    ],
+  },
+  {
+    provider: "smtp",
+    name: "E-posta (Resend)",
+    hint: "Bilgilendirme ve bülten e-postaları için",
+    logo: EmailLogo,
+    fields: [
+      { key: "api_key", label: "API anahtarı", placeholder: "re_...", secret: true },
+      { key: "from", label: "Gönderen adresi", placeholder: "randevu@ornek.com" },
+    ],
+  },
+  {
+    provider: "whatsapp",
+    name: "WhatsApp Business API",
+    hint: "Meta Cloud API üzerinden mesaj gönderimi",
+    logo: WhatsappLogo,
+    fields: [
+      { key: "phone_number_id", label: "Telefon numarası kimliği", placeholder: "1234567890" },
+      { key: "access_token", label: "Erişim jetonu", secret: true },
+    ],
+  },
+];
+
+/** Hesap onayı bekleyen, henüz bağlanamayan sağlayıcılar. */
+const PENDING_APPROVAL: { name: string; hint: string; logo: typeof InstagramLogo }[] = [
+  { name: "Instagram Business", hint: "Meta uygulama incelemesi gerekiyor", logo: InstagramLogo },
+  { name: "TikTok Business", hint: "İş hesabı onayı gerekiyor", logo: TiktokLogo },
+];
+
+const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+  connected: { label: "Bağlı", cls: "bg-positive/12 text-positive" },
+  error: { label: "Hata", cls: "bg-danger/12 text-danger" },
+  disconnected: { label: "Bağlı değil", cls: "bg-muted text-muted-foreground" },
+};
+
+function Integrations({ rows }: { rows: SettingsData["integrations"] }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  /** Hangi sağlayıcının formu açık. */
+  const [editing, setEditing] = useState<Provider | null>(null);
+  const [creds, setCreds] = useState<Record<string, string>>({});
+  const [label, setLabel] = useState("");
+  const [testTo, setTestTo] = useState<Record<string, string>>({});
+
+  const byProvider = new Map(rows.map((r) => [r.provider, r]));
+
+  function openForm(p: Provider) {
+    setEditing(p);
+    setCreds({});
+    setLabel(byProvider.get(p)?.account_label ?? "");
+  }
+
+  function save(p: Provider) {
+    start(async () => {
+      const res = await saveIntegration({ provider: p, account_label: label, credentials: creds });
+      if (res.error) toast.error(res.error);
+      else {
+        toast.success("Bağlantı kaydedildi.");
+        setEditing(null);
+        setCreds({});
+        router.refresh();
+      }
+    });
+  }
+
+  function disconnect(p: Provider, name: string) {
+    if (!window.confirm(`${name} bağlantısı kaldırılsın mı? Kayıtlı bilgiler silinir.`)) return;
+    start(async () => {
+      const res = await disconnectIntegration(p);
+      if (res.error) toast.error(res.error);
+      else {
+        toast.success("Bağlantı kaldırıldı.");
+        router.refresh();
+      }
+    });
+  }
+
+  function test(p: Provider) {
+    const to = testTo[p] ?? "";
+    start(async () => {
+      const res = await testIntegration(p, to);
+      if (res.error) toast.error(res.error);
+      else toast.success("Test mesajı gönderildi.");
+      router.refresh();
+    });
+  }
+
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Plug className="size-4 text-primary" />Sosyal &amp; Mesajlaşma</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Plug className="size-4 text-primary" />
+            Mesajlaşma Sağlayıcıları
+          </CardTitle>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Bilgiler şifreli olarak sunucuda saklanır, bu ekrana geri getirilmez.
+          </p>
+        </CardHeader>
         <CardContent className="space-y-2">
-          {INTEGR.map((it) => {
+          {CONNECTABLE.map((it) => {
             const Logo = it.logo;
+            const row = byProvider.get(it.provider);
+            const status = STATUS_BADGE[row?.status ?? "disconnected"];
+            const open = editing === it.provider;
+
             return (
-              <div key={it.name} className="flex items-center gap-3 rounded-lg border p-3">
-                <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] border bg-card", !it.connected && "opacity-50")}><Logo className="size-6" /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{it.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{it.sub}</p>
+              <div key={it.provider} className="rounded-lg border p-3">
+                <div className="flex items-center gap-3">
+                  <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] border bg-card", !row && "opacity-50")}>
+                    <Logo className="size-6" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{it.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {row?.account_label || it.hint}
+                    </p>
+                  </div>
+                  <span className={cn("rounded-full px-2 py-1 text-xs font-medium", status.cls)}>
+                    {status.label}
+                  </span>
                 </div>
-                {it.connected ? (
-                  <span className="rounded-full bg-positive/12 px-2 py-1 text-xs font-medium text-positive">Bağlı</span>
+
+                {row?.last_error && (
+                  <p className="mt-2 rounded-lg bg-danger/8 px-2.5 py-1.5 text-xs text-danger" role="alert">
+                    Son hata: {row.last_error}
+                  </p>
+                )}
+
+                {open ? (
+                  <div className="mt-3 space-y-3 border-t pt-3">
+                    <Field
+                      label="Görünen ad"
+                      hint="opsiyonel"
+                      value={label}
+                      onChange={setLabel}
+                      placeholder={it.name}
+                    />
+                    {it.fields.map((f) => (
+                      <Field
+                        key={f.key}
+                        label={f.label}
+                        type={f.secret ? "password" : undefined}
+                        value={creds[f.key] ?? ""}
+                        onChange={(v) => setCreds((p) => ({ ...p, [f.key]: v }))}
+                        placeholder={f.placeholder}
+                      />
+                    ))}
+                    <div className="flex gap-2">
+                      <Button size="sm" disabled={pending} onClick={() => save(it.provider)}>
+                        <Save className="size-4" />
+                        {pending ? "Kaydediliyor…" : "Kaydet"}
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={pending} onClick={() => setEditing(null)}>
+                        Vazgeç
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
-                  <Button variant="outline" size="sm" onClick={() => toast.info(`${it.name} bağlanıyor (demo).`)}><Plug className="size-4" />Bağla</Button>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => openForm(it.provider)}>
+                      <Plug className="size-4" />
+                      {row ? "Bilgileri güncelle" : "Bağla"}
+                    </Button>
+                    {row && (
+                      <>
+                        <input
+                          aria-label={`${it.name} test alıcısı`}
+                          value={testTo[it.provider] ?? ""}
+                          onChange={(e) => setTestTo((p) => ({ ...p, [it.provider]: e.target.value }))}
+                          placeholder={it.provider === "smtp" ? "test@ornek.com" : "05xx xxx xx xx"}
+                          className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-background px-2.5 text-sm"
+                        />
+                        <Button size="sm" variant="outline" disabled={pending} onClick={() => test(it.provider)}>
+                          Test gönder
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={pending}
+                          className="text-danger hover:text-danger"
+                          onClick={() => disconnect(it.provider, it.name)}
+                        >
+                          Kaldır
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             );
@@ -499,27 +825,46 @@ function Integrations() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Code2 className="size-4 text-primary" />API &amp; Piksel</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <Field label="Meta Piksel ID" defaultValue="987654321098765" />
-          <Field label="Google Analytics (GA4)" defaultValue="G-AB12CD34EF" />
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">CRM API Anahtarı</label>
-            <div className="flex gap-2">
-              <input readOnly value="bidi_sk_••••••••••••••••••" className="h-10 flex-1 rounded-lg border border-input bg-muted/40 px-3 font-mono text-sm" />
-              <Button variant="outline" size="icon" aria-label="API anahtarını kopyala" onClick={() => toast.success("API anahtarı kopyalandı (demo).")}><Copy className="size-4" /></Button>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Google İşletme Profili</label>
-            <div className="flex items-center gap-3 rounded-lg border p-3">
-              <span className="flex size-10 items-center justify-center rounded-[var(--radius-md)] bg-positive/10 text-positive"><MapPin className="size-5" /></span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">Google İşletme Profili</p>
-                <p className="text-xs text-muted-foreground">Defne Beauty Center</p>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Code2 className="size-4 text-primary" />
+            Onay Bekleyenler
+          </CardTitle>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Bu servisler Meta / TikTok tarafında işletme hesabı onayı gerektiriyor.
+            Onay tamamlandığında buradan bağlanabilecek.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {PENDING_APPROVAL.map((it) => {
+            const Logo = it.logo;
+            return (
+              <div key={it.name} className="flex items-center gap-3 rounded-lg border p-3 opacity-70">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] border bg-card">
+                  <Logo className="size-6" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{it.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{it.hint}</p>
+                </div>
+                <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                  Onay bekliyor
+                </span>
               </div>
-              <span className="rounded-full bg-positive/12 px-2 py-1 text-xs font-medium text-positive">Bağlı</span>
+            );
+          })}
+
+          <div className="flex items-center gap-3 rounded-lg border p-3 opacity-70">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-positive/10 text-positive">
+              <MapPin className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Google İşletme Profili</p>
+              <p className="text-xs text-muted-foreground">Yorum çekme ve saat senkronu için</p>
             </div>
+            <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+              Onay bekliyor
+            </span>
           </div>
         </CardContent>
       </Card>
