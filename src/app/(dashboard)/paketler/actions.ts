@@ -72,10 +72,14 @@ export async function updatePackage(
   }
 
   const supabase = await createClient();
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
+
   const { error } = await supabase
     .from("packages")
     .update(toRow(parsed.data))
-    .eq("id", id);
+    .eq("id", id)
+    .eq("business_id", businessId);
 
   if (error) return { error: `Paket güncellenemedi: ${error.message}` };
 
@@ -85,7 +89,14 @@ export async function updatePackage(
 
 export async function deletePackage(id: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("packages").delete().eq("id", id);
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
+
+  const { error } = await supabase
+    .from("packages")
+    .delete()
+    .eq("id", id)
+    .eq("business_id", businessId);
 
   if (error) return { error: `Paket silinemedi: ${error.message}` };
 

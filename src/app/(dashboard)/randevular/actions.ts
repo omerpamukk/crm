@@ -116,10 +116,14 @@ export async function updateAppointment(
   }
 
   const supabase = await createClient();
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
+
   const { error } = await supabase
     .from("appointments")
     .update(toRow(parsed.data))
-    .eq("id", id);
+    .eq("id", id)
+    .eq("business_id", businessId);
 
   if (error) return { error: `Randevu güncellenemedi: ${error.message}` };
 
@@ -129,7 +133,14 @@ export async function updateAppointment(
 
 export async function deleteAppointment(id: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("appointments").delete().eq("id", id);
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
+
+  const { error } = await supabase
+    .from("appointments")
+    .delete()
+    .eq("id", id)
+    .eq("business_id", businessId);
 
   if (error) return { error: `Randevu silinemedi: ${error.message}` };
 

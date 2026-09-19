@@ -50,10 +50,14 @@ export async function updateExpense(
   }
 
   const supabase = await createClient();
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
+
   const { error } = await supabase
     .from("expenses")
     .update(toRow(parsed.data))
-    .eq("id", id);
+    .eq("id", id)
+    .eq("business_id", businessId);
 
   if (error) return { error: `Gider güncellenemedi: ${error.message}` };
 
@@ -64,7 +68,14 @@ export async function updateExpense(
 
 export async function deleteExpense(id: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("expenses").delete().eq("id", id);
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
+
+  const { error } = await supabase
+    .from("expenses")
+    .delete()
+    .eq("id", id)
+    .eq("business_id", businessId);
 
   if (error) return { error: `Gider silinemedi: ${error.message}` };
 

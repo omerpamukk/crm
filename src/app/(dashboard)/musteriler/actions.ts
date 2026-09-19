@@ -151,12 +151,19 @@ export async function updateCustomer(
   }
 
   const supabase = await createClient();
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
+
   const { error } = await supabase
     .from("customers")
     .update(toRow(parsed.data))
-    .eq("id", id);
+    .eq("id", id)
+    .eq("business_id", businessId);
 
-  if (error) return { error: `Müşteri güncellenemedi: ${error.message}` };
+  if (error) {
+    console.error("updateCustomer:", error);
+    return { error: "Müşteri güncellenemedi." };
+  }
 
   revalidatePath("/musteriler");
   return {};
@@ -164,9 +171,19 @@ export async function updateCustomer(
 
 export async function deleteCustomer(id: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("customers").delete().eq("id", id);
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
 
-  if (error) return { error: `Müşteri silinemedi: ${error.message}` };
+  const { error } = await supabase
+    .from("customers")
+    .delete()
+    .eq("id", id)
+    .eq("business_id", businessId);
+
+  if (error) {
+    console.error("deleteCustomer:", error);
+    return { error: "Müşteri silinemedi." };
+  }
 
   revalidatePath("/musteriler");
   return {};
@@ -178,12 +195,19 @@ export async function updateCustomerStatus(
   status: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
+
   const { error } = await supabase
     .from("customers")
     .update({ status })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("business_id", businessId);
 
-  if (error) return { error: `Durum güncellenemedi: ${error.message}` };
+  if (error) {
+    console.error("updateCustomerStatus:", error);
+    return { error: "Durum güncellenemedi." };
+  }
 
   revalidatePath("/musteriler");
   return {};

@@ -72,11 +72,18 @@ export async function renameStage(
 ): Promise<ActionResult> {
   if (!name.trim()) return { error: "Sütun adı boş olamaz." };
   const supabase = await createClient();
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
+
   const { error } = await supabase
     .from("pipeline_stages")
     .update({ name: name.trim() })
-    .eq("id", id);
-  if (error) return { error: `Yeniden adlandırılamadı: ${error.message}` };
+    .eq("id", id)
+    .eq("business_id", businessId);
+  if (error) {
+    console.error("renameStage:", error);
+    return { error: "Yeniden adlandırılamadı." };
+  }
   revalidatePath("/leadler");
   return {};
 }
@@ -86,11 +93,18 @@ export async function updateStageColor(
   color: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
+
   const { error } = await supabase
     .from("pipeline_stages")
     .update({ color })
-    .eq("id", id);
-  if (error) return { error: `Renk güncellenemedi: ${error.message}` };
+    .eq("id", id)
+    .eq("business_id", businessId);
+  if (error) {
+    console.error("updateStageColor:", error);
+    return { error: "Renk güncellenemedi." };
+  }
   revalidatePath("/leadler");
   return {};
 }
@@ -101,17 +115,30 @@ export async function deleteStage(
   reassignToId: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
 
   if (reassignToId) {
     const { error: moveErr } = await supabase
       .from("customers")
       .update({ pipeline_stage_id: reassignToId })
-      .eq("pipeline_stage_id", id);
-    if (moveErr) return { error: `Kartlar taşınamadı: ${moveErr.message}` };
+      .eq("pipeline_stage_id", id)
+      .eq("business_id", businessId);
+    if (moveErr) {
+      console.error("deleteStage/move:", moveErr);
+      return { error: "Kartlar taşınamadı." };
+    }
   }
 
-  const { error } = await supabase.from("pipeline_stages").delete().eq("id", id);
-  if (error) return { error: `Sütun silinemedi: ${error.message}` };
+  const { error } = await supabase
+    .from("pipeline_stages")
+    .delete()
+    .eq("id", id)
+    .eq("business_id", businessId);
+  if (error) {
+    console.error("deleteStage:", error);
+    return { error: "Sütun silinemedi." };
+  }
 
   revalidatePath("/leadler");
   return {};
@@ -119,13 +146,26 @@ export async function deleteStage(
 
 export async function reorderStages(orderedIds: string[]): Promise<ActionResult> {
   const supabase = await createClient();
-  for (let i = 0; i < orderedIds.length; i++) {
-    const { error } = await supabase
-      .from("pipeline_stages")
-      .update({ position: i })
-      .eq("id", orderedIds[i]);
-    if (error) return { error: `Sıralama güncellenemedi: ${error.message}` };
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
+
+  // Döngüde await yerine tek turda paralel güncelleme (N+1 kaldırıldı).
+  const results = await Promise.all(
+    orderedIds.map((id, i) =>
+      supabase
+        .from("pipeline_stages")
+        .update({ position: i })
+        .eq("id", id)
+        .eq("business_id", businessId)
+    )
+  );
+
+  const failed = results.find((r) => r.error);
+  if (failed?.error) {
+    console.error("reorderStages:", failed.error);
+    return { error: "Sıralama güncellenemedi." };
   }
+
   revalidatePath("/leadler");
   return {};
 }

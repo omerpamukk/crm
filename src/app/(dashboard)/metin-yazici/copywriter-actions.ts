@@ -1,5 +1,8 @@
 "use server";
 
+import { createClient } from "@/lib/supabase/server";
+import { getBusinessId } from "@/lib/supabase/business";
+
 /**
  * AI Metin Yazıcı.
  * ANTHROPIC_API_KEY tanımlıysa gerçek Claude çağrısı yapar; tanımlı değilse
@@ -38,6 +41,13 @@ function demoResponse(prompt: string): string {
 export async function generateCopy(
   prompt: string
 ): Promise<{ text: string; demo: boolean; error?: string }> {
+  // Oturum kontrolü: bu action dış API'yi (ücretli) çağırıyor.
+  const supabase = await createClient();
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) {
+    return { text: "", demo: true, error: "Bu özelliği kullanmak için giriş yapmalısın." };
+  }
+
   const clean = prompt.trim();
   if (!clean) return { text: "", demo: true, error: "Lütfen ne yazmamı istediğini belirt." };
 
