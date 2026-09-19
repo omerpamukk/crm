@@ -2,6 +2,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DemoBanner } from "@/components/shared/demo-banner";
 import { RemindersView } from "./reminders-view";
 
+export const metadata = { title: "Hatırlatıcılar" };
+
 export default function HatirlaticilarPage() {
   return (
     <div className="space-y-6">

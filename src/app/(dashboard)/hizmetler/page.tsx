@@ -17,6 +17,8 @@ import {
 import { NewServiceButton } from "./new-service-button";
 import { ServiceRowActions } from "./service-row-actions";
 
+export const metadata = { title: "Hizmetler" };
+
 export default async function HizmetlerPage() {
   const supabase = await createClient();
   const { data } = await supabase

@@ -23,6 +23,8 @@ import { NewAppointmentButton } from "./new-appointment-button";
 import { AppointmentRowActions } from "./appointment-row-actions";
 import { AppointmentReminder } from "./appointment-reminder";
 
+export const metadata = { title: "Randevular" };
+
 const MONTH_SHORT = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
 /** Bucket'a göre tarih/saat metni: bugün/yarın → saat; diğer → "12 May · 14:30". */

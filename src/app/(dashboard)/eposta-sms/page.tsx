@@ -2,6 +2,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DemoBanner } from "@/components/shared/demo-banner";
 import { CampaignsView } from "./campaigns-view";
 
+export const metadata = { title: "E-posta & SMS" };
+
 export default function EpostaSmsPage() {
   return (
     <div className="space-y-6">

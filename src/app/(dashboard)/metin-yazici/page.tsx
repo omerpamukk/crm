@@ -1,6 +1,8 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { WriterView } from "./writer-view";
 
+export const metadata = { title: "Metin Yazıcı" };
+
 export default function MetinYaziciPage() {
   return (
     <div className="space-y-6">

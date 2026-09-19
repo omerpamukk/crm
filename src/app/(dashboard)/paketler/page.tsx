@@ -24,6 +24,8 @@ import {
 import { NewPackageButton } from "./new-package-button";
 import { PackageRowActions } from "./package-row-actions";
 
+export const metadata = { title: "Paketler" };
+
 type PackageRow = PackageType & {
   customer: { full_name: string } | null;
 };

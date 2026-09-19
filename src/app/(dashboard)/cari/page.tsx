@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { CariView, type CariRow } from "./cari-view";
 
+export const metadata = { title: "Cari Hesap" };
+
 const DAY = 86_400_000;
 
 export default async function CariPage() {

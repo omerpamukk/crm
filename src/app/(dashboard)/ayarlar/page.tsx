@@ -6,6 +6,8 @@ import type { Business, Subscription } from "@/types/database";
 import { SettingsView, type SettingsData } from "./settings-view";
 import type { WorkingDay } from "./schema";
 
+export const metadata = { title: "Ayarlar" };
+
 /** Varsayılan hafta: Pzt–Cum 09:00–18:00, Cmt 10:00–16:00, Paz kapalı. */
 const DEFAULT_DAYS: WorkingDay[] = [
   { day: 1, open: true, start: "09:00", end: "18:00" },

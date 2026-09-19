@@ -2,6 +2,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DemoBanner } from "@/components/shared/demo-banner";
 import { AdsView, type AdCampaign } from "./ads-view";
 
+export const metadata = { title: "Reklamlar" };
+
 const DEMO_CAMPAIGNS: AdCampaign[] = [
   {
     id: "c1",

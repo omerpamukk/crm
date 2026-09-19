@@ -3,6 +3,8 @@ import { DemoBanner } from "@/components/shared/demo-banner";
 import { MessagesView } from "./messages-view";
 import { DEMO_CONVERSATIONS, type Channel } from "./demo-data";
 
+export const metadata = { title: "Mesajlar" };
+
 const CHANNELS: Channel[] = ["instagram", "whatsapp", "messenger", "tiktok", "email"];
 
 export default async function MesajlarPage({

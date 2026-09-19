@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   Flower2,
   Scissors,
@@ -96,24 +96,18 @@ export function BookingFlow({ token, config }: { token: string; config: BookingC
     return out;
   }, [startTime, endTime, slot]);
 
-  // Gün seçilince o günün dolu saatlerini getir
-  useEffect(() => {
-    if (!date) {
-      setBookedSlots([]);
-      return;
-    }
-    let cancelled = false;
-    getBookedSlots(token, date)
-      .then((slots) => {
-        if (!cancelled) setBookedSlots(slots);
-      })
-      .catch(() => {
-        if (!cancelled) setBookedSlots([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [date, token]);
+  /**
+   * Gün seçimi: dolu saatler o anda getirilir.
+   * (useEffect yerine olay içinde — türev state kaskadı oluşmasın.)
+   */
+  function pickDate(iso: string) {
+    setDate(iso);
+    setTime(null);
+    setBookedSlots([]);
+    getBookedSlots(token, iso)
+      .then(setBookedSlots)
+      .catch(() => setBookedSlots([]));
+  }
 
   // Bugün için geçmiş saatleri ve dolu slotları ele
   const availableTimes = useMemo(() => {
@@ -267,10 +261,7 @@ export function BookingFlow({ token, config }: { token: string; config: BookingC
                   <button
                     key={iso}
                     type="button"
-                    onClick={() => {
-                      setDate(iso);
-                      setTime(null);
-                    }}
+                    onClick={() => pickDate(iso)}
                     className={cn(
                       "flex min-w-14 shrink-0 flex-col items-center rounded-xl border px-3 py-2 transition-colors",
                       on ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted/50"

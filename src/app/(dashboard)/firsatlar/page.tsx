@@ -3,6 +3,8 @@ import { PageHeader } from "@/components/shared/page-header";
 
 import { OpportunitiesView, type OppCategory, type OppItem } from "./opportunities-view";
 
+export const metadata = { title: "Gelir Fırsatları" };
+
 const DAY = 86_400_000;
 
 function pickOne<T>(v: T | T[] | null): T | null {

@@ -35,6 +35,8 @@ import { TrendChart } from "../raporlar/charts";
 import { RangeSelector } from "./range-selector";
 import { AgencyPanelDialog } from "./agency-panel-dialog";
 
+export const metadata = { title: "Yönetici Paneli" };
+
 const MONTH_NAMES = [
   "Oca", "Şub", "Mar", "Nis", "May", "Haz",
   "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara",

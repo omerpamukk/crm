@@ -31,6 +31,8 @@ import {
 import { NewExpenseButton } from "./new-expense-button";
 import { ExpenseRowActions } from "./expense-row-actions";
 
+export const metadata = { title: "Giderler" };
+
 export default async function GiderlerPage() {
   // Giderler yalnızca işletme sahibine açık (RLS de ayrıca kısıtlar).
   await requireCapability("finans");

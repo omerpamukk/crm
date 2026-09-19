@@ -2,6 +2,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DemoBanner } from "@/components/shared/demo-banner";
 import { PlannerView } from "./planner-view";
 
+export const metadata = { title: "Sosyal Medya" };
+
 export default function SosyalMedyaPage() {
   return (
     <div className="space-y-6">

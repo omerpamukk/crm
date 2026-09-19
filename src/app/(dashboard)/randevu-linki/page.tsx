@@ -9,6 +9,8 @@ import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { ensureBookingSettings } from "./booking-actions";
 import { BookingLinkView } from "./booking-link-view";
 
+export const metadata = { title: "Randevu Linki" };
+
 export const dynamic = "force-dynamic";
 
 export default async function RandevuLinkiPage() {

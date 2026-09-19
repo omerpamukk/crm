@@ -11,6 +11,8 @@ import { CardTitle } from "@/components/ui/card";
 import { NewCustomerButton } from "./new-customer-button";
 import { CustomersView, type EnrichedCustomer } from "./customers-view";
 
+export const metadata = { title: "Müşteriler" };
+
 /**
  * Tek seferde çekilen müşteri üst sınırı.
  * Filtreleme istemcide yapıldığı için veri tek turda geliyor; bu sınır

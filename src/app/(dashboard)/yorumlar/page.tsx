@@ -2,6 +2,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DemoBanner } from "@/components/shared/demo-banner";
 import { ReviewsView, type Review } from "./reviews-view";
 
+export const metadata = { title: "Google Maps & Yorumlar" };
+
 const DEMO_REVIEWS: Review[] = [
   {
     id: "r1",

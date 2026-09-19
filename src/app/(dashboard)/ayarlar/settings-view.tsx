@@ -536,8 +536,10 @@ const SUB_STATUS: Record<string, { label: string; cls: string }> = {
 };
 
 function SubscriptionTab({ sub }: { sub: SettingsData["subscription"] }) {
+  // Render sırasında Date.now() saf değil; ilk render'da bir kez sabitlenir.
+  const [nowMs] = useState(() => Date.now());
   const expires = sub?.expires_at ? new Date(sub.expires_at) : null;
-  const left = expires ? Math.ceil((expires.getTime() - Date.now()) / 86_400_000) : null;
+  const left = expires ? Math.ceil((expires.getTime() - nowMs) / 86_400_000) : null;
   const status = SUB_STATUS[sub?.status ?? "active"] ?? SUB_STATUS.active;
 
   return (

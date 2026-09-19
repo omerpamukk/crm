@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 
 import { AutomationsView } from "./automations-view";
 
+export const metadata = { title: "Otomasyonlar" };
+
 export default function OtomasyonlarPage() {
   return (
     <div className="space-y-6">

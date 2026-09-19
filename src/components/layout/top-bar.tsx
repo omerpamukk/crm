@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, Bell, CalendarDays, Wallet, Cake, Sparkles, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -11,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CommandPalette } from "./command-palette";
+import { markAllNotificationsRead } from "./notification-actions";
 
 export type AppNotification = {
   id: string;
@@ -29,6 +31,8 @@ const ICONS: Record<AppNotification["icon"], { icon: LucideIcon; tone: string }>
 
 export function TopBar({ notifications }: { notifications: AppNotification[] }) {
   const [cmdOpen, setCmdOpen] = useState(false);
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
 
   // Cmd/Ctrl+K → komut paleti
   useEffect(() => {
@@ -86,9 +90,26 @@ export function TopBar({ notifications }: { notifications: AppNotification[] }) 
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80 p-0">
-              <div className="border-b px-3 py-2.5">
-                <p className="text-sm font-semibold">Bildirimler</p>
-                <p className="text-xs text-muted-foreground">İşletmenin bugünkü gündemi</p>
+              <div className="flex items-start justify-between gap-2 border-b px-3 py-2.5">
+                <div>
+                  <p className="text-sm font-semibold">Bildirimler</p>
+                  <p className="text-xs text-muted-foreground">İşletmenin bugünkü gündemi</p>
+                </div>
+                {notifications.some((n) => n.id.startsWith("db-")) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      startTransition(async () => {
+                        await markAllNotificationsRead();
+                        router.refresh();
+                      });
+                    }}
+                    disabled={pending}
+                    className="shrink-0 text-xs font-medium text-primary transition-colors hover:text-primary/80 disabled:opacity-50"
+                  >
+                    Tümünü okundu yap
+                  </button>
+                )}
               </div>
               {notifications.length === 0 ? (
                 <p className="px-3 py-8 text-center text-sm text-muted-foreground">Her şey güncel</p>

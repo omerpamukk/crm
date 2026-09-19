@@ -30,6 +30,8 @@ import { StatCard } from "@/components/shared/stat-card";
 import { NewCustomerButton } from "../musteriler/new-customer-button";
 import { RevenueAreaChart, Sparkline } from "../raporlar/charts";
 
+export const metadata = { title: "Genel Bakış" };
+
 const DAY = 86_400_000;
 const MONTH_NAMES = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 

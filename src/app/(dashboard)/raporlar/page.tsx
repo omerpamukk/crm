@@ -38,6 +38,8 @@ import {
   SourcePieChart,
 } from "./charts";
 
+export const metadata = { title: "Raporlar" };
+
 const MONTH_NAMES = [
   "Oca",
   "Şub",

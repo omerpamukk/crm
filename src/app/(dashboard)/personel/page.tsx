@@ -18,6 +18,8 @@ import {
 import { NewStaffButton } from "./new-staff-button";
 import { StaffRowActions } from "./staff-row-actions";
 
+export const metadata = { title: "Personel" };
+
 export default async function PersonelPage() {
   // Komisyon oranları hassas veri — yalnızca işletme sahibi.
   await requireCapability("personel_yonet");

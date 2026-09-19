@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 
 import { StockView, type StockProduct, type StockMovement } from "./stock-view";
 
+export const metadata = { title: "Stok" };
+
 export default async function StokPage() {
   const supabase = await createClient();
 

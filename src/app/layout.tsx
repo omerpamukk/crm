@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -16,8 +16,21 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "CRM",
-  description: "İşletmeniz için müşteri, randevu ve paket yönetimi.",
+  // %s → sayfa başlığı; sayfalar kendi title'ını verince "Müşteriler · CRM"
+  title: {
+    default: "CRM — Müşteri ve Randevu Yönetimi",
+    template: "%s · CRM",
+  },
+  description: "İşletmeniz için müşteri, randevu, paket ve tahsilat yönetimi.",
+  applicationName: "CRM",
+  // Panel içeriği arama motorlarında görünmemeli
+  robots: { index: false, follow: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#6d3ef2",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { NewLeadButton } from "./new-lead-button";
 import { LeadBoard } from "./lead-board";
 
+export const metadata = { title: "Lead'ler" };
+
 export default async function LeadlerPage() {
   const supabase = await createClient();
 

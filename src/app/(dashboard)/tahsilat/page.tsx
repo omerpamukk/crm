@@ -12,6 +12,8 @@ import { SalesRange } from "./sales-range";
 import { SalesTabs, type SaleRow, type PaymentRow } from "./sales-tabs";
 import { SalesBarChart } from "../raporlar/charts";
 
+export const metadata = { title: "Satışlar" };
+
 const MONTH_NAMES = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
 function pickOne<T>(v: T | T[] | null): T | null {

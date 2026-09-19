@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 
+export const metadata = { title: "Takvim" };
+
 type CalAppointment = Appointment & {
   customer: { full_name: string } | null;
   service: { name: string; duration_min: number | null } | null;

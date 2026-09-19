@@ -21,7 +21,16 @@ export default async function DashboardLayout({
   // Önceden burada HER SAYFA GEZİNTİSİNDE packages tablosunun tamamı
   // çekilip JS'te borç hesaplanıyordu; artık hesap DB'de yapılıyor.
   const supabase = await createClient();
-  const { data: badgeData, error: badgeError } = await supabase.rpc("sidebar_badges");
+  const [{ data: badgeData, error: badgeError }, notifRes] = await Promise.all([
+    supabase.rpc("sidebar_badges"),
+    // Kalıcı bildirimler (0023). Okunmamışlar; tablo yoksa sessizce boş.
+    supabase
+      .from("notifications")
+      .select("id, kind, title, detail, href")
+      .is("read_at", null)
+      .order("created_at", { ascending: false })
+      .limit(20),
+  ]);
 
   if (badgeError) console.error("sidebar_badges:", badgeError);
 
@@ -40,6 +49,24 @@ export default async function DashboardLayout({
   }
   if (overdueCari > 0) {
     notifications.push({ id: "n-debt", icon: "debt", title: `${overdueCari} müşteride gecikmiş ödeme`, detail: "Cari hesabı incele ve hatırlat", href: "/cari" });
+  }
+
+  // Kalıcı bildirimler (okundu işaretlenebilir; id'leri "db-" ile başlar)
+  const KIND_ICON: Record<string, AppNotification["icon"]> = {
+    appointment: "appointment", debt: "debt", birthday: "birthday",
+    opportunity: "opportunity", stock: "opportunity", task: "appointment",
+    review: "opportunity", system: "opportunity",
+  };
+  for (const n of (notifRes.data ?? []) as {
+    id: string; kind: string; title: string; detail: string | null; href: string | null;
+  }[]) {
+    notifications.push({
+      id: `db-${n.id}`,
+      icon: KIND_ICON[n.kind] ?? "opportunity",
+      title: n.title,
+      detail: n.detail ?? "",
+      href: n.href ?? "/panel",
+    });
   }
 
   const badges = { overdueCari };
