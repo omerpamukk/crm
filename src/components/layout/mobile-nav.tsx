@@ -11,20 +11,20 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "./sidebar-nav";
-import type { NavSection } from "@/lib/nav";
+import type { UserRole } from "@/types/database";
 
 export function MobileNav({
   businessName,
   displayName,
   roleLabel,
-  sections,
+  role,
   badges,
   counts,
 }: {
   businessName: string;
   displayName: string;
   roleLabel: string;
-  sections?: NavSection[];
+  role?: UserRole;
   badges?: Record<string, number>;
   counts?: Record<string, number>;
 }) {
@@ -44,7 +44,7 @@ export function MobileNav({
           businessName={businessName}
           displayName={displayName}
           roleLabel={roleLabel}
-          sections={sections}
+          role={role}
           badges={badges}
           counts={counts}
           onNavigate={() => setOpen(false)}

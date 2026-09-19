@@ -7,7 +7,6 @@ import { ViewAsBanner } from "@/components/layout/view-as-banner";
 import { PageTransition } from "@/components/layout/page-transition";
 import { PageTitleBar } from "@/components/layout/page-title-bar";
 import { Toaster } from "@/components/ui/sonner";
-import { navSectionsForRole } from "@/lib/nav";
 
 const DAY = 86_400_000;
 
@@ -19,8 +18,6 @@ export default async function DashboardLayout({
   const { fullName, email, businessName, roleLabel, role, impersonating, manageMode } =
     await getAccountContext();
   const displayName = fullName ?? email ?? "Kullanıcı";
-  // Menü rol bazlı süzülür (yetkisiz sayfalar görünmez).
-  const sections = navSectionsForRole(role);
 
   // Menü rozeti: gecikmiş (30 gün+) ödemesi olan müşteri sayısı
   const supabase = await createClient();
@@ -92,7 +89,7 @@ export default async function DashboardLayout({
           businessName={businessName}
           displayName={displayName}
           roleLabel={roleLabel}
-          sections={sections}
+          role={role}
           badges={badges}
           counts={counts}
         />
@@ -108,7 +105,7 @@ export default async function DashboardLayout({
               businessName={businessName}
               displayName={displayName}
               roleLabel={roleLabel}
-              sections={sections}
+              role={role}
               badges={badges}
               counts={counts}
             />

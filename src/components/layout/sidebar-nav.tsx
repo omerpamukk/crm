@@ -14,7 +14,8 @@ import {
   LifeBuoy,
 } from "lucide-react";
 
-import { NAV_SECTIONS, type NavItem, type NavSection } from "@/lib/nav";
+import { NAV_SECTIONS, navSectionsForRole, type NavItem } from "@/lib/nav";
+import type { UserRole } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
@@ -72,13 +73,17 @@ export function SidebarNav({
   counts,
   onNavigate,
   variant = "desktop",
-  sections = NAV_SECTIONS,
+  role,
 }: {
   businessName: string;
   displayName: string;
   roleLabel: string;
-  /** Role göre süzülmüş menü (layout'tan gelir). */
-  sections?: NavSection[];
+  /**
+   * Menü bu role göre süzülür. Süzme burada (istemcide) yapılır çünkü
+   * NAV_SECTIONS lucide ikon bileşenleri taşır; sunucudan prop olarak
+   * geçirilemez (React sunucu→istemci sınırında fonksiyon serialize edilemez).
+   */
+  role?: UserRole;
   badges?: Record<string, number>;
   /** Menü öğesi başına gösterilecek toplam kayıt sayısı (href → sayı). */
   counts?: Record<string, number>;
@@ -130,6 +135,7 @@ export function SidebarNav({
   }
 
   const isCollapsed = variant === "desktop" && collapsed;
+  const sections = role ? navSectionsForRole(role) : NAV_SECTIONS;
   const [main, ...rest] = sections;
 
   return (
