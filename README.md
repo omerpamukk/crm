@@ -1,80 +1,103 @@
 # CRM
 
-Web tabanlı SaaS CRM uygulaması. Bu repo, projenin temiz başlangıç iskeletidir — henüz sayfa/ekran içermez.
+Güzellik merkezi / salon işletmeleri için web tabanlı SaaS CRM. Müşteri,
+randevu, paket, tahsilat, personel ve stok yönetimi; online randevu linki;
+platform yöneticisi için çok kiracılı admin paneli.
 
 ## Teknoloji Yığını
 
-- **Next.js 16** (App Router) + **React 19**
-- **TypeScript**
-- **Tailwind CSS v4** (CSS tabanlı yapılandırma — ayrı `tailwind.config` dosyası yoktur, tokenlar `src/app/globals.css` içinde `@theme` ile tanımlıdır)
+- **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript**
+- **Tailwind CSS v4** — CSS tabanlı yapılandırma; ayrı `tailwind.config`
+  dosyası yoktur, tokenlar `src/app/globals.css` içinde `@theme` ile tanımlıdır
 - **shadcn/ui** (Radix tabanlı bileşenler)
-- **Supabase** (`@supabase/supabase-js`)
-- **ESLint**
+- **Supabase** — Postgres + Auth + Storage, çok kiracılı RLS
+- **zod + react-hook-form** — form doğrulama
+- **Vitest** — birim testleri
+
+## Kurulum
+
+```bash
+npm install --legacy-peer-deps
+cp .env.example .env    # Supabase bilgilerini doldur
+npm run dev
+```
+
+> `--legacy-peer-deps` gerekiyor: `shadcn` paketinin babel bağımlılıkları
+> diğer paketlerle çakışıyor.
+
+### Veritabanı
+
+Migration'lar `supabase/migrations/` altında, numaralı sırayla. Supabase CLI
+kullanılmıyor; her dosya **Supabase SQL Editor'da elle çalıştırılır**.
+Hepsi tekrar-güvenlidir (`if not exists` / `drop policy if exists`).
+
+Kurulum sonrası Supabase panelinde:
+- **Authentication > URL Configuration** → Site URL ve
+  `<alan-adı>/auth/callback` Redirect URL olarak eklenmeli
+
+## Komutlar
+
+| Komut | Açıklama |
+|---|---|
+| `npm run dev` | Geliştirme sunucusu |
+| `npm run build` | Üretim derlemesi |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint |
+| `npm test` | Vitest (tek tur) |
+| `npm run test:watch` | Vitest (izleme) |
 
 ## Klasör Yapısı
 
 ```
 src/
 ├── app/
-│   ├── (auth)/         # Kimlik doğrulama route grubu (login, register vb.)
-│   ├── (dashboard)/    # Uygulama içi route grubu (korumalı sayfalar)
-│   ├── layout.tsx
-│   ├── page.tsx
-│   └── globals.css     # Tailwind + tasarım tokenları
+│   ├── (auth)/           # giris, sifremi-unuttum, yeni-sifre
+│   ├── (dashboard)/      # işletme paneli (korumalı)
+│   ├── admin/            # platform yöneticisi paneli
+│   ├── randevu/[token]/  # herkese açık online randevu
+│   ├── ajans/[token]/    # ajans salt-okunur erişimi
+│   └── api/cron/         # zamanlanmış görevler
 ├── components/
-│   ├── ui/             # shadcn/ui bileşenleri
-│   ├── layout/         # Sayfa düzeni bileşenleri (header, sidebar vb.)
-│   └── shared/         # Yeniden kullanılabilir ortak bileşenler
+│   ├── ui/               # shadcn/ui bileşenleri
+│   ├── layout/           # sidebar, üst bar, komut paleti
+│   └── shared/           # PageHeader, StatCard, EmptyState…
 ├── lib/
-│   ├── supabase.ts     # Supabase istemcisi (.env'den okur)
-│   └── utils.ts        # Yardımcı fonksiyonlar (cn vb.)
-└── types/              # Paylaşılan TypeScript tipleri
+│   ├── supabase/         # client/server/admin, auth bağlamı, guard
+│   ├── messaging/        # SMS / e-posta / WhatsApp gönderimi
+│   ├── permissions.ts    # rol-yetki matrisi
+│   └── finance.ts        # para ve seans hesapları
+└── types/database.ts     # tablo tipleri (elle yazılır)
 ```
 
-## Tasarım Tokenları
+## Modül Deseni
 
-`src/app/globals.css` içinde tanımlı temel tokenlar:
+Yeni bir modül eklerken mevcut üçlü izlenir (örnek: `personel`):
 
-| Token       | Değer     |
-|-------------|-----------|
-| `primary`   | `#5B5BD6` |
-| `positive`  | `#16A34A` |
-| `warning`   | `#F59E0B` |
-| `danger`    | `#E11D48` |
-| `radius`    | `8px`     |
+| Katman | Dosya | İçerik |
+|---|---|---|
+| Şema | `<modul>/schema.ts` | zod şeması + `z.infer` tipi |
+| Sunucu | `<modul>/actions.ts` | `safeParse` → `getBusinessId()` → Supabase → `revalidatePath()` |
+| İstemci | `<modul>/<x>-form.tsx` | `react-hook-form` + `zodResolver` |
 
-Tailwind sınıfı olarak kullanım: `bg-primary`, `text-positive`, `bg-warning`, `text-danger` vb.
+Server action'lar `{ error?: string }` döndürür; ham veritabanı hataları
+kullanıcıya gösterilmez, `console.error` ile sunucuya yazılır.
 
-## Kurulum
+## Roller
 
-```bash
-# 1. Bağımlılıkları yükle
-npm install
+Firma içi üç rol (`src/lib/permissions.ts`):
 
-# 2. Ortam değişkenlerini ayarla
-cp .env.example .env
-# .env dosyasını Supabase bilgilerinle doldur
+| Rol | Yetki |
+|---|---|
+| **Yönetici** (`owner`) | Her şey — finans, raporlar, ayarlar dahil |
+| **Resepsiyon** (`reception`) | Müşteri, randevu, tahsilat; gider/rapor göremez |
+| **Uzman** (`specialist`) | Yalnızca kendi randevuları ve hakedişi |
 
-# 3. Geliştirme sunucusunu başlat
-npm run dev
-```
+Kısıtlama üç katmanda: RLS politikaları, sayfa kapısı (`requireCapability`)
+ve menü süzmesi.
 
-Uygulama [http://localhost:3000](http://localhost:3000) adresinde çalışır.
+## Notlar
 
-## Ortam Değişkenleri
-
-| Değişken                        | Açıklama                         |
-|---------------------------------|----------------------------------|
-| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase proje URL'i             |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonim (public) anahtar |
-
-> ⚠️ Gerçek `.env` dosyası `.gitignore` ile yoksayılır ve **asla commit edilmez**. Yalnızca `.env.example` versiyon kontrolünde tutulur.
-
-## Komutlar
-
-| Komut           | Açıklama            |
-|-----------------|---------------------|
-| `npm run dev`   | Geliştirme sunucusu |
-| `npm run build` | Üretim derlemesi    |
-| `npm run start` | Üretim sunucusu     |
-| `npm run lint`  | ESLint kontrolü     |
+- `AGENTS.md`: Next.js 16 eğitim verisinden farklı — kod yazmadan önce
+  `node_modules/next/dist/docs/` okunmalı.
+- Entegrasyon bekleyen modüller (mesajlar, reklamlar, sosyal medya…)
+  `DemoBanner` ile açıkça işaretlidir; örnek veri gösterirler.

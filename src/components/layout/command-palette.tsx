@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
 import { AnimatePresence, motion } from "motion/react";
@@ -52,6 +52,7 @@ function Palette({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<CustomerHit[]>([]);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const navItems: Item[] = useMemo(
     () =>
@@ -67,20 +68,45 @@ function Palette({ onClose }: { onClose: () => void }) {
     []
   );
 
-  // ESC ile kapat + palet açıkken arka planın kaymasını engelle
+  // ESC ile kapat + palet açıkken arka planın kaymasını engelle.
+  // Ayrıca basit bir focus tuzağı: Tab arka plandaki sayfaya kaçmasın
+  // ve palet kapanınca odak tetikleyen öğeye geri dönsün.
   useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.preventDefault();
         onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      const root = dialogRef.current;
+      if (!root) return;
+      const focusable = root.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     }
+
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      previouslyFocused?.focus?.();
     };
   }, [onClose]);
 
@@ -139,6 +165,7 @@ function Palette({ onClose }: { onClose: () => void }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.98, y: -4 }}
         transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
+        ref={dialogRef}
         className="relative w-full max-w-xl overflow-hidden rounded-lg border bg-popover shadow-soft-lg"
       >
         <Command

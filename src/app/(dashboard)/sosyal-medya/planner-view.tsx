@@ -96,11 +96,11 @@ export function PlannerView() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" onClick={() => toast.info("Önceki ay (demo).")}>
+            <Button variant="outline" size="icon" aria-label="Önceki ay" onClick={() => toast.info("Önceki ay (demo).")}>
               <ChevronLeft className="size-4" />
             </Button>
             <span className="min-w-28 text-center text-sm font-semibold">Mayıs 2026</span>
-            <Button variant="outline" size="icon" onClick={() => toast.info("Sonraki ay (demo).")}>
+            <Button variant="outline" size="icon" aria-label="Sonraki ay" onClick={() => toast.info("Sonraki ay (demo).")}>
               <ChevronRight className="size-4" />
             </Button>
           </div>

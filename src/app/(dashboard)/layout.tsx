@@ -80,6 +80,14 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-svh bg-background">
+      {/* Klavye kullanıcısı 8 bölümlü menüyü her sayfada geçmek zorunda kalmasın */}
+      <a
+        href="#icerik"
+        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-[var(--radius-md)] focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-soft-lg"
+      >
+        İçeriğe geç
+      </a>
+
       {/* Masaüstü: ikon şeridi + açılır bölüm paneli (sticky, tam boy) */}
       <aside className="sticky top-0 hidden h-svh shrink-0 md:block">
         <SidebarNav
@@ -112,7 +120,7 @@ export default async function DashboardLayout({
           <TopBar notifications={notifications} />
         </header>
 
-        <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
+        <main id="icerik" tabIndex={-1} className="flex-1 px-4 py-6 md:px-8 md:py-8">
           <div className="page-shell">
             <PageTransition>{children}</PageTransition>
           </div>

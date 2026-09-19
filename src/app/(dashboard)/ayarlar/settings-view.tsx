@@ -507,7 +507,7 @@ function Integrations() {
             <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">CRM API Anahtarı</label>
             <div className="flex gap-2">
               <input readOnly value="bidi_sk_••••••••••••••••••" className="h-10 flex-1 rounded-lg border border-input bg-muted/40 px-3 font-mono text-sm" />
-              <Button variant="outline" size="icon" onClick={() => toast.success("API anahtarı kopyalandı (demo).")}><Copy className="size-4" /></Button>
+              <Button variant="outline" size="icon" aria-label="API anahtarını kopyala" onClick={() => toast.success("API anahtarı kopyalandı (demo).")}><Copy className="size-4" /></Button>
             </div>
           </div>
           <div className="space-y-1.5">
