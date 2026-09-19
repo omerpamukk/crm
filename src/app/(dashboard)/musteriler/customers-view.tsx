@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+
+import { useUrlState } from "@/lib/use-url-state";
 import Link from "next/link";
 import { Search, Download, Users, UserX, Archive, UserPlus } from "lucide-react";
 
@@ -83,13 +85,15 @@ export function CustomersView({
 }) {
   const [nowMs] = useState(() => Date.now());
   const [addOpen, setAddOpen] = useState(false);
-  const [tab, setTab] = useState<"aktif" | "pasif" | "arsiv">("aktif");
-  const [q, setQ] = useState("");
-  const [service, setService] = useState("all");
-  const [kalan, setKalan] = useState("all");
-  const [deger, setDeger] = useState("all");
-  const [iletisim, setIletisim] = useState("all");
-  const [tag, setTag] = useState("all");
+  // Filtreler URL'de tutulur: geri dönünce sıfırlanmaz, link paylaşılabilir.
+  const [tabRaw, setTab] = useUrlState("durum", "aktif");
+  const tab = (["aktif", "pasif", "arsiv"].includes(tabRaw) ? tabRaw : "aktif") as "aktif" | "pasif" | "arsiv";
+  const [q, setQ] = useUrlState("q", "");
+  const [service, setService] = useUrlState("hizmet", "all");
+  const [kalan, setKalan] = useUrlState("kalan", "all");
+  const [deger, setDeger] = useUrlState("deger", "all");
+  const [iletisim, setIletisim] = useUrlState("iletisim", "all");
+  const [tag, setTag] = useUrlState("etiket", "all");
 
   const counts = useMemo(() => {
     const x = { aktif: 0, pasif: 0, arsiv: 0 };

@@ -8,8 +8,6 @@ import { PageTransition } from "@/components/layout/page-transition";
 import { PageTitleBar } from "@/components/layout/page-title-bar";
 import { Toaster } from "@/components/ui/sonner";
 
-const DAY = 86_400_000;
-
 export default async function DashboardLayout({
   children,
 }: {
@@ -19,66 +17,38 @@ export default async function DashboardLayout({
     await getAccountContext();
   const displayName = fullName ?? email ?? "Kullanıcı";
 
-  // Menü rozeti: gecikmiş (30 gün+) ödemesi olan müşteri sayısı
+  // Menü rozetleri tek RPC ile gelir (0022_search_perf.sql).
+  // Önceden burada HER SAYFA GEZİNTİSİNDE packages tablosunun tamamı
+  // çekilip JS'te borç hesaplanıyordu; artık hesap DB'de yapılıyor.
   const supabase = await createClient();
-  const nowDate = new Date();
-  const startOfToday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
-  const endOfToday = new Date(startOfToday);
-  endOfToday.setDate(endOfToday.getDate() + 1);
+  const { data: badgeData, error: badgeError } = await supabase.rpc("sidebar_badges");
 
-  const [pkgsRes, todayApptRes, customersRes, leadsRes, upcomingApptRes] =
-    await Promise.all([
-      supabase.from("packages").select("customer_id, price, paid_amount, purchased_at"),
-      supabase
-        .from("appointments")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "planned")
-        .gte("starts_at", startOfToday.toISOString())
-        .lt("starts_at", endOfToday.toISOString()),
-      supabase
-        .from("customers")
-        .select("*", { count: "exact", head: true })
-        .eq("is_lead", false),
-      supabase
-        .from("customers")
-        .select("*", { count: "exact", head: true })
-        .eq("is_lead", true),
-      supabase
-        .from("appointments")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "planned")
-        .gte("starts_at", nowDate.toISOString()),
-    ]);
+  if (badgeError) console.error("sidebar_badges:", badgeError);
 
-  const now = nowDate.getTime();
-  const overdue = new Set<string>();
-  for (const p of (pkgsRes.data ?? []) as {
-    customer_id: string | null; price: number | null; paid_amount: number | null; purchased_at: string | null;
-  }[]) {
-    const debt = (p.price ?? 0) - (p.paid_amount ?? 0);
-    if (p.customer_id && debt > 0 && p.purchased_at && now - new Date(p.purchased_at).getTime() > 30 * DAY) {
-      overdue.add(p.customer_id);
-    }
-  }
+  const b = (badgeData ?? {}) as {
+    overdueCari?: number; todayAppts?: number; upcomingAppts?: number;
+    customers?: number; leads?: number;
+  };
+
+  const overdueCari = b.overdueCari ?? 0;
+  const todayAppts = b.todayAppts ?? 0;
 
   // Gerçek sistem-içi bildirimler (dış servis değil, kendi verinden)
-  const todayAppts = todayApptRes.count ?? 0;
   const notifications: AppNotification[] = [];
   if (todayAppts > 0) {
     notifications.push({ id: "n-appt", icon: "appointment", title: `Bugün ${todayAppts} randevu`, detail: "Günün programını kontrol et", href: "/randevular" });
   }
-  if (overdue.size > 0) {
-    notifications.push({ id: "n-debt", icon: "debt", title: `${overdue.size} müşteride gecikmiş ödeme`, detail: "Cari hesabı incele ve hatırlat", href: "/cari" });
+  if (overdueCari > 0) {
+    notifications.push({ id: "n-debt", icon: "debt", title: `${overdueCari} müşteride gecikmiş ödeme`, detail: "Cari hesabı incele ve hatırlat", href: "/cari" });
   }
 
-  // Yalnızca gerçek veriden gelen rozet: gecikmiş ödemeli müşteri sayısı
-  const badges = { overdueCari: overdue.size };
+  const badges = { overdueCari };
 
   // Menüde gösterilen kayıt sayıları (referans arayüzdeki gibi)
   const counts: Record<string, number> = {
-    "/musteriler": customersRes.count ?? 0,
-    "/leadler": leadsRes.count ?? 0,
-    "/randevular": upcomingApptRes.count ?? 0,
+    "/musteriler": b.customers ?? 0,
+    "/leadler": b.leads ?? 0,
+    "/randevular": b.upcomingAppts ?? 0,
   };
 
   return (

@@ -11,6 +11,13 @@ import { CardTitle } from "@/components/ui/card";
 import { NewCustomerButton } from "./new-customer-button";
 import { CustomersView, type EnrichedCustomer } from "./customers-view";
 
+/**
+ * Tek seferde çekilen müşteri üst sınırı.
+ * Filtreleme istemcide yapıldığı için veri tek turda geliyor; bu sınır
+ * çok büyük hesaplarda sayfanın çökmesini engeller.
+ */
+const CUSTOMER_LIMIT = 2000;
+
 export default async function MusterilerPage() {
   const supabase = await createClient();
   const now = new Date();
@@ -26,10 +33,13 @@ export default async function MusterilerPage() {
     monthSessionsRes,
     newThisMonthRes,
   ] = await Promise.all([
-    supabase.from("customers").select("*").eq("is_lead", false).order("created_at", { ascending: false }),
-    supabase.from("packages").select("customer_id, service_name, total_sessions, remaining_sessions, purchased_at, price, paid_amount"),
-    supabase.from("payments").select("customer_id, amount"),
-    supabase.from("interactions").select("customer_id, created_at, type").order("created_at", { ascending: false }),
+    // NOT: Bu sayfa istemci tarafında filtreleme yapıyor, bu yüzden veri
+    // tek seferde çekiliyor. Ölçek büyüdüğünde çökmemesi için üst sınır
+    // konuldu; sınır aşılırsa kullanıcıya uyarı gösterilir.
+    supabase.from("customers").select("*").eq("is_lead", false).order("created_at", { ascending: false }).limit(CUSTOMER_LIMIT),
+    supabase.from("packages").select("customer_id, service_name, total_sessions, remaining_sessions, purchased_at, price, paid_amount").limit(5000),
+    supabase.from("payments").select("customer_id, amount").limit(10000),
+    supabase.from("interactions").select("customer_id, created_at, type").order("created_at", { ascending: false }).limit(5000),
     supabase.from("appointments").select("customer_id, starts_at").gte("starts_at", now.toISOString()).order("starts_at", { ascending: true }),
     supabase.from("services").select("name").order("name"),
     supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "completed").gte("starts_at", startOfMonth.toISOString()),
@@ -153,6 +163,12 @@ export default async function MusterilerPage() {
             ))}
           </div>
 
+          {customers.length >= CUSTOMER_LIMIT && (
+            <p className="rounded-[var(--radius-md)] border border-warning/30 bg-warning/[0.07] px-3.5 py-2.5 text-[0.8125rem] text-muted-foreground">
+              En yeni {CUSTOMER_LIMIT.toLocaleString("tr-TR")} müşteri gösteriliyor.
+              Daha eski kayıtlara arama kutusundan ulaşabilirsin.
+            </p>
+          )}
           <CustomersView customers={enriched} services={serviceNames} tags={allTags} />
         </>
       )}

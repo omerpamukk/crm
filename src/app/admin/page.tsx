@@ -30,14 +30,21 @@ export default async function AdminHomePage() {
   const now = new Date();
   const nowMs = now.getTime();
 
-  const [bizRes, subRes, profRes, custRes, payRes, apptRes] = await Promise.all([
+  // Firma başına sayılar DB'de toplanır (0022_search_perf.sql).
+  // Önceden tüm firmaların TÜM müşteri/ödeme/randevu satırları çekilip
+  // JS'te gruplanıyordu; platform büyüdükçe lineer patlıyordu.
+  const [bizRes, subRes, statsRes, payRes, apptRes] = await Promise.all([
     supabase.from("businesses").select("id, name, sector, created_at").order("created_at", { ascending: false }),
     supabase.from("subscriptions").select("business_id, status, plan, price, expires_at"),
-    supabase.from("profiles").select("business_id"),
-    supabase.from("customers").select("business_id"),
-    supabase.from("payments").select("business_id, created_at"),
-    supabase.from("appointments").select("business_id, starts_at"),
+    supabase.rpc("platform_stats"),
+    supabase.from("payments").select("business_id, created_at").order("created_at", { ascending: false }).limit(500),
+    supabase.from("appointments").select("business_id, starts_at").order("starts_at", { ascending: false }).limit(500),
   ]);
+
+  type StatRow = { id: string; users: number; customers: number; appointments: number; revenue: number; month_revenue: number };
+  const statsById = new Map(
+    ((statsRes.data ?? []) as StatRow[]).map((s) => [s.id, s])
+  );
 
   const businesses = (bizRes.data ?? []) as { id: string; name: string; sector: string | null; created_at: string }[];
   const subList = (subRes.data ?? []) as { business_id: string; status: SubscriptionStatus; plan: string; price: number; expires_at: string | null }[];
@@ -45,14 +52,7 @@ export default async function AdminHomePage() {
   const isExpired = (s?: { status: SubscriptionStatus; expires_at: string | null }) =>
     !!s && (s.status === "active" || s.status === "trial") && !!s.expires_at && new Date(s.expires_at).getTime() < nowMs;
 
-  const count = (rows: { business_id: string | null }[]) => {
-    const m = new Map<string, number>();
-    for (const r of rows) if (r.business_id) m.set(r.business_id, (m.get(r.business_id) ?? 0) + 1);
-    return m;
-  };
-  const userCount = count((profRes.data ?? []) as { business_id: string | null }[]);
-  const custCount = count((custRes.data ?? []) as { business_id: string | null }[]);
-
+  // Son hareket: son 500 ödeme/randevudan türetilir (tam tarama değil).
   const lastActivity = new Map<string, string>();
   const bump = (bid: string | null, iso: string) => {
     if (!bid) return;
@@ -73,7 +73,7 @@ export default async function AdminHomePage() {
     return {
       id: b.id, name: b.name, sector: b.sector, createdLabel: formatDate(b.created_at),
       createdMs: new Date(b.created_at).getTime(),
-      userCount: userCount.get(b.id) ?? 0, custCount: custCount.get(b.id) ?? 0,
+      userCount: statsById.get(b.id)?.users ?? 0, custCount: statsById.get(b.id)?.customers ?? 0,
       price: s?.price ?? 0,
       status: s?.status ?? "active", plan: s?.plan ?? "trial",
       expired: isExpired(s),

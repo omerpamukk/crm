@@ -18,13 +18,15 @@ export async function searchCustomers(query: string): Promise<CustomerHit[]> {
   if (q.length < 2) return [];
 
   const supabase = await createClient();
-  const like = `%${q}%`;
-  const { data } = await supabase
-    .from("customers")
-    .select("id, full_name, phone, is_lead")
-    .or(`full_name.ilike.${like},phone.ilike.${like},email.ilike.${like}`)
-    .order("full_name")
-    .limit(8);
+
+  // Trigram indeksli arama (0022_search_perf.sql). Baştan eşleşenleri
+  // önceliklendirir; eski `ilike '%q%'` her aramada tam tarama yapıyordu.
+  const { data, error } = await supabase.rpc("search_customers", { p_query: q });
+
+  if (error) {
+    console.error("searchCustomers:", error);
+    return [];
+  }
 
   return (data ?? []) as CustomerHit[];
 }
