@@ -89,6 +89,12 @@ alter table public.reminders
 
 -- Aynı kural + aynı müşteri + aynı zaman için ikinci bir hatırlatma
 -- üretilmesini engeller (cron tekrar çalışsa bile mükerrer gönderim olmaz).
+--
+-- NOT: Bu kısmi bir indekstir (where automation_id is not null), bu yüzden
+-- `insert ... on conflict` ile EŞLEŞMEZ — Postgres kısmi indeksi ON CONFLICT
+-- hedefi olarak kabul etmez (hata 42P10). Planlayıcı (src/lib/automations/plan.ts)
+-- bu yüzden mükerrer ayıklamasını önce kendi yapar; bu indeks yarış
+-- durumlarına karşı son savunma hattıdır.
 create unique index if not exists uq_reminders_automation_once
   on public.reminders (automation_id, customer_id, scheduled_at)
   where automation_id is not null;

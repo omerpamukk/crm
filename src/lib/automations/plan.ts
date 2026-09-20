@@ -71,6 +71,20 @@ function fillTemplate(template: string, name: string): string {
 const DAY = 86_400_000;
 
 /**
+ * Günlük tetikleyiciler için hatırlatma zamanı.
+ *
+ * `now` kullanılırsa her cron turu farklı bir milisaniye üretir ve
+ * mükerrer ayıklaması tutmaz — aynı kişiye aynı gün ikinci kez mesaj
+ * gider. Bu yüzden zaman günün başına sabitlenir: bir kural bir
+ * müşteri için günde en fazla bir hatırlatma üretir.
+ */
+function startOfDay(now: Date): string {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+/**
  * Tek bir kural için gönderilecek hatırlatmaları hesaplar.
  * Her tetikleyici kendi sorgusunu yapar; hiçbiri eşleşmezse boş döner.
  */
@@ -102,7 +116,7 @@ async function planRule(
         .from("appointments")
         .select("id, starts_at, customer_id, customers(full_name)")
         .eq("business_id", rule.business_id)
-        .eq("status", "scheduled")
+        .eq("status", "planned")
         .gte("starts_at", now.toISOString())
         .lte("starts_at", windowEnd.toISOString());
 
@@ -150,7 +164,7 @@ async function planRule(
           ...base,
           customer_id: row.id,
           body: fillTemplate(rule.message!, row.full_name),
-          scheduled_at: now.toISOString(),
+          scheduled_at: startOfDay(now),
         }];
       });
     }
@@ -174,7 +188,7 @@ async function planRule(
           ...base,
           customer_id: row.id,
           body: fillTemplate(rule.message!, row.full_name),
-          scheduled_at: now.toISOString(),
+          scheduled_at: startOfDay(now),
         };
       });
     }
@@ -202,7 +216,7 @@ async function planRule(
           ...base,
           customer_id: row.customer_id,
           body: fillTemplate(rule.message!, cust?.full_name ?? ""),
-          scheduled_at: now.toISOString(),
+          scheduled_at: startOfDay(now),
           related_type: "package",
           related_id: row.id,
         }];
@@ -214,29 +228,31 @@ async function planRule(
       const days = rule.trigger_param ?? 7;
       const cutoff = new Date(now.getTime() - days * DAY);
 
-      // Borcu olan paketler: ödenen tutar toplam tutarın altındaysa.
+      // Borcu olan paketler: ödenen tutar paket ücretinin altındaysa.
+      // Vade satın alma tarihinden işler (created_at değil).
       const { data } = await admin
         .from("packages")
-        .select("id, customer_id, total_amount, paid_amount, created_at, customers(full_name)")
+        .select("id, customer_id, price, paid_amount, purchased_at, customers(full_name)")
         .eq("business_id", rule.business_id)
-        .lte("created_at", cutoff.toISOString());
+        .neq("payment_status", "paid")
+        .lte("purchased_at", cutoff.toISOString());
 
       return (data ?? []).flatMap((p) => {
         const row = p as {
           id: string;
           customer_id: string | null;
-          total_amount: number | null;
+          price: number | null;
           paid_amount: number | null;
           customers: { full_name: string } | { full_name: string }[] | null;
         };
-        const debt = (row.total_amount ?? 0) - (row.paid_amount ?? 0);
+        const debt = (row.price ?? 0) - (row.paid_amount ?? 0);
         if (debt <= 0 || !row.customer_id) return [];
         const cust = Array.isArray(row.customers) ? row.customers[0] : row.customers;
         return [{
           ...base,
           customer_id: row.customer_id,
           body: fillTemplate(rule.message!, cust?.full_name ?? ""),
-          scheduled_at: now.toISOString(),
+          scheduled_at: startOfDay(now),
           related_type: "package",
           related_id: row.id,
         }];
@@ -280,14 +296,32 @@ export async function planAutomations(
     }
     if (items.length === 0) continue;
 
-    // ignoreDuplicates: mükerrer indeks ihlalleri sessizce atlanır,
-    // yeni olanlar eklenir.
+    // Bu kuraldan daha önce üretilmiş hatırlatmaları ele: upsert'ün
+    // ON CONFLICT'i kısmi indeksle (where automation_id is not null)
+    // eşleşmediği için mükerrer ayıklaması burada, açıkça yapılır.
+    // Yarış durumunda son savunma yine uq_reminders_automation_once.
+    const { data: existing } = await admin
+      .from("reminders")
+      .select("customer_id, scheduled_at")
+      .eq("automation_id", rule.id);
+
+    const seen = new Set(
+      (existing ?? []).map(
+        (e) =>
+          `${(e as { customer_id: string | null }).customer_id}|${
+            (e as { scheduled_at: string }).scheduled_at
+          }`
+      )
+    );
+
+    const fresh = items.filter(
+      (i) => !seen.has(`${i.customer_id}|${i.scheduled_at}`)
+    );
+    if (fresh.length === 0) continue;
+
     const { data: inserted, error: insErr } = await admin
       .from("reminders")
-      .upsert(items, {
-        onConflict: "automation_id,customer_id,scheduled_at",
-        ignoreDuplicates: true,
-      })
+      .insert(fresh)
       .select("id");
 
     if (insErr) {
