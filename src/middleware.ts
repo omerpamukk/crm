@@ -4,7 +4,6 @@ import { createServerClient } from "@supabase/ssr";
 // Giriş gerektiren yollar (dashboard grubu + onboarding)
 const PROTECTED_PREFIXES = [
   "/panel",
-  "/yonetici",
   "/raporlar",
   "/musteriler",
   "/leadler",
@@ -13,15 +12,10 @@ const PROTECTED_PREFIXES = [
   "/takvim",
   "/randevu-linki",
   "/mesajlar",
-  "/reklamlar",
-  "/sosyal-medya",
-  "/metin-yazici",
-  "/otomasyonlar",
   "/hatirlaticilar",
   "/eposta-sms",
   "/stok",
   "/yorumlar",
-  "/belgeler",
   "/gorevler",
   "/ayarlar",
   "/firsatlar",

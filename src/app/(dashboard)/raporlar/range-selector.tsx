@@ -26,12 +26,12 @@ export function RangeSelector() {
 
   function select(k: string) {
     setCustomOpen(false);
-    router.push(`/yonetici?range=${k}`);
+    router.push(`/raporlar?sekme=ozet&range=${k}`);
   }
 
   function applyCustom() {
     if (!from || !to) return;
-    router.push(`/yonetici?range=ozel&from=${from}&to=${to}`);
+    router.push(`/raporlar?sekme=ozet&range=ozel&from=${from}&to=${to}`);
   }
 
   return (

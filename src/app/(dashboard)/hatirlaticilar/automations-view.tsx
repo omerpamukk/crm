@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   ChevronDown,
@@ -20,13 +21,19 @@ import {
   Mail,
   Bell,
   ListTodo,
-  Columns3,
   Sparkles,
   LayoutTemplate,
   Wand2,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+
+import {
+  saveAutomation,
+  toggleAutomation,
+  deleteAutomation,
+} from "./actions";
+import type { AutomationInput, TriggerId, ActionId } from "./schema";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -60,8 +67,6 @@ const TRIGGERS: TriggerDef[] = [
   { id: "paket_bitiyor", label: "Paket bitmek üzereyken", icon: PackageX, tone: "amber", param: { label: "Kaç seans kaldığında?", unit: "seans", def: "1" } },
   { id: "pasif_musteri", label: "Müşteri uzun süredir gelmediğinde", icon: Clock, tone: "purple", param: { label: "Kaç gündür?", unit: "gün", def: "60" } },
   { id: "dogum_gunu", label: "Doğum günü geldiğinde", icon: Gift, tone: "rose" },
-  { id: "etiket_eklendi", label: "Etiket eklendiğinde", icon: Tag, tone: "purple", param: { label: "Hangi etiket?", def: "VIP Müşteri" } },
-  { id: "dm_geldi", label: "DM / yorum geldiğinde", icon: MessageCircle, tone: "pink" },
 ];
 
 const ACTIONS: ActionDef[] = [
@@ -72,52 +77,49 @@ const ACTIONS: ActionDef[] = [
   { id: "hatirlatma", label: "Hatırlatma oluştur", icon: Bell, tone: "amber" },
   { id: "gorev", label: "Ekibe görev oluştur", icon: ListTodo, tone: "purple" },
   { id: "etiket_ekle", label: "Müşteriye etiket ekle", icon: Tag, tone: "purple", param: { label: "Eklenecek etiket", def: "Takip" } },
-  { id: "asama", label: "Pipeline aşamasını değiştir", icon: Columns3, tone: "blue" },
 ];
 
 const trigDef = (id: string) => TRIGGERS.find((t) => t.id === id) ?? TRIGGERS[0];
 const actDef = (id: string) => ACTIONS.find((a) => a.id === id) ?? ACTIONS[0];
 
-type Automation = {
+/** DB satırı (0025_automations.sql) — alan adları tabloyla birebir. */
+export type Automation = {
   id: string;
   title: string;
   active: boolean;
-  triggerId: string;
-  triggerParam?: string;
-  actionId: string;
-  actionParam?: string;
-  message?: string;
+  trigger_id: TriggerId;
+  trigger_param: number | null;
+  action_id: ActionId;
+  action_param: string | null;
+  message: string | null;
 };
 
-function triggerText(a: { triggerId: string; triggerParam?: string }) {
-  const d = trigDef(a.triggerId);
-  return a.triggerParam ? `${d.label} (${a.triggerParam}${d.param?.unit ? ` ${d.param.unit}` : ""})` : d.label;
+/** UI içi kısa erişim — eski alan adlarıyla köprü. */
+type FlowShape = { trigger_id: string; trigger_param?: number | null; action_id: string; action_param?: string | null };
+
+function triggerText(a: FlowShape) {
+  const d = trigDef(a.trigger_id);
+  return a.trigger_param != null
+    ? `${d.label} (${a.trigger_param}${d.param?.unit ? ` ${d.param.unit}` : ""})`
+    : d.label;
 }
-function actionText(a: { actionId: string; actionParam?: string }) {
-  const d = actDef(a.actionId);
-  return a.actionParam ? `${d.label}: “${a.actionParam}”` : d.label;
+function actionText(a: FlowShape) {
+  const d = actDef(a.action_id);
+  return a.action_param ? `${d.label}: “${a.action_param}”` : d.label;
 }
-function metaOf(a: { actionId: string }) {
-  const d = actDef(a.actionId);
+function metaOf(a: { action_id: string }) {
+  const d = actDef(a.action_id);
   return d.channel ?? "İç aksiyon";
 }
 
-const INITIAL: Automation[] = [
-  { id: "a1", title: "Randevu Hatırlatma", active: true, triggerId: "randevu_oncesi", triggerParam: "24", actionId: "wa", message: "Merhaba {ad}, yarınki randevunuzu hatırlatmak isteriz 🌸 Görüşmek üzere!" },
-  { id: "a2", title: "Randevu Sonrası Teşekkür", active: true, triggerId: "randevu_tamamlandi", actionId: "wa", message: "Bizi tercih ettiğiniz için teşekkürler {ad}! Deneyiminizi değerlendirir misiniz? 💜" },
-  { id: "a3", title: "Doğum Günü Kutlaması", active: true, triggerId: "dogum_gunu", actionId: "indirim", message: "İyi ki doğdunuz {ad}! Size özel %15 indirim hediyemiz sizi bekliyor." },
-  { id: "a4", title: "Gecikmiş Ödeme Hatırlatma", active: true, triggerId: "odeme_gecikti", triggerParam: "7", actionId: "wa", message: "Merhaba {ad}, ödemenizle ilgili nazik bir hatırlatma yapmak istedik 💜" },
-  { id: "a5", title: "Paketi Bitene Yenileme Teklifi", active: false, triggerId: "paket_bitiyor", triggerParam: "1", actionId: "wa", message: "{ad}, paketinizde son seansınız kaldı — yenilemede size özel fırsatımız var!" },
-  { id: "a6", title: "Pasif Müşteri Geri Kazanım", active: false, triggerId: "pasif_musteri", triggerParam: "60", actionId: "sms", message: "Sizi özledik {ad}! Dönüşünüze özel bir sürprizimiz var, bekleriz." },
-];
-
+/** Hazır kural şablonları — salonların en sık kurduğu altı senaryo. */
 const TEMPLATES: Omit<Automation, "id" | "active">[] = [
-  { title: "Randevu Hatırlatma (24 saat)", triggerId: "randevu_oncesi", triggerParam: "24", actionId: "wa", message: "Merhaba {ad}, yarınki randevunuzu hatırlatmak isteriz 🌸" },
-  { title: "Randevu Sonrası Değerlendirme", triggerId: "randevu_tamamlandi", actionId: "wa", message: "Teşekkürler {ad}! Deneyiminizi değerlendirir misiniz?" },
-  { title: "No-show Takibi", triggerId: "noshow", actionId: "wa", message: "Merhaba {ad}, kaçırdığınız randevu için yeni bir tarih ayarlayalım mı?" },
-  { title: "Doğum Günü İndirimi", triggerId: "dogum_gunu", actionId: "indirim", message: "İyi ki doğdunuz {ad}! Size özel indirim hediyemiz var." },
-  { title: "Yeni Lead Karşılama", triggerId: "yeni_lead", actionId: "wa", message: "Merhaba {ad}, ilginiz için teşekkürler! Size nasıl yardımcı olabiliriz?" },
-  { title: "Geri Kazanım (60 gün)", triggerId: "pasif_musteri", triggerParam: "60", actionId: "sms", message: "Sizi özledik {ad}! Dönüşünüze özel bir fırsatımız var." },
+  { title: "Randevu Hatırlatma (24 saat)", trigger_id: "randevu_oncesi", trigger_param: 24, action_id: "wa", action_param: null, message: "Merhaba {ad}, yarınki randevunuzu hatırlatmak isteriz 🌸" },
+  { title: "Randevu Sonrası Değerlendirme", trigger_id: "randevu_tamamlandi", trigger_param: null, action_id: "wa", action_param: null, message: "Teşekkürler {ad}! Deneyiminizi değerlendirir misiniz?" },
+  { title: "No-show Takibi", trigger_id: "noshow", trigger_param: null, action_id: "wa", action_param: null, message: "Merhaba {ad}, kaçırdığınız randevu için yeni bir tarih ayarlayalım mı?" },
+  { title: "Doğum Günü İndirimi", trigger_id: "dogum_gunu", trigger_param: null, action_id: "indirim", action_param: null, message: "İyi ki doğdunuz {ad}! Size özel indirim hediyemiz var." },
+  { title: "Yeni Lead Karşılama", trigger_id: "yeni_lead", trigger_param: null, action_id: "wa", action_param: null, message: "Merhaba {ad}, ilginiz için teşekkürler! Size nasıl yardımcı olabiliriz?" },
+  { title: "Geri Kazanım (60 gün)", trigger_id: "pasif_musteri", trigger_param: 60, action_id: "sms", action_param: null, message: "Sizi özledik {ad}! Dönüşünüze özel bir fırsatımız var." },
 ];
 
 function Switch({ on, onClick }: { on: boolean; onClick: (e: React.MouseEvent) => void }) {
@@ -129,9 +131,9 @@ function Switch({ on, onClick }: { on: boolean; onClick: (e: React.MouseEvent) =
 }
 
 /** Tetik → aksiyon dikey akış (WHEN / THEN). */
-function Flow({ a }: { a: Pick<Automation, "triggerId" | "triggerParam" | "actionId" | "actionParam"> }) {
-  const T = trigDef(a.triggerId);
-  const A = actDef(a.actionId);
+function Flow({ a }: { a: FlowShape }) {
+  const T = trigDef(a.trigger_id);
+  const A = actDef(a.action_id);
   const TI = T.icon;
   const AI = A.icon;
   return (
@@ -161,7 +163,7 @@ function Flow({ a }: { a: Pick<Automation, "triggerId" | "triggerParam" | "actio
 type Draft = { title: string; triggerId: string; triggerParam: string; actionId: string; actionParam: string; message: string };
 
 /** Sıfırdan / düzenleme kurucusu. */
-function Builder({ initial, submitLabel, onSubmit }: { initial?: Partial<Draft>; submitLabel: string; onSubmit: (d: Draft) => void }) {
+function Builder({ initial, submitLabel, busy, onSubmit }: { initial?: Partial<Draft>; submitLabel: string; busy?: boolean; onSubmit: (d: Draft) => void }) {
   const [d, setD] = useState<Draft>({
     title: initial?.title ?? "",
     triggerId: initial?.triggerId ?? TRIGGERS[0].id,
@@ -224,50 +226,98 @@ function Builder({ initial, submitLabel, onSubmit }: { initial?: Partial<Draft>;
 
       {/* Ad + önizleme */}
       <div className="space-y-1.5">
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Otomasyon adı</label>
+        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kural adı</label>
         <input value={d.title} onChange={(e) => setD((p) => ({ ...p, title: e.target.value }))} placeholder={suggested} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" />
       </div>
 
       <div>
         <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Önizleme</p>
-        <Flow a={d} />
+        <Flow
+          a={{
+            trigger_id: d.triggerId,
+            trigger_param: d.triggerParam ? Number(d.triggerParam) : null,
+            action_id: d.actionId,
+            action_param: d.actionParam || null,
+          }}
+        />
       </div>
 
-      <Button className="w-full" onClick={() => onSubmit({ ...d, title: d.title.trim() || suggested })}>{submitLabel}</Button>
+      <Button className="w-full" disabled={busy} onClick={() => onSubmit({ ...d, title: d.title.trim() || suggested })}>{busy ? "Kaydediliyor…" : submitLabel}</Button>
     </div>
   );
 }
 
-export function AutomationsView() {
-  const [items, setItems] = useState<Automation[]>(INITIAL);
+/** Form değerleri (hepsi string) → DB satırı. */
+function draftToInput(d: Draft, id?: string, active = true): AutomationInput {
+  const param = d.triggerParam.trim();
+  return {
+    id,
+    title: d.title.trim(),
+    active,
+    trigger_id: d.triggerId as AutomationInput["trigger_id"],
+    trigger_param: param ? Number(param) : null,
+    action_id: d.actionId as AutomationInput["action_id"],
+    action_param: d.actionParam.trim() || null,
+    message: d.message.trim() || null,
+  };
+}
+
+export function AutomationsView({ items }: { items: Automation[] }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
   const [editing, setEditing] = useState<Automation | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
   const activeCount = items.filter((a) => a.active).length;
 
-  function toggle(id: string) {
-    setItems((prev) => prev.map((a) => (a.id === id ? { ...a, active: !a.active } : a)));
+  function toggle(a: Automation) {
+    start(async () => {
+      const res = await toggleAutomation(a.id, !a.active);
+      if (res.error) toast.error(res.error);
+      else router.refresh();
+    });
   }
+
   function remove(id: string) {
-    setItems((prev) => prev.filter((a) => a.id !== id));
-    setEditing(null);
-    toast.success("Otomasyon silindi");
+    if (!window.confirm("Bu kural silinsin mi?")) return;
+    start(async () => {
+      const res = await deleteAutomation(id);
+      if (res.error) toast.error(res.error);
+      else {
+        setEditing(null);
+        toast.success("Kural silindi");
+        router.refresh();
+      }
+    });
   }
+
   function saveDraft(d: Draft) {
-    if (editing) {
-      setItems((prev) => prev.map((a) => (a.id === editing.id ? { ...a, ...d, active: editing.active, message: d.message || undefined, triggerParam: d.triggerParam || undefined, actionParam: d.actionParam || undefined } : a)));
-      setEditing(null);
-      toast.success("Otomasyon güncellendi");
-    } else {
-      setItems((prev) => [...prev, { id: `auto-${new Date().getTime()}`, active: true, ...d, message: d.message || undefined, triggerParam: d.triggerParam || undefined, actionParam: d.actionParam || undefined }]);
-      setCreateOpen(false);
-      toast.success(`“${d.title}” otomasyonu eklendi`);
-    }
+    start(async () => {
+      const res = await saveAutomation(
+        draftToInput(d, editing?.id, editing?.active ?? true)
+      );
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      if (editing) setEditing(null);
+      else setCreateOpen(false);
+      toast.success(editing ? "Kural güncellendi" : `“${d.title}” kuralı eklendi`);
+      router.refresh();
+    });
   }
+
   function addTemplate(t: Omit<Automation, "id" | "active">) {
-    setItems((prev) => [...prev, { ...t, id: `auto-${new Date().getTime()}`, active: true }]);
-    setCreateOpen(false);
-    toast.success(`“${t.title}” otomasyonu eklendi`);
+    start(async () => {
+      const res = await saveAutomation({ ...t, active: true });
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      setCreateOpen(false);
+      toast.success(`“${t.title}” kuralı eklendi`);
+      router.refresh();
+    });
   }
 
   return (
@@ -278,7 +328,7 @@ export function AutomationsView() {
           <span className="size-1.5 rounded-full bg-positive" />{activeCount} aktif
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 font-medium">{items.length - activeCount} pasif</span>
-        <span className="text-muted-foreground/70">· Toplam {items.length} otomasyon</span>
+        <span className="text-muted-foreground/70">· Toplam {items.length} kural</span>
         <span className="ml-auto hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex"><Sparkles className="size-3.5 text-primary" />Tetik gerçekleştiğinde aksiyon otomatik çalışır</span>
       </div>
 
@@ -295,7 +345,7 @@ export function AutomationsView() {
                 <span className="inline-flex items-center gap-1 truncate text-xs text-muted-foreground">{metaOf(a)}</span>
                 <div className="flex items-center gap-2">
                   <Pencil className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                  <Switch on={a.active} onClick={(e) => { e.stopPropagation(); toggle(a.id); }} />
+                  <Switch on={a.active} onClick={(e) => { e.stopPropagation(); toggle(a); }} />
                 </div>
               </div>
             </CardContent>
@@ -304,7 +354,7 @@ export function AutomationsView() {
 
         <button type="button" onClick={() => setCreateOpen(true)} className="flex min-h-52 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-card/50 p-4 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.03]">
           <span className="flex size-12 items-center justify-center rounded-[var(--radius-md)] bg-primary/10 text-primary"><Plus className="size-6" /></span>
-          <span className="font-semibold">Yeni Otomasyon</span>
+          <span className="font-semibold">Yeni Kural</span>
           <span className="text-xs text-muted-foreground">Şablondan seç veya sıfırdan oluştur</span>
         </button>
       </div>
@@ -312,27 +362,27 @@ export function AutomationsView() {
       {/* Oluştur modalı — şablon / sıfırdan */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader><DialogTitle>Yeni Otomasyon</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Yeni Hatırlatma Kuralı</DialogTitle></DialogHeader>
           <Tabs defaultValue="scratch">
             <TabsList>
               <TabsTrigger value="scratch"><Wand2 className="size-4" />Sıfırdan Oluştur</TabsTrigger>
               <TabsTrigger value="template"><LayoutTemplate className="size-4" />Şablondan Seç</TabsTrigger>
             </TabsList>
             <TabsContent value="scratch" className="mt-4">
-              <Builder submitLabel="Otomasyonu Oluştur" onSubmit={saveDraft} />
+              <Builder submitLabel="Kuralı Oluştur" busy={pending} onSubmit={saveDraft} />
             </TabsContent>
             <TabsContent value="template" className="mt-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 {TEMPLATES.map((t) => {
-                  const TI = trigDef(t.triggerId).icon;
-                  const AI = actDef(t.actionId).icon;
+                  const TI = trigDef(t.trigger_id).icon;
+                  const AI = actDef(t.action_id).icon;
                   return (
                     <button key={t.title} type="button" onClick={() => addTemplate(t)} className="rounded-lg border p-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/[0.03]">
                       <p className="mb-2 text-sm font-semibold leading-tight">{t.title}</p>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span className={cn("flex size-6 items-center justify-center rounded-md", TONE[trigDef(t.triggerId).tone])}><TI className="size-3.5" /></span>
+                        <span className={cn("flex size-6 items-center justify-center rounded-md", TONE[trigDef(t.trigger_id).tone])}><TI className="size-3.5" /></span>
                         <ChevronDown className="size-3 -rotate-90" />
-                        <span className={cn("flex size-6 items-center justify-center rounded-md", TONE[actDef(t.actionId).tone])}><AI className="size-3.5" /></span>
+                        <span className={cn("flex size-6 items-center justify-center rounded-md", TONE[actDef(t.action_id).tone])}><AI className="size-3.5" /></span>
                         <span className="ml-1 truncate">{metaOf(t)}</span>
                       </div>
                     </button>
@@ -347,7 +397,7 @@ export function AutomationsView() {
       {/* Düzenle modalı — tam kurucu */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader><DialogTitle>Otomasyonu Düzenle</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Kuralı Düzenle</DialogTitle></DialogHeader>
           {editing && (
             <>
               <div className="mb-3 flex items-center justify-between rounded-lg border p-3">
@@ -358,12 +408,13 @@ export function AutomationsView() {
                 <Switch on={editing.active} onClick={() => setEditing((e) => (e ? { ...e, active: !e.active } : e))} />
               </div>
               <Builder
-                initial={{ title: editing.title, triggerId: editing.triggerId, triggerParam: editing.triggerParam ?? "", actionId: editing.actionId, actionParam: editing.actionParam ?? "", message: editing.message ?? "" }}
+                initial={{ title: editing.title, triggerId: editing.trigger_id, triggerParam: editing.trigger_param?.toString() ?? "", actionId: editing.action_id, actionParam: editing.action_param ?? "", message: editing.message ?? "" }}
                 submitLabel="Değişiklikleri Kaydet"
+                busy={pending}
                 onSubmit={saveDraft}
               />
               <DialogFooter className="mt-3">
-                <Button variant="destructive" onClick={() => remove(editing.id)}><Trash2 className="size-4" />Otomasyonu Sil</Button>
+                <Button variant="destructive" disabled={pending} onClick={() => remove(editing.id)}><Trash2 className="size-4" />Kuralı Sil</Button>
               </DialogFooter>
             </>
           )}

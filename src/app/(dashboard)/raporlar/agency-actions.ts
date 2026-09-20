@@ -54,7 +54,7 @@ export async function createAgencyAccess(
 
   if (error) return { error: `Ajans erişimi oluşturulamadı: ${error.message}` };
 
-  revalidatePath("/yonetici");
+  revalidatePath("/raporlar");
   return {};
 }
 
@@ -98,7 +98,7 @@ export async function updateAgencyAccess(
 
   if (error) return { error: `Ajans erişimi güncellenemedi: ${error.message}` };
 
-  revalidatePath("/yonetici");
+  revalidatePath("/raporlar");
   return {};
 }
 
@@ -109,7 +109,7 @@ export async function revokeAgencyAccess(id: string): Promise<ActionResult> {
     .update({ is_active: false })
     .eq("id", id);
   if (error) return { error: `İşlem başarısız: ${error.message}` };
-  revalidatePath("/yonetici");
+  revalidatePath("/raporlar");
   return {};
 }
 
@@ -117,7 +117,7 @@ export async function deleteAgencyAccess(id: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase.from("agency_access").delete().eq("id", id);
   if (error) return { error: `Silinemedi: ${error.message}` };
-  revalidatePath("/yonetici");
+  revalidatePath("/raporlar");
   return {};
 }
 
@@ -131,6 +131,6 @@ export async function renewAgencyAccess(
     .update({ is_active: true, expires_at: expiresFromDays(days) })
     .eq("id", id);
   if (error) return { error: `Yenilenemedi: ${error.message}` };
-  revalidatePath("/yonetici");
+  revalidatePath("/raporlar");
   return {};
 }

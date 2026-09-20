@@ -16,10 +16,8 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { requireCapability } from "@/lib/supabase/guard";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { PageHeader } from "@/components/shared/page-header";
 import {
   Card,
   CardContent,
@@ -30,12 +28,9 @@ import {
 
 import type { AgencyAccess } from "@/types/database";
 
-import { NewExpenseButton } from "../giderler/new-expense-button";
-import { TrendChart } from "../raporlar/charts";
+import { TrendChart } from "./charts";
 import { RangeSelector } from "./range-selector";
 import { AgencyPanelDialog } from "./agency-panel-dialog";
-
-export const metadata = { title: "Yönetici Paneli" };
 
 const MONTH_NAMES = [
   "Oca", "Şub", "Mar", "Nis", "May", "Haz",
@@ -100,15 +95,22 @@ function resolveRange(range: string, from: string | undefined, to: string | unde
   };
 }
 
-export default async function YoneticiPage({
-  searchParams,
+/**
+ * Raporlar > Genel Bakış sekmesi.
+ *
+ * Dönem seçilebilen finansal özet: KPI'lar, kaynak bazlı gelir, trend,
+ * sağlık skoru ve risk uyarıları. Yetki kapısı çağıran sayfada
+ * (raporlar/page.tsx) bir kez uygulanır.
+ */
+export async function ReportsOverview({
+  range = "1y",
+  from,
+  to,
 }: {
-  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
+  range?: string;
+  from?: string;
+  to?: string;
 }) {
-  // İşletme geneli finansal özet — yalnızca işletme sahibi.
-  await requireCapability("raporlar");
-
-  const { range = "1y", from, to } = await searchParams;
   const supabase = await createClient();
   const now = new Date();
   const { start, end, prevStart, prevEnd, chartMonths } = resolveRange(range, from, to, now);
@@ -280,13 +282,6 @@ export default async function YoneticiPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Yönetici Paneli"
-        description="İşletmenin kazanç istatistikleri, kârlılık ve büyüme analizi."
-      >
-        <NewExpenseButton />
-      </PageHeader>
-
       {/* Başlık satırı + dönem seçici */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -425,11 +420,6 @@ export default async function YoneticiPage({
                     {r.text}
                   </li>
                 ))}
-                <li className="pt-1">
-                  <Link href="/raporlar" className="flex items-center gap-1 text-xs text-primary hover:underline">
-                    Detaylı analiz için Raporlar <ArrowRight className="size-3" />
-                  </Link>
-                </li>
               </ul>
             )}
           </CardContent>

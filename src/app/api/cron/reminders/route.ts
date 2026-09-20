@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/messaging/send";
+import { planAutomations } from "@/lib/automations/plan";
 
 /**
  * Zamanlanmış hatırlatma gönderimi.
@@ -40,6 +41,10 @@ export async function GET(request: NextRequest) {
   }
 
   const admin = createAdminClient();
+
+  // Önce otomasyon kurallarını tara ve vadesi gelenleri kuyruğa yaz
+  // (0025_automations.sql), sonra kuyruğu gönder.
+  const { planned } = await planAutomations(admin);
 
   const { data, error } = await admin
     .from("reminders")
@@ -111,5 +116,5 @@ export async function GET(request: NextRequest) {
     else failed++;
   }
 
-  return NextResponse.json({ processed: rows.length, sent, failed });
+  return NextResponse.json({ planned, processed: rows.length, sent, failed });
 }
