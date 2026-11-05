@@ -5,6 +5,7 @@ import type { Service } from "@/types/database";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { requireCapability } from "@/lib/supabase/guard";
 
 import { ensureBookingSettings } from "./booking-actions";
 import { BookingLinkView } from "./booking-link-view";
@@ -14,6 +15,7 @@ export const metadata = { title: "Randevu Linki" };
 export const dynamic = "force-dynamic";
 
 export default async function RandevuLinkiPage() {
+  await requireCapability("randevu_yonet");
   const { settings, error } = await ensureBookingSettings();
 
   if (error || !settings) {

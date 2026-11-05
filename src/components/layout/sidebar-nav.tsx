@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import {
   ChevronDown,
@@ -11,12 +11,12 @@ import {
   Flower2,
   LogOut,
   Settings,
-  LifeBuoy,
 } from "lucide-react";
 
 import { NAV_SECTIONS, navSectionsForRole, type NavItem } from "@/lib/nav";
+import { can } from "@/lib/permissions";
 import type { UserRole } from "@/types/database";
-import { createClient } from "@/lib/supabase/client";
+import { signOutAndClear } from "@/app/admin/view-as-actions";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -91,7 +91,6 @@ export function SidebarNav({
   variant?: "desktop" | "full";
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
 
   // Tercihler tarayıcıda saklanır; lazy initializer ilk render'da okur.
@@ -128,10 +127,8 @@ export function SidebarNav({
 
   async function handleLogout() {
     setLoggingOut(true);
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/giris");
-    router.refresh();
+    // Sunucuda: admin firmaya girmişse oturum satırı ve çerezler de temizlenir.
+    await signOutAndClear();
   }
 
   const isCollapsed = variant === "desktop" && collapsed;
@@ -313,22 +310,16 @@ export function SidebarNav({
             <span className="sr-only">Menüyü genişlet</span>
           </button>
         )}
-        <FooterLink
-          href="/ayarlar"
-          label="Ayarlar"
-          icon={Settings}
-          pathname={pathname}
-          collapsed={isCollapsed}
-          onNavigate={onNavigate}
-        />
-        <FooterLink
-          href="/gorevler"
-          label="Yardım Merkezi"
-          icon={LifeBuoy}
-          pathname={pathname}
-          collapsed={isCollapsed}
-          onNavigate={onNavigate}
-        />
+        {(!role || can(role, "ayarlar")) && (
+          <FooterLink
+            href="/ayarlar"
+            label="Ayarlar"
+            icon={Settings}
+            pathname={pathname}
+            collapsed={isCollapsed}
+            onNavigate={onNavigate}
+          />
+        )}
       </div>
     </div>
   );

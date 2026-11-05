@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { requireCapability } from "@/lib/supabase/guard";
 
 import { NewPackageButton } from "./new-package-button";
 import { PackageRowActions } from "./package-row-actions";
@@ -31,6 +32,7 @@ type PackageRow = PackageType & {
 };
 
 export default async function PaketlerPage() {
+  await requireCapability("tahsilat");
   const supabase = await createClient();
 
   const [packagesRes, customersRes] = await Promise.all([

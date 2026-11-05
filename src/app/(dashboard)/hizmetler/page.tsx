@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { requireCapability } from "@/lib/supabase/guard";
 
 import { NewServiceButton } from "./new-service-button";
 import { ServiceRowActions } from "./service-row-actions";
@@ -20,6 +21,7 @@ import { ServiceRowActions } from "./service-row-actions";
 export const metadata = { title: "Hizmetler" };
 
 export default async function HizmetlerPage() {
+  await requireCapability("randevu_yonet");
   const supabase = await createClient();
   const { data } = await supabase
     .from("services")

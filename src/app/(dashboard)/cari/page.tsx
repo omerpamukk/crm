@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireCapability } from "@/lib/supabase/guard";
 
 import { CariView, type CariRow } from "./cari-view";
 
@@ -14,6 +15,7 @@ export const metadata = { title: "Cari Hesap" };
 const DAY = 86_400_000;
 
 export default async function CariPage() {
+  await requireCapability("tahsilat");
   const supabase = await createClient();
   const now = new Date().getTime();
 

@@ -3,7 +3,7 @@ import { getBusinessId } from "@/lib/supabase/business";
 
 import { TasksBoard, type BoardColumn, type BoardTask, type BoardOption } from "./tasks-board";
 
-export const metadata = { title: "Görev Sistemi" };
+export const metadata = { title: "Görevler" };
 
 export default async function GorevlerPage() {
   const supabase = await createClient();

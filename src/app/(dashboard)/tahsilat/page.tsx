@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireCapability } from "@/lib/supabase/guard";
 
 import { NewPaymentButton } from "./new-payment-button";
 import { SalesRange } from "./sales-range";
@@ -34,6 +35,7 @@ export default async function SatislarPage({
 }: {
   searchParams: Promise<{ range?: string }>;
 }) {
+  await requireCapability("tahsilat");
   const { range = "buay" } = await searchParams;
   const supabase = await createClient();
   const now = new Date();

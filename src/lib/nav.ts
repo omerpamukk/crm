@@ -14,17 +14,11 @@ import {
   UserCog,
   Home,
   ShoppingCart,
-  MessageSquare,
-  Workflow,
   Building2,
-  Settings,
+  TrendingUp,
   Link2,
-  Inbox,
   Bell,
-  Mail,
-  MapPin,
   ListTodo,
-  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -57,7 +51,17 @@ export interface NavSection {
   comingSoon?: boolean;
 }
 
-/** Dashboard sol menüsü — katlanabilir bölümler halinde. */
+/**
+ * Dashboard sol menüsü — katlanabilir bölümler halinde.
+ *
+ * Menüde OLMAYAN ama çalışan sayfalar (Kasım 2026, kullanıcı kararı):
+ * /mesajlar, /eposta-sms, /yorumlar — dış entegrasyon bekleyen, örnek
+ * veriyle çalışan demo sayfalar. İlgili bağlantı (WhatsApp/SMS/Google)
+ * kurulunca buraya geri eklenir.
+ *
+ * `cap` taşıyan öğelerin sayfası da aynı yetenekle `requireCapability`
+ * çağırır; menü ile sayfa kapısı aynı kalmalı.
+ */
 export const NAV_SECTIONS: NavSection[] = [
   {
     key: "ana",
@@ -65,68 +69,43 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: Home,
     items: [
       { href: "/panel", label: "Genel Bakış", icon: LayoutDashboard },
-      { href: "/raporlar", label: "Raporlar", icon: BarChart3, cap: "raporlar" },
+      { href: "/takvim", label: "Takvim", icon: CalendarRange },
+      { href: "/randevular", label: "Randevular", icon: CalendarDays },
       { href: "/musteriler", label: "Müşteriler", icon: Users },
-      { href: "/leadler", label: "Lead'ler", icon: Columns3 },
-      { href: "/firsatlar", label: "Gelir Fırsatları", icon: Sparkles },
+      { href: "/gorevler", label: "Görevler", icon: ListTodo },
     ],
   },
   {
     key: "satis",
-    label: "Satış & Tahsilat",
+    label: "Satış",
     icon: ShoppingCart,
     items: [
-      { href: "/tahsilat", label: "Satışlar", icon: ShoppingBag },
-      { href: "/cari", label: "Cari Hesap", icon: Scale, badge: "overdueCari" },
-      { href: "/paketler", label: "Paketler", icon: Package },
+      { href: "/tahsilat", label: "Satışlar", icon: ShoppingBag, cap: "tahsilat" },
+      { href: "/paketler", label: "Paketler", icon: Package, cap: "tahsilat" },
+      { href: "/cari", label: "Cari Hesap", icon: Scale, badge: "overdueCari", cap: "tahsilat" },
     ],
   },
   {
-    key: "randevu",
-    label: "Randevu Yönetimi",
-    icon: CalendarRange,
+    key: "buyume",
+    label: "Büyüme",
+    icon: TrendingUp,
     items: [
-      { href: "/takvim", label: "Takvim", icon: CalendarRange },
-      { href: "/randevular", label: "Randevular", icon: CalendarDays },
-      { href: "/randevu-linki", label: "Randevu Linki", icon: Link2 },
+      { href: "/leadler", label: "Lead'ler", icon: Columns3, cap: "musteri_yonet" },
+      { href: "/firsatlar", label: "Gelir Fırsatları", icon: Sparkles, cap: "musteri_yonet" },
+      { href: "/randevu-linki", label: "Randevu Linki", icon: Link2, cap: "randevu_yonet" },
+      { href: "/hatirlaticilar", label: "Hatırlatmalar", icon: Bell, cap: "musteri_yonet" },
     ],
   },
   {
-    key: "mesajlasma",
-    label: "Mesajlaşma",
-    icon: MessageSquare,
-    items: [
-      { href: "/mesajlar", label: "Tüm Mesajlar", icon: Inbox },
-    ],
-  },
-  {
-    key: "akis",
-    label: "İş Akışları",
-    icon: Workflow,
-    items: [
-      { href: "/hatirlaticilar", label: "Otomatik Hatırlatmalar", icon: Bell },
-      { href: "/eposta-sms", label: "E-posta & SMS", icon: Mail },
-    ],
-  },
-  {
-    key: "isletme",
-    label: "İşletme",
+    key: "yonetim",
+    label: "Yönetim",
     icon: Building2,
     items: [
-      { href: "/hizmetler", label: "Hizmetler & Fiyatlar", icon: Scissors },
+      { href: "/raporlar", label: "Raporlar", icon: BarChart3, cap: "raporlar" },
+      { href: "/hizmetler", label: "Hizmetler", icon: Scissors, cap: "randevu_yonet" },
       { href: "/personel", label: "Personel", icon: UserCog, cap: "personel_yonet" },
-      { href: "/stok", label: "Stok", icon: Package },
-      { href: "/giderler", label: "Gider Yönetimi", icon: Receipt, cap: "finans" },
-      { href: "/yorumlar", label: "Google Maps & Yorumlar", icon: MapPin },
-    ],
-  },
-  {
-    key: "sistem",
-    label: "Sistem",
-    icon: Settings,
-    items: [
-      { href: "/gorevler", label: "Görev Sistemi", icon: ListTodo },
-      { href: "/ayarlar", label: "Ayarlar", icon: SlidersHorizontal, cap: "ayarlar" },
+      { href: "/stok", label: "Stok", icon: Package, cap: "tahsilat" },
+      { href: "/giderler", label: "Giderler", icon: Receipt, cap: "finans" },
     ],
   },
 ];

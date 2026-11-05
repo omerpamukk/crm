@@ -3,10 +3,11 @@ import { Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessId } from "@/lib/supabase/business";
 import { PageHeader } from "@/components/shared/page-header";
+import { requireCapability } from "@/lib/supabase/guard";
 
 import { AutomationsView, type Automation } from "./automations-view";
 
-export const metadata = { title: "Otomatik Hatırlatmalar" };
+export const metadata = { title: "Hatırlatmalar" };
 
 /**
  * Otomatik Hatırlatmalar — eski "Otomasyonlar" ve "Hatırlatıcılar"
@@ -14,6 +15,7 @@ export const metadata = { title: "Otomatik Hatırlatmalar" };
  * (0025_automations.sql); cron bunları okuyup `reminders` üretir.
  */
 export default async function HatirlaticilarPage() {
+  await requireCapability("musteri_yonet");
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
 
@@ -30,7 +32,7 @@ export default async function HatirlaticilarPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Otomatik Hatırlatmalar"
+        title="Hatırlatmalar"
         description="Randevu, ödeme ve doğum günü mesajlarını otomatikleştir — kural bir kez kurulur, sonrası kendiliğinden işler."
       />
 

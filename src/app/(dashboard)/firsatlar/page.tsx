@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
+import { requireCapability } from "@/lib/supabase/guard";
 
 import { OpportunitiesView, type OppCategory, type OppItem } from "./opportunities-view";
 
@@ -83,6 +84,7 @@ const DEMO_CATEGORIES: OppCategory[] = [
 ];
 
 export default async function FirsatlarPage() {
+  await requireCapability("musteri_yonet");
   const supabase = await createClient();
   const now = new Date();
 

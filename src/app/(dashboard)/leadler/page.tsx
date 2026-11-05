@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Customer, PipelineStage } from "@/types/database";
 import { PageHeader } from "@/components/shared/page-header";
+import { requireCapability } from "@/lib/supabase/guard";
 
 import { NewLeadButton } from "./new-lead-button";
 import { LeadBoard } from "./lead-board";
@@ -8,6 +9,7 @@ import { LeadBoard } from "./lead-board";
 export const metadata = { title: "Lead'ler" };
 
 export default async function LeadlerPage() {
+  await requireCapability("musteri_yonet");
   const supabase = await createClient();
 
   const [stagesRes, leadsRes, staffRes] = await Promise.all([

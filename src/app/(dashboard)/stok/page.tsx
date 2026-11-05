@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { requireCapability } from "@/lib/supabase/guard";
 
 import { StockView, type StockProduct, type StockMovement } from "./stock-view";
 
 export const metadata = { title: "Stok" };
 
 export default async function StokPage() {
+  await requireCapability("tahsilat");
   const supabase = await createClient();
 
   const [productsRes, movementsRes] = await Promise.all([

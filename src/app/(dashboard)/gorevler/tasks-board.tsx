@@ -288,7 +288,7 @@ export function TasksBoard({
   if (!hasBusiness) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Görev Sistemi" description="Ekip görevlerini listeler halinde yönet." />
+        <PageHeader title="Görevler" description="Ekip görevlerini listeler halinde yönet." />
         <p className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
           Oturum bulunamadı.
         </p>
@@ -298,7 +298,7 @@ export function TasksBoard({
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Görev Sistemi" description="Listeleri Trello gibi yönet: kart ekle, sürükle, kartın içine girip düzenle; müşteri bağla, geçmişi gör.">
+      <PageHeader title="Görevler" description="Görevleri listelere ayır: kart ekle, sürükle, kartı açıp düzenle; müşteri bağla, geçmişi gör.">
         <Button onClick={() => openAdd(columns[0]?.id ?? "todo")}>
           <Plus className="size-4" />
           Görev Ekle
