@@ -1,0 +1,4 @@
+- [Görsel yön tercihleri](feedback_gorsel_yon.md) — sade reddedildi, Untitled UI referansı beğenildi, araçları sekmede birleştirme
+- [Dev sunucu ENOSPC](proje_dev_sunucu_disk.md) — disk dolu → dev 500; yan yol next build + start -p 3100
+- [Mobil tek satır kuralı](feedback_mobil_tek_satir.md) — mobilde etiket/rozet/KPI asla iki satıra kırılmaz; yerleşim esner, otomatik tarama
+- [Playwright ortamı](proje_playwright_ortami.md) — file:// engelli, kullanıcı %90 zoom'la izliyor (JS click kullan), no-store sunucu

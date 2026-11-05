@@ -1,6 +1,6 @@
 # CRM
 
-Güzellik merkezi / salon işletmeleri için web tabanlı SaaS CRM. Müşteri,
+Hizmet sektörü işletmeleri (güzellik salonu, klinik, stüdyo…) için web tabanlı SaaS CRM. Müşteri,
 randevu, paket, tahsilat, personel ve stok yönetimi; online randevu linki;
 platform yöneticisi için çok kiracılı admin paneli.
 

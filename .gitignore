@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# playwright mcp geçici çıktıları
+/.playwright-mcp/
+
+# üçüncü taraf skill (Apple HIG metni) — yalnızca yerel
+/.claude/skills/apple-design/
