@@ -37,6 +37,7 @@ export default function YeniSifrePage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [hasSession, setHasSession] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
 
   const {
     register,
@@ -45,12 +46,15 @@ export default function YeniSifrePage() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   // Buraya yalnızca geçerli bir sıfırlama bağlantısıyla gelinebilir:
-  // /auth/callback kodu oturuma çevirmiş olmalı.
+  // /sifre-baglanti (veya eski PKCE akışında /auth/callback) oturumu kurmuş olmalı.
   useEffect(() => {
     const supabase = createClient();
     supabase.auth
       .getSession()
-      .then(({ data }) => setHasSession(!!data.session))
+      .then(({ data }) => {
+        setHasSession(!!data.session);
+        setEmail(data.session?.user.email ?? null);
+      })
       .finally(() => setChecking(false));
   }, []);
 
@@ -103,7 +107,18 @@ export default function YeniSifrePage() {
     <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle>Yeni şifre belirle</CardTitle>
-        <CardDescription>En az 8 karakterli bir şifre seç.</CardDescription>
+        <CardDescription>
+          {/* Hangi hesabın şifresinin değiştiği açıkça görünsün: başkasının
+              ürettiği bir bağlantıyla gelen kullanıcı bunu fark edebilmeli. */}
+          {email ? (
+            <>
+              <span className="font-medium text-foreground">{email}</span> hesabı için en az
+              8 karakterli bir şifre seç.
+            </>
+          ) : (
+            "En az 8 karakterli bir şifre seç."
+          )}
+        </CardDescription>
       </CardHeader>
 
       <form onSubmit={handleSubmit(onSubmit)}>

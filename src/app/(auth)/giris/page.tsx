@@ -19,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useRecoveryLink } from "../use-recovery-link";
 
 const schema = z.object({
   email: z.string().email("Geçerli bir e-posta adresi girin"),
@@ -30,6 +31,11 @@ type FormValues = z.infer<typeof schema>;
 export default function GirisPage() {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
+  // Supabase panelinden gönderilen kurtarma linki Site URL köküne gelir;
+  // kök oturumsuz kullanıcıyı buraya yönlendirir (# kısmı korunur).
+  // Uygulamadan istenen linkler doğrudan /sifre-baglanti'ya gider.
+  const link = useRecoveryLink();
+  const shownError = formError ?? (link.status === "error" ? link.message : null);
 
   const {
     register,
@@ -89,6 +95,17 @@ export default function GirisPage() {
     router.refresh();
   }
 
+  if (link.status === "verifying") {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Bağlantı doğrulanıyor…</CardTitle>
+          <CardDescription>Birkaç saniye içinde yönlendirileceksin.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -139,9 +156,9 @@ export default function GirisPage() {
             )}
           </div>
 
-          {formError && (
+          {shownError && (
             <p role="alert" className="text-sm text-danger">
-              {formError}
+              {shownError}
             </p>
           )}
         </CardContent>

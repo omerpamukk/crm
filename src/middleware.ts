@@ -32,10 +32,11 @@ const PROTECTED_PREFIXES = [
 // Yalnızca giriş yapmamış kullanıcıların görebileceği yollar (açık kayıt kapandı)
 const AUTH_ONLY_PATHS = ["/giris", "/sifremi-unuttum"];
 
-// NOT: /auth/callback ve /yeni-sifre bilerek listelerin dışında.
-// Şifre sıfırlama akışında kullanıcı geçici bir oturumla gelir; bu iki yol
-// kendi doğrulamasını yapar (callback kodu değiştirir, /yeni-sifre oturumu
-// kontrol eder). Middleware'in araya girmesi akışı bozar.
+// NOT: /sifre-baglanti, /auth/callback ve /yeni-sifre bilerek listelerin dışında.
+// Şifre sıfırlama akışında kullanıcı geçici bir oturumla gelir; bu yollar
+// kendi doğrulamasını yapar (/sifre-baglanti token'ı, callback kodu oturuma
+// çevirir; /yeni-sifre oturumu kontrol eder). Bağlantı oturumu açık bir
+// tarayıcıda da açılabilir — middleware araya girerse token kaybolur.
 
 function redirectTo(request: NextRequest, pathname: string) {
   const url = request.nextUrl.clone();

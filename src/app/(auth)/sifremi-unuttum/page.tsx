@@ -7,7 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, MailCheck } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@supabase/supabase-js";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,9 +40,18 @@ export default function SifremiUnuttumPage() {
   async function onSubmit(values: FormValues) {
     setFormError(null);
 
-    const supabase = createClient();
+    // Bilerek PKCE değil "implicit" akış: PKCE'de bağlantı yalnızca isteğin
+    // yapıldığı tarayıcıda çalışır (doğrulayıcı orada saklanır). Kullanıcı
+    // maili telefonda ya da başka tarayıcıda açınca sessizce giriş ekranına
+    // düşüyordu. Implicit akışta token'lar bağlantıyla gelir;
+    // /sifre-baglanti onları oturuma çevirip /yeni-sifre'ye gönderir.
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { flowType: "implicit", persistSession: false, autoRefreshToken: false } }
+    );
     const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
-      redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+      redirectTo: `${window.location.origin}/sifre-baglanti`,
     });
 
     if (error) {
