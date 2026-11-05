@@ -1,7 +1,7 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { createClient, ACTING_COOKIE, ACTING_MODE_COOKIE } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { getActingSession } from "@/lib/supabase/admin-context";
 import type { UserRole } from "@/types/database";
 import { ROLE_LABEL } from "@/lib/permissions";
 
@@ -39,13 +39,13 @@ export async function getAccountContext(): Promise<AccountContext> {
   // döndür (salt-okunur); aksi halde /admin'e gider.
   const { data: isAdmin } = await supabase.rpc("is_super_admin");
   if (isAdmin) {
-    const cookieStore = await cookies();
-    const acting = cookieStore.get(ACTING_COOKIE)?.value;
-    if (!acting) {
+    const session = await getActingSession(supabase, user.id);
+    if (!session) {
       redirect("/admin");
     }
-    const manageMode = cookieStore.get(ACTING_MODE_COOKIE)?.value === "manage";
-    // Başlık sayesinde bu okuma yalnızca acting firmayı döndürür.
+    const acting = session.businessId;
+    const manageMode = session.mode === "manage";
+    // RLS (0026 oturum tablosu) bu okumayı yalnızca acting firmaya daraltır.
     const { data: biz } = await supabase
       .from("businesses")
       .select("id, name")

@@ -51,3 +51,33 @@ export async function assertOwner(): Promise<string | null> {
   if (!ok) return "Bu işlem yalnızca kurucu yöneticiye açıktır.";
   return null;
 }
+
+export interface ActingSession {
+  businessId: string;
+  mode: "view" | "manage";
+}
+
+/**
+ * Kullanıcının sunucu taraflı "firmaya gir" oturumu (0026). Süresi dolmuşsa veya
+ * tablo yoksa null. Çerez DEĞİL tablo esas alınır.
+ */
+export async function getActingSession(
+  supabase?: Awaited<ReturnType<typeof createClient>>,
+  userId?: string,
+): Promise<ActingSession | null> {
+  const sb = supabase ?? (await createClient());
+  const uid = userId ?? (await sb.auth.getUser()).data.user?.id;
+  if (!uid) return null;
+  // Firma, DB'nin yetki + süre kontrollü acting_business_id() sonucundan gelir;
+  // null ise (süre doldu / yetki kalktı) oturum yok sayılır.
+  const { data: bizId, error: rpcErr } = await sb.rpc("acting_business_id");
+  if (rpcErr || !bizId) return null;
+  const { data } = await sb
+    .from("admin_acting_sessions")
+    .select("business_id, mode")
+    .eq("user_id", uid)
+    .maybeSingle();
+  const row = data as { business_id: string; mode: string } | null;
+  if (!row || row.business_id !== bizId) return null;
+  return { businessId: bizId as string, mode: row.mode === "manage" ? "manage" : "view" };
+}

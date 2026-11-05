@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertPerm, assertOwner } from "@/lib/supabase/admin-context";
 import { logAdminAction } from "@/lib/supabase/audit";
+import { checkTargetUser, isLastOwner } from "@/lib/admin-user-guard";
 import type { UserRole } from "@/types/database";
 
 type Result = { ok: boolean; error?: string; password?: string; credentials?: { email: string; password: string } };
@@ -19,6 +20,36 @@ function genPassword(): string {
     ? crypto.randomUUID().replace(/-/g, "")
     : Math.random().toString(36).slice(2);
   return `Df${base.slice(0, 10)}!${base.slice(10, 12)}`;
+}
+
+/**
+ * Hedef kullanıcının bu firmaya ait ve platform admini olmadığını (service role ile) doğrular.
+ * lastOwnerCheck: true ise firmanın son "owner"ı için ayrıca hata döner.
+ */
+async function guardTargetUser(
+  admin: ReturnType<typeof createAdminClient>,
+  businessId: string,
+  userId: string,
+  lastOwnerCheck?: string,
+): Promise<string | null> {
+  const { data: target } = await admin
+    .from("profiles")
+    .select("id, business_id, role")
+    .eq("id", userId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  const { data: pa, error: paErr } = await admin.from("platform_admins").select("user_id").eq("user_id", userId).maybeSingle();
+  if (paErr) {
+    console.error("guardTargetUser platform_admins", paErr);
+    return "Kullanıcı doğrulanamadı, işlem yapılmadı.";
+  }
+  const err = checkTargetUser(target as { id: string; business_id: string | null; role: string | null } | null, businessId, !!pa);
+  if (err) return err;
+  if (lastOwnerCheck && (target as { role: string | null }).role === "owner") {
+    const { data: all } = await admin.from("profiles").select("id, role").eq("business_id", businessId);
+    if (isLastOwner((all ?? []) as { id: string; role: string | null }[], userId)) return lastOwnerCheck;
+  }
+  return null;
 }
 
 export interface BusinessInfoPatch {
@@ -131,10 +162,13 @@ await logAdminAction("kullanici_ekle", { businessId, detail: email });
 export async function changeUserRole(businessId: string, userId: string, role: UserRole): Promise<Result> {
   const err = await assertPerm("kullanici_yonet");
   if (err) return { ok: false, error: err };
+  const newRole = normalizeRole(role);
   const admin = createAdminClient();
-  const { error } = await admin.from("profiles").update({ role }).eq("id", userId);
-  if (error) return { ok: false, error: error.message };
-await logAdminAction("kullanici_rol", { businessId, detail: role });
+  const gErr = await guardTargetUser(admin, businessId, userId, newRole !== "owner" ? "Firmanın son sahibinin rolü düşürülemez." : undefined);
+  if (gErr) return { ok: false, error: gErr };
+  const { error } = await admin.from("profiles").update({ role: newRole }).eq("id", userId).eq("business_id", businessId);
+  if (error) { console.error("changeUserRole", error); return { ok: false, error: "Rol güncellenemedi." }; }
+await logAdminAction("kullanici_rol", { businessId, detail: newRole });
     revalidatePath(`/admin/firma/${businessId}`);
   return { ok: true };
 }
@@ -145,8 +179,10 @@ export async function resetUserPassword(businessId: string, userId: string, cust
   const password = customPassword?.trim() || genPassword();
   if (password.length < 8) return { ok: false, error: "Şifre en az 8 karakter olmalı." };
   const admin = createAdminClient();
+  const gErr = await guardTargetUser(admin, businessId, userId);
+  if (gErr) return { ok: false, error: gErr };
   const { error } = await admin.auth.admin.updateUserById(userId, { password });
-  if (error) return { ok: false, error: error.message };
+  if (error) { console.error("resetUserPassword", error); return { ok: false, error: "Şifre sıfırlanamadı." }; }
 await logAdminAction("kullanici_sifre", { businessId });
     revalidatePath(`/admin/firma/${businessId}`);
   return { ok: true, password };
@@ -156,9 +192,11 @@ export async function setUserActive(businessId: string, userId: string, active: 
   const err = await assertPerm("kullanici_yonet");
   if (err) return { ok: false, error: err };
   const admin = createAdminClient();
+  const gErr = await guardTargetUser(admin, businessId, userId);
+  if (gErr) return { ok: false, error: gErr };
   // ban_duration ile pasifleştir (giriş engellenir) / "none" ile aktive et
   const { error } = await admin.auth.admin.updateUserById(userId, { ban_duration: active ? "none" : "876600h" });
-  if (error) return { ok: false, error: error.message };
+  if (error) { console.error("setUserActive", error); return { ok: false, error: "Kullanıcı durumu güncellenemedi." }; }
 await logAdminAction(active ? "kullanici_aktive" : "kullanici_pasif", { businessId });
     revalidatePath(`/admin/firma/${businessId}`);
   return { ok: true };
@@ -195,8 +233,10 @@ export async function removeUser(businessId: string, userId: string): Promise<Re
   const err = await assertPerm("kullanici_yonet");
   if (err) return { ok: false, error: err };
   const admin = createAdminClient();
+  const gErr = await guardTargetUser(admin, businessId, userId, "Firmanın son sahibi silinemez.");
+  if (gErr) return { ok: false, error: gErr };
   const { error } = await admin.auth.admin.deleteUser(userId);
-  if (error) return { ok: false, error: error.message };
+  if (error) { console.error("removeUser", error); return { ok: false, error: "Kullanıcı silinemedi." }; }
 await logAdminAction("kullanici_sil", { businessId });
     revalidatePath(`/admin/firma/${businessId}`);
   return { ok: true };

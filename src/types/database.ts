@@ -77,6 +77,15 @@ export interface PlatformAdmin {
   created_at: string;
 }
 
+/** Sunucu taraflı "firmaya gir" oturumu — admin_acting_sessions (0026). */
+export interface AdminActingSession {
+  user_id: string;
+  business_id: string;
+  mode: "view" | "manage";
+  expires_at: string;
+  created_at: string;
+}
+
 export type SubscriptionStatus = "active" | "trial" | "suspended" | "cancelled";
 
 /** Firma başına abonelik — subscriptions (0008). */

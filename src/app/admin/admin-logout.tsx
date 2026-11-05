@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { LogOut, ChevronDown, ShieldCheck } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
+import { signOutAndClear } from "@/app/admin/view-as-actions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,14 +14,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function AdminUserMenu({ email }: { email: string }) {
-  const router = useRouter();
   const [out, setOut] = useState(false);
 
   async function logout() {
     setOut(true);
-    await createClient().auth.signOut();
-    router.push("/giris");
-    router.refresh();
+    await signOutAndClear();
   }
 
   const initials = (email || "AD").slice(0, 2).toLocaleUpperCase("tr");

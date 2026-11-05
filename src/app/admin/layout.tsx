@@ -1,14 +1,16 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Building2, ShieldCheck, Plus, Users, History } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { getAdminContext } from "@/lib/supabase/admin-context";
+import { getAdminContext, getActingSession } from "@/lib/supabase/admin-context";
 import { getAdminNotifications } from "@/lib/supabase/notifications";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 
+import { exitViewAs } from "./view-as-actions";
 import { AdminUserMenu } from "./admin-logout";
 import { AdminNotifications } from "./admin-notifications";
 
@@ -26,6 +28,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const { data: isAdmin } = await supabase.rpc("is_super_admin");
   if (!isAdmin) redirect("/panel");
   const ctx = await getAdminContext();
+  const actingError = (await cookies()).get("acting_error")?.value === "1";
+  const acting = await getActingSession(supabase);
+  let actingName: string | null = null;
+  if (acting) {
+    const { data: b } = await supabase.from("businesses").select("name").eq("id", acting.businessId).maybeSingle();
+    actingName = (b as { name: string } | null)?.name ?? "Firma";
+  }
   const notifications = await getAdminNotifications(!!ctx?.isOwner);
 
   return (
@@ -74,6 +83,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       </header>
 
+      {actingError && (
+        <div className="border-b bg-muted/60 px-4 py-2 text-center text-sm text-destructive">
+          Firmaya giriş açılamadı, tekrar deneyin.
+        </div>
+      )}
+      {acting && (
+        <div className="border-b bg-muted/60">
+          <form action={exitViewAs} className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2 text-sm">
+            <span>
+              <span className="font-medium">{actingName}</span> firmasındasınız
+            </span>
+            <button type="submit" className="font-medium text-primary hover:underline">Firmadan çık</button>
+          </form>
+        </div>
+      )}
       <main className="mx-auto max-w-7xl p-4 md:p-6">{children}</main>
       <Toaster />
     </div>

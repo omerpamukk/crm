@@ -1,21 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { UserX, LogOut } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
+import { signOutAndClear } from "@/app/admin/view-as-actions";
 import { Button } from "@/components/ui/button";
 
 export default function HesapYokPage() {
-  const router = useRouter();
   const [out, setOut] = useState(false);
 
   async function logout() {
     setOut(true);
-    await createClient().auth.signOut();
-    router.push("/giris");
-    router.refresh();
+    await signOutAndClear();
   }
 
   return (
