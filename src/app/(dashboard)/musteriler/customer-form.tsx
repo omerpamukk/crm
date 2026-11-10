@@ -68,7 +68,7 @@ export function CustomerForm({
     }
 
     toast.success(
-      isEdit ? "Kayıt güncellendi" : asLead ? "Lead eklendi" : "Müşteri eklendi"
+      isEdit ? (customer?.is_lead ? "Lead güncellendi" : "Müşteri güncellendi") : asLead ? "Lead eklendi" : "Müşteri eklendi"
     );
     onSuccess();
   }
@@ -79,7 +79,7 @@ export function CustomerForm({
         <Label htmlFor="full_name">Ad-soyad *</Label>
         <Input id="full_name" {...register("full_name")} />
         {errors.full_name && (
-          <p className="text-sm text-danger">{errors.full_name.message}</p>
+          <p className="text-subhead text-danger-text">{errors.full_name.message}</p>
         )}
       </div>
 
@@ -92,7 +92,7 @@ export function CustomerForm({
           <Label htmlFor="email">E-posta</Label>
           <Input id="email" type="email" {...register("email")} />
           {errors.email && (
-            <p className="text-sm text-danger">{errors.email.message}</p>
+            <p className="text-subhead text-danger-text">{errors.email.message}</p>
           )}
         </div>
       </div>
@@ -120,10 +120,10 @@ export function CustomerForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="source">Kaynak</Label>
+          <Label htmlFor="source">Nereden geldi</Label>
           <Input
             id="source"
-            placeholder="Instagram, tavsiye, ..."
+            placeholder="Instagram, tavsiye"
             {...register("source")}
           />
         </div>
@@ -138,7 +138,7 @@ export function CustomerForm({
           <Label htmlFor="tags">Etiketler</Label>
           <Input
             id="tags"
-            placeholder="virgülle ayırın: vip, düzenli"
+            placeholder="Virgülle ayırın: VIP, Taksitli"
             {...register("tags")}
           />
         </div>
@@ -149,14 +149,18 @@ export function CustomerForm({
         <Textarea id="note" rows={3} {...register("note")} />
       </div>
 
-      {formError && <p className="text-sm text-danger">{formError}</p>}
+      {formError && (
+        <p role="alert" className="text-subhead text-danger-text">
+          {formError}
+        </p>
+      )}
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="secondary" onClick={onCancel}>
           İptal
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Kaydediliyor..." : isEdit ? "Güncelle" : "Ekle"}
+          {isSubmitting ? "Kaydediliyor..." : "Kaydet"}
         </Button>
       </div>
     </form>

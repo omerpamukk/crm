@@ -4,27 +4,29 @@ import { Slot } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Rozet — kısa durum ya da etiket. Kapsül, tek satır.
+ * Renk yalnızca anlam taşır: positive (tamam/geldi), warning (dikkat),
+ * danger (gecikme/iptal), info (yeni/planlı), secondary (nötr).
+ * `tag` — müşteri etiketi (VIP, Taksitli): çerçeveli, renksiz.
+ * Durum + simge gerekiyorsa `StatusBadge` (shared/status) kullanın.
+ */
 const badgeVariants = cva(
-  "group/badge inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-[var(--radius-sm)] border border-transparent px-2 py-0 text-[0.75rem] font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
+  "group/badge inline-flex h-[22px] w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-2 py-0 text-[0.75rem] font-semibold whitespace-nowrap transition-colors has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&>svg]:pointer-events-none [&>svg]:size-3!",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
-        secondary:
-          "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
-        destructive:
-          "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
-        outline:
-          "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
-        ghost:
-          "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
-        link: "text-primary underline-offset-4 hover:underline",
-        positive:
-          "border-positive/25 bg-positive/8 text-positive dark:bg-positive/12",
-        warning:
-          "border-warning/30 bg-warning/10 text-warning-foreground dark:bg-warning/15 dark:text-warning",
-        danger: "border-danger/25 bg-danger/8 text-danger dark:bg-danger/12",
-        info: "border-primary/25 bg-primary/8 text-primary dark:bg-primary/12",
+        default: "bg-primary-fill text-on-primary-fill [a]:hover:bg-[color:var(--primary-press)]",
+        secondary: "bg-fill text-label-2 [a]:hover:bg-fill-2",
+        destructive: "bg-danger-soft text-danger-text [a]:hover:bg-[color:var(--danger-soft-2)]",
+        outline: "border-separator-strong text-label-2 [a]:hover:bg-hover",
+        tag: "h-[18px] rounded-[5px] border-separator-strong px-1.5 text-[0.6875rem] text-label-2",
+        ghost: "text-label-2 hover:bg-hover",
+        link: "text-primary-text underline-offset-4 hover:underline",
+        positive: "bg-positive-soft text-positive-text",
+        warning: "bg-warning-soft text-warning-text",
+        danger: "bg-danger-soft text-danger-text",
+        info: "bg-info-soft text-info-text",
       },
     },
     defaultVariants: {

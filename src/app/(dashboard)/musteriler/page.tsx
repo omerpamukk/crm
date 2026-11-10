@@ -1,29 +1,69 @@
-import { CalendarCheck, TrendingUp, Users, Wallet } from "lucide-react";
-
 import { createClient } from "@/lib/supabase/server";
-import { formatPrice } from "@/lib/format";
+import { getAccountContext } from "@/lib/supabase/account";
+import { can } from "@/lib/permissions";
+import { getBusinessId } from "@/lib/supabase/business";
+import { fetchDebtors, isOverdue, summarizeBalances } from "@/lib/balances";
+import { SLOT_HOLDING_STATUSES } from "@/lib/appointment-status";
+import { zonedParts, zonedWallToUtcMs } from "@/lib/zaman";
 import type { Customer } from "@/types/database";
-import { PageHeader } from "@/components/shared/page-header";
-import { EmptyState } from "@/components/shared/empty-state";
-import { StatCard } from "@/components/shared/stat-card";
-import { CardTitle } from "@/components/ui/card";
 
-import { NewCustomerButton } from "./new-customer-button";
-import { CustomersView, type EnrichedCustomer } from "./customers-view";
+import { CustomersView } from "./customers-view";
+import {
+  type EnrichedCustomer,
+  type NextAppt,
+  type PackageOption,
+  type ServiceOption,
+  type StaffOption,
+} from "./customer-types";
 
 export const metadata = { title: "Müşteriler" };
 
 /**
- * Tek seferde çekilen müşteri üst sınırı.
- * Filtreleme istemcide yapıldığı için veri tek turda geliyor; bu sınır
- * çok büyük hesaplarda sayfanın çökmesini engeller.
+ * Tek seferde çekilen müşteri üst sınırı. Filtreleme istemcide yapıldığı
+ * için veri tek turda gelir; sınır çok büyük hesaplarda sayfanın çökmesini
+ * engeller, aşılırsa kullanıcıya söylenir.
  */
 const CUSTOMER_LIMIT = 2000;
 
+type PkgRow = {
+  id: string;
+  customer_id: string | null;
+  service_name: string | null;
+  total_sessions: number | null;
+  remaining_sessions: number | null;
+  purchased_at: string | null;
+  price: number | null;
+  paid_amount: number | null;
+};
+
+type ApptRow = {
+  id: string;
+  customer_id: string | null;
+  starts_at: string;
+  status: string;
+  arrived_at: string | null;
+  service: { name: string } | { name: string }[] | null;
+  staff_member: { full_name: string } | { full_name: string }[] | null;
+};
+
+const one = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
+
 export default async function MusterilerPage() {
+  const { role } = await getAccountContext();
+  const abilities = {
+    add: can(role, "musteri_ekle"),
+    manage: can(role, "musteri_yonet"),
+    book: can(role, "randevu_yonet"),
+    pay: can(role, "tahsilat"),
+  };
+
   const supabase = await createClient();
+  const businessId = await getBusinessId(supabase);
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Gün ve ay sınırları İstanbul saatine göre (sunucu UTC'de çalışır).
+  const tr = zonedParts(now.getTime());
+  const startOfMonth = new Date(zonedWallToUtcMs(tr.y, tr.m, 1, 0, 0));
+  const startOfToday = new Date(zonedWallToUtcMs(tr.y, tr.m, tr.d, 0, 0));
 
   const [
     customersRes,
@@ -32,37 +72,60 @@ export default async function MusterilerPage() {
     interactionsRes,
     apptRes,
     servicesRes,
+    staffRes,
     monthSessionsRes,
     newThisMonthRes,
+    debtRes,
   ] = await Promise.all([
-    // NOT: Bu sayfa istemci tarafında filtreleme yapıyor, bu yüzden veri
-    // tek seferde çekiliyor. Ölçek büyüdüğünde çökmemesi için üst sınır
-    // konuldu; sınır aşılırsa kullanıcıya uyarı gösterilir.
-    supabase.from("customers").select("*").eq("is_lead", false).order("created_at", { ascending: false }).limit(CUSTOMER_LIMIT),
-    supabase.from("packages").select("customer_id, service_name, total_sessions, remaining_sessions, purchased_at, price, paid_amount").limit(5000),
+    supabase
+      .from("customers")
+      .select("*")
+      .eq("is_lead", false)
+      .order("created_at", { ascending: false })
+      .limit(CUSTOMER_LIMIT),
+    supabase
+      .from("packages")
+      .select("id, customer_id, service_name, total_sessions, remaining_sessions, purchased_at, price, paid_amount")
+      .limit(5000),
     supabase.from("payments").select("customer_id, amount").limit(10000),
-    supabase.from("interactions").select("customer_id, created_at, type").order("created_at", { ascending: false }).limit(5000),
-    supabase.from("appointments").select("customer_id, starts_at").gte("starts_at", now.toISOString()).order("starts_at", { ascending: true }),
-    supabase.from("services").select("name").order("name"),
-    supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "completed").gte("starts_at", startOfMonth.toISOString()),
-    supabase.from("customers").select("*", { count: "exact", head: true }).eq("is_lead", false).gte("created_at", startOfMonth.toISOString()),
+    supabase
+      .from("interactions")
+      .select("customer_id, created_at, type")
+      .order("created_at", { ascending: false })
+      .limit(5000),
+    // Bugünden itibaren planlı ya da gelmiş randevular: bugün gelmiş müşteri de görünür.
+    supabase
+      .from("appointments")
+      .select("id, customer_id, starts_at, status, arrived_at, service:services(name), staff_member:staff(full_name)")
+      .gte("starts_at", startOfToday.toISOString())
+      .in("status", [...SLOT_HOLDING_STATUSES])
+      .order("starts_at", { ascending: true })
+      .limit(5000),
+    supabase.from("services").select("id, name, price").order("name"),
+    supabase.from("staff").select("id, full_name").eq("is_active", true).order("full_name"),
+    supabase
+      .from("appointments")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "completed")
+      .gte("starts_at", startOfMonth.toISOString()),
+    supabase
+      .from("customers")
+      .select("*", { count: "exact", head: true })
+      .eq("is_lead", false)
+      .gte("created_at", startOfMonth.toISOString()),
+    businessId ? fetchDebtors(supabase, businessId) : Promise.resolve({ rows: [], error: false }),
   ]);
 
+  const loadFailed = Boolean(customersRes.error);
   const customers = (customersRes.data ?? []) as Customer[];
+  const packages = (packagesRes.data ?? []) as PkgRow[];
 
   // Müşteri başına aktif paket (seansı kalan, en yeni); yoksa en yeni paket.
   const pkgByCustomer = new Map<string, { service: string | null; remaining: number | null; total: number | null }>();
-  for (const p of (packagesRes.data ?? []) as {
-    customer_id: string | null;
-    service_name: string | null;
-    total_sessions: number | null;
-    remaining_sessions: number | null;
-    purchased_at: string | null;
-  }[]) {
+  for (const p of packages) {
     if (!p.customer_id) continue;
     const cur = pkgByCustomer.get(p.customer_id);
     const hasSessions = (p.remaining_sessions ?? 0) > 0;
-    // Seansı kalan paketi önceliklendir
     if (!cur || (hasSessions && (cur.remaining ?? 0) <= 0)) {
       pkgByCustomer.set(p.customer_id, {
         service: p.service_name,
@@ -78,102 +141,83 @@ export default async function MusterilerPage() {
     valueByCustomer.set(p.customer_id, (valueByCustomer.get(p.customer_id) ?? 0) + (p.amount ?? 0));
   }
 
-  // Müşteri başına açık borç (paketlerdeki fiyat - ödenen)
-  const debtByCustomer = new Map<string, number>();
-  for (const p of (packagesRes.data ?? []) as { customer_id: string | null; price: number | null; paid_amount: number | null }[]) {
-    if (!p.customer_id) continue;
-    const debt = (p.price ?? 0) - (p.paid_amount ?? 0);
-    if (debt > 0) debtByCustomer.set(p.customer_id, (debtByCustomer.get(p.customer_id) ?? 0) + debt);
-  }
+  // Açık borç ve gecikme: tek kaynak (customer_balances, 0031; src/lib/balances.ts).
+  const debtByCustomer = new Map(debtRes.rows.map((b) => [b.customer_id, { debt: b.balance, overdue: isOverdue(b) }]));
+  const debtSummary = summarizeBalances(debtRes.rows);
 
-  // interactions desc sıralı → ilk görülen = en son
+  // interactions desc sıralı: ilk görülen = en son
   const lastContactByCustomer = new Map<string, { at: string; type: string }>();
   for (const it of (interactionsRes.data ?? []) as { customer_id: string | null; created_at: string; type: string }[]) {
     if (!it.customer_id || lastContactByCustomer.has(it.customer_id)) continue;
     lastContactByCustomer.set(it.customer_id, { at: it.created_at, type: it.type });
   }
 
-  // upcoming appts asc → ilk = sıradaki
-  const nextApptByCustomer = new Map<string, string>();
-  for (const a of (apptRes.data ?? []) as { customer_id: string | null; starts_at: string }[]) {
+  // randevular artan sıralı: ilk görülen = sıradaki
+  const nextApptByCustomer = new Map<string, NextAppt>();
+  for (const a of (apptRes.data ?? []) as unknown as ApptRow[]) {
     if (!a.customer_id || nextApptByCustomer.has(a.customer_id)) continue;
-    nextApptByCustomer.set(a.customer_id, a.starts_at);
+    nextApptByCustomer.set(a.customer_id, {
+      id: a.id,
+      startsAt: a.starts_at,
+      status: a.status,
+      arrivedAt: a.arrived_at,
+      serviceName: one(a.service)?.name ?? null,
+      staffName: one(a.staff_member)?.full_name ?? null,
+    });
   }
 
   const enriched: EnrichedCustomer[] = customers.map((c) => {
     const pkg = pkgByCustomer.get(c.id);
     const lc = lastContactByCustomer.get(c.id);
+    const debt = debtByCustomer.get(c.id);
     return {
       ...c,
       service: pkg?.service ?? null,
       remaining: pkg?.remaining ?? null,
       total: pkg?.total ?? null,
       totalValue: valueByCustomer.get(c.id) ?? 0,
-      openDebt: debtByCustomer.get(c.id) ?? 0,
+      openDebt: debt?.debt ?? 0,
+      overdue: debt?.overdue ?? false,
       lastContactAt: lc?.at ?? c.last_visit_at ?? null,
       lastContactType: lc?.type ?? null,
-      nextApptAt: nextApptByCustomer.get(c.id) ?? null,
+      nextAppt: nextApptByCustomer.get(c.id) ?? null,
     };
   });
 
-  const serviceNames = [
-    ...new Set(
-      ((servicesRes.data ?? []) as { name: string }[]).map((s) => s.name).filter(Boolean)
-    ),
-  ];
-  const allTags = [...new Set(customers.flatMap((c) => c.tags ?? []))];
-
   const activeCount = enriched.filter((c) => c.status !== "passive" && c.status !== "archived").length;
-  const monthSessions = monthSessionsRes.count ?? 0;
-  const newThisMonth = newThisMonthRes.count ?? 0;
-  const totalOpenDebt = enriched.reduce((s, c) => s + c.openDebt, 0);
-  const debtorCount = enriched.filter((c) => c.openDebt > 0).length;
 
-  const kpis = [
-    { label: "Aktif Müşteri", value: activeCount.toLocaleString("tr-TR"), icon: Users, sub: newThisMonth > 0 ? `Bu ay +${newThisMonth} yeni` : null, accent: "" },
-    { label: "Bu Ay Seans", value: monthSessions.toLocaleString("tr-TR"), icon: CalendarCheck, sub: null as string | null, accent: "" },
-    { label: "Bu Ay Yeni Müşteri", value: `+${newThisMonth}`, icon: TrendingUp, sub: null as string | null, accent: "" },
-    { label: "Açık Alacak", value: formatPrice(totalOpenDebt), icon: Wallet, sub: debtorCount > 0 ? `${debtorCount} borçlu müşteri` : null, accent: totalOpenDebt > 0 ? "text-danger" : "" },
-  ];
+  const metrics = {
+    active: activeCount,
+    monthSessions: monthSessionsRes.count ?? 0,
+    newThisMonth: newThisMonthRes.count ?? 0,
+    openDebt: debtSummary.openDebt,
+    debtorCount: debtSummary.debtorCount,
+    overdueCount: debtSummary.overdueCount,
+  };
+
+  const allTags = [...new Set(customers.flatMap((c) => c.tags ?? []))].sort((a, b) => a.localeCompare(b, "tr"));
+  const serviceNames = [...new Set(((servicesRes.data ?? []) as ServiceOption[]).map((s) => s.name).filter(Boolean))];
+  const packageOptions: PackageOption[] = packages.map((p) => ({
+    id: p.id,
+    customer_id: p.customer_id,
+    service_name: p.service_name,
+    remaining_sessions: p.remaining_sessions,
+  }));
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Müşteriler"
-        description="Dönüşmüş müşterilerini yönet, filtrele ve geçmişlerini takip et."
-      />
-
-      {customers.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title="Henüz müşteri yok"
-          description="Lead'ler “Müşteriye dönüştür” ile buraya gelir; ya da doğrudan yeni müşteri ekleyebilirsin."
-          action={<NewCustomerButton />}
-        />
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {kpis.map((kpi) => (
-              <StatCard
-                key={kpi.label}
-                label={kpi.label}
-                value={kpi.value}
-                icon={kpi.icon}
-                sub={kpi.sub}
-                accent={kpi.accent}
-              />
-            ))}
-          </div>
-
-          {customers.length >= CUSTOMER_LIMIT && (
-            <p className="rounded-[var(--radius-md)] border border-warning/30 bg-warning/[0.07] px-3.5 py-2.5 text-[0.8125rem] text-muted-foreground">
-              En yeni {CUSTOMER_LIMIT.toLocaleString("tr-TR")} müşteri gösteriliyor.
-              Daha eski kayıtlara arama kutusundan ulaşabilirsin.
-            </p>
-          )}
-          <CustomersView customers={enriched} services={serviceNames} tags={allTags} />
-        </>
-      )}
-    </div>
+    <CustomersView
+      customers={enriched}
+      metrics={metrics}
+      services={(servicesRes.data ?? []) as ServiceOption[]}
+      serviceNames={serviceNames}
+      staff={(staffRes.data ?? []) as StaffOption[]}
+      packages={packageOptions}
+      tags={allTags}
+      abilities={abilities}
+      canArrive={abilities.book}
+      limited={customers.length >= CUSTOMER_LIMIT}
+      limit={CUSTOMER_LIMIT}
+      loadFailed={loadFailed}
+    />
   );
 }

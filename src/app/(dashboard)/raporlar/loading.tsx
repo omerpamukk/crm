@@ -1,10 +1,5 @@
-import { PageHeaderSkeleton, KpiRowSkeleton } from "@/components/shared/skeletons";
+import { PageSkeleton } from "@/components/shared/skeletons";
 
 export default function Loading() {
-  return (
-    <div className="space-y-6">
-      <PageHeaderSkeleton />
-      <KpiRowSkeleton count={4} />
-    </div>
-  );
+  return <PageSkeleton kpis={4} rows={6} />;
 }

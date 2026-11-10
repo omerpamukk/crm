@@ -36,5 +36,19 @@ export async function getBusinessId(
     .eq("id", user.id)
     .single();
 
-  return profile?.business_id ?? null;
+  if (profile?.business_id) return profile.business_id;
+
+  // Çerez yok ama profilde de firma yok: süper-admin yönetici modunda çerezi
+  // kaybetmiş olabilir (süresi dolmuş/temizlenmiş). Yetkinin kaynağı sunucu
+  // oturum tablosudur; geçerli bir oturum varsa onun firması kullanılır.
+  // Firma kullanıcıları bu noktaya hiç gelmez (profilleri firmalıdır).
+  if (!hasActingHint) {
+    const acting = await getActingSession(supabase, user.id);
+    if (acting) {
+      const { data: isAdmin } = await supabase.rpc("is_super_admin");
+      if (isAdmin) return acting.businessId;
+    }
+  }
+
+  return null;
 }

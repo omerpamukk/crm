@@ -1,4 +1,7 @@
-- [Görsel yön tercihleri](feedback_gorsel_yon.md) — sade reddedildi, Untitled UI referansı beğenildi, araçları sekmede birleştirme
+- [Görsel yön tercihleri](feedback_gorsel_yon.md) — sade reddedildi, E+F seçildi; Ciro sparkline'ı çok beğenildi (grafik dili); kaynak-temelli yönde yasak dayatma
 - [Dev sunucu ENOSPC](proje_dev_sunucu_disk.md) — disk dolu → dev 500; yan yol next build + start -p 3100
 - [Mobil tek satır kuralı](feedback_mobil_tek_satir.md) — mobilde etiket/rozet/KPI asla iki satıra kırılmaz; yerleşim esner, otomatik tarama
-- [Playwright ortamı](proje_playwright_ortami.md) — file:// engelli, kullanıcı %90 zoom'la izliyor (JS click kullan), no-store sunucu
+- [Playwright ortamı](proje_playwright_ortami.md) — yeni context + storageState ile gerçek mobil; file:// engelli, %90 zoom, CDP dokunma
+- [Skill isteğinde tam uygula](feedback_skill_tam_uygula.md) — skill ile tasarım istenince CLAUDE.md stil yasaklarıyla frenleme; yalnız metin kırılmaz + kafa karışıklığı yok bağlar
+- [E+F temeli kuruldu](proje_temel_ef.md) — tokenlar/kabuk/vitrin; ortak form parçaları (6 Kas); alt sayfa erişim düzeltmesi; kalan yerel kopyalar
+- [Saat dilimi tutarsızlığı](proje_saat_dilimi.md) — form saf saati UTC yazıyor; takvim işletme diliminde; slot ön doldurma buna bağlı

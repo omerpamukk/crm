@@ -6,7 +6,7 @@ describe("rol yetki matrisi", () => {
   it("yönetici tüm yetkilere sahip", () => {
     const caps: Capability[] = [
       "finans", "raporlar", "ayarlar", "personel_yonet",
-      "musteri_yonet", "randevu_yonet", "tahsilat", "tum_randevular",
+      "musteri_ekle", "musteri_yonet", "randevu_yonet", "tahsilat", "tum_randevular",
     ];
     for (const c of caps) {
       expect(can("owner", c), `owner → ${c}`).toBe(true);
@@ -32,6 +32,12 @@ describe("rol yetki matrisi", () => {
     expect(can("specialist", "raporlar")).toBe(false);
     expect(can("specialist", "tum_randevular")).toBe(false);
     expect(can("specialist", "tahsilat")).toBe(false);
+  });
+
+  it("uzman müşteri ekleyebilir ama düzenleyemez/silemez (kullanıcı kararı 6 Kas)", () => {
+    expect(can("specialist", "musteri_ekle")).toBe(true);
+    expect(can("specialist", "musteri_yonet")).toBe(false);
+    expect(can("reception", "musteri_ekle")).toBe(true);
   });
 
   it("rolü olmayan hiçbir şey yapamaz", () => {

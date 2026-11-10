@@ -2,187 +2,418 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, MessageCircle, Phone, Banknote } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Banknote, Phone, Plus, Scale, Search, UserRound } from "lucide-react";
 
-import { formatPrice, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
+import { useMediaQuery, PHONE_QUERY } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { SearchField } from "@/components/ui/search-field";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ToolbarAction } from "@/components/layout/toolbar-action";
+import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
+import { FilterBar } from "@/components/shared/filter-bar";
+import { Metric, MetricStrip } from "@/components/shared/metric";
+import { formatMoney, Money } from "@/components/shared/money";
+import { PageHeader } from "@/components/shared/page-header";
+import { StatusBadge } from "@/components/shared/status";
+import { SwipeRow } from "@/components/shared/swipe-row";
 
-export type CariRow = {
-  id: string;
-  name: string;
-  phone: string | null;
-  charges: number;
-  payments: number;
-  balance: number;
-  lastPaymentAt: string | null;
-  overdue: boolean;
-};
+import { useRandevuParams } from "../randevular/use-randevu-params";
+import type { CustomerOption, PackageOption } from "../tahsilat/payment-form";
+import { PaymentSheet } from "../tahsilat/payment-sheet";
+import { CariPane } from "./cari-pane";
+import { telHref, type CariRow } from "./cari-types";
 
-function waLink(phone: string | null, msg: string): string | null {
-  const digits = (phone ?? "").replace(/\D/g, "");
-  if (!digits) return null;
-  let p = digits;
-  if (p.startsWith("0")) p = "90" + p.slice(1);
-  else if (!p.startsWith("90")) p = "90" + p;
-  return `https://wa.me/${p}?text=${encodeURIComponent(msg)}`;
+const XL_QUERY = "(min-width: 1280px)";
+
+type Scope = "tumu" | "borclu" | "gecikmis";
+
+function round2(n: number) {
+  return String(Math.round(n * 100) / 100);
 }
 
-type TabKey = "all" | "overdue" | "debtor" | "credit" | "closed";
-
-function statusOf(r: CariRow): Exclude<TabKey, "all"> {
-  if (r.balance > 0) return r.overdue ? "overdue" : "debtor";
-  if (r.balance < 0) return "credit";
-  return "closed";
+function StatusCell({ r }: { r: CariRow }) {
+  if (r.overdue) return <StatusBadge variant="danger">Gecikmiş</StatusBadge>;
+  if (r.balance > 0) return <StatusBadge variant="warning">Borçlu</StatusBadge>;
+  if (r.balance < 0) return <StatusBadge variant="info">Avans</StatusBadge>;
+  return <StatusBadge variant="positive">Borcu yok</StatusBadge>;
 }
 
-export function CariView({ rows }: { rows: CariRow[] }) {
-  const [tab, setTab] = useState<TabKey>("all");
-  const [q, setQ] = useState("");
+function BalanceCell({ r }: { r: CariRow }) {
+  if (r.balance > 0) return <Money amount={r.balance} tone="debt" overdue={r.overdue} />;
+  if (r.balance < 0) return <Money amount={Math.abs(r.balance)} tone="muted" suffix="avans" />;
+  return <span className="text-label-3">—</span>;
+}
 
-  const counts = useMemo(() => {
-    const x = { all: rows.length, overdue: 0, debtor: 0, credit: 0, closed: 0 };
-    for (const r of rows) x[statusOf(r)]++;
-    return x;
+export function CariView({
+  rows,
+  customers,
+  packages,
+  canPay,
+  loadFailed,
+}: {
+  rows: CariRow[];
+  customers: CustomerOption[];
+  packages: PackageOption[];
+  canPay: boolean;
+  loadFailed: boolean;
+}) {
+  const router = useRouter();
+  const isXl = useMediaQuery(XL_QUERY);
+  const isPhone = useMediaQuery(PHONE_QUERY);
+  const { params, set } = useRandevuParams();
+
+  const [q, setQ] = useState(() => params.get("q") ?? "");
+  const [selId, setSelId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [payFor, setPayFor] = useState<CariRow | null>(null);
+
+  const createOpen = canPay && params.get("yeni") === "1";
+  const payOpen = createOpen || payFor !== null;
+
+  const scopeParam = params.get("durum");
+  const scope: Scope = scopeParam === "borclu" || scopeParam === "gecikmis" ? scopeParam : "tumu";
+
+  const totals = useMemo(() => {
+    let receivable = 0;
+    let overdueAmount = 0;
+    let overdueCount = 0;
+    let debtors = 0;
+    let charges = 0;
+    let payments = 0;
+    for (const r of rows) {
+      charges += r.charges;
+      payments += r.payments;
+      if (r.balance > 0) {
+        receivable += r.balance;
+        debtors++;
+      }
+      if (r.overdue) {
+        overdueAmount += r.balance;
+        overdueCount++;
+      }
+    }
+    return { receivable, overdueAmount, overdueCount, debtors, charges, payments };
   }, [rows]);
 
-  const filtered = useMemo(() => {
-    const s = q.trim().toLocaleLowerCase("tr");
-    return rows.filter((r) => {
-      if (tab !== "all" && statusOf(r) !== tab) return false;
-      if (s && !`${r.name} ${r.phone ?? ""}`.toLocaleLowerCase("tr").includes(s)) return false;
-      return true;
-    });
-  }, [rows, tab, q]);
+  const needle = q.trim().toLocaleLowerCase("tr-TR");
+  const searched = useMemo(
+    () => rows.filter((r) => !needle || `${r.name} ${r.phone ?? ""}`.toLocaleLowerCase("tr-TR").includes(needle)),
+    [rows, needle]
+  );
+  const counts = useMemo(
+    () => ({
+      tumu: searched.length,
+      borclu: searched.filter((r) => r.balance > 0).length,
+      gecikmis: searched.filter((r) => r.overdue).length,
+    }),
+    [searched]
+  );
+  const filtered = useMemo(
+    () => searched.filter((r) => (scope === "borclu" ? r.balance > 0 : scope === "gecikmis" ? r.overdue : true)),
+    [searched, scope]
+  );
 
-  const TABS: { key: TabKey; label: string; count: number; tone?: string }[] = [
-    { key: "all", label: "Tümü", count: counts.all },
-    { key: "overdue", label: "Gecikmiş", count: counts.overdue, tone: "text-danger" },
-    { key: "debtor", label: "Borçlu", count: counts.debtor },
-    { key: "credit", label: "Alacaklı", count: counts.credit },
-    { key: "closed", label: "Kapalı", count: counts.closed },
+  const effSel = filtered.find((r) => r.id === selId)?.id ?? filtered[0]?.id ?? null;
+  const asideRow = rows.find((r) => r.id === effSel) ?? null;
+  const sheetRow = rows.find((r) => r.id === selId) ?? null;
+
+  function openRow(r: CariRow) {
+    setSelId(r.id);
+    if (!window.matchMedia(XL_QUERY).matches) setSheetOpen(true);
+  }
+  function clearFilters() {
+    setQ("");
+    set({ q: null, durum: null });
+  }
+  function openPay(r?: CariRow) {
+    if (r) setPayFor(r);
+    else set({ yeni: "1" });
+  }
+  function closePay() {
+    setPayFor(null);
+    if (params.get("yeni")) set({ yeni: null });
+  }
+
+  const columns: DataTableColumn<CariRow>[] = [
+    {
+      key: "customer",
+      header: "Müşteri",
+      sortValue: (r) => r.name,
+      cell: (r) => (
+        <span className="flex min-w-0 items-center gap-2.5">
+          <Avatar name={r.name} size="sm" />
+          <span className="min-w-0">
+            <Link href={`/musteriler/${r.id}`} className="block truncate font-medium hover:text-primary-text hover:underline" title={r.name}>
+              {r.name}
+            </Link>
+            {r.phone && <span className="block truncate text-subhead text-label-2">{r.phone}</span>}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: "charges",
+      header: "Toplam satış",
+      align: "right",
+      hideBelow: "@3xl",
+      sortValue: (r) => r.charges,
+      cell: (r) => <Money amount={r.charges} />,
+    },
+    {
+      key: "payments",
+      header: "Tahsil edilen",
+      align: "right",
+      hideBelow: "@3xl",
+      sortValue: (r) => r.payments,
+      cell: (r) => <Money amount={r.payments} />,
+    },
+    {
+      key: "balance",
+      header: "Bakiye",
+      align: "right",
+      sortValue: (r) => r.balance,
+      cell: (r) => <BalanceCell r={r} />,
+    },
+    {
+      key: "last",
+      header: "Son ödeme",
+      hideBelow: "@2xl",
+      sortValue: (r) => (r.lastPaymentAt ? new Date(r.lastPaymentAt).getTime() : null),
+      cell: (r) => <span className="whitespace-nowrap tabular-nums text-label-2">{r.lastPaymentAt ? formatDate(r.lastPaymentAt) : "—"}</span>,
+    },
+    {
+      key: "status",
+      header: "Durum",
+      sortValue: (r) => (r.overdue ? 3 : r.balance > 0 ? 2 : r.balance < 0 ? 1 : 0),
+      cell: (r) => <StatusCell r={r} />,
+    },
+    {
+      key: "actions",
+      header: <span className="sr-only">İşlemler</span>,
+      align: "right",
+      cell: (r) =>
+        canPay && r.balance > 0 ? (
+          <Button variant="tinted" size="sm" onClick={() => openPay(r)} aria-label={`${r.name} için ödeme al`}>
+            <Banknote />
+            Ödeme al
+          </Button>
+        ) : null,
+    },
   ];
 
-  return (
-    <div className="space-y-4">
-      {/* Sekmeler */}
-      <div className="flex flex-wrap gap-2">
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={cn(
-                "flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors",
-                active ? "border-primary/40 bg-primary/[0.06] text-primary" : "bg-card text-muted-foreground hover:bg-muted"
-              )}
-            >
-              <span className={cn(!active && t.tone)}>{t.label}</span>
-              <Badge variant={t.key === "overdue" && t.count > 0 ? "danger" : active ? "info" : "secondary"}>{t.count}</Badge>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Arama */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Müşteri veya telefon ara..." className="pl-8" />
-      </div>
-
-      {/* Tablo */}
-      <div className="overflow-x-auto rounded-lg border bg-card shadow-soft">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead>Müşteri</TableHead>
-              <TableHead className="text-right">Borçlandırma</TableHead>
-              <TableHead className="text-right">Tahsilat</TableHead>
-              <TableHead className="text-right">Bakiye</TableHead>
-              <TableHead>Son Ödeme</TableHead>
-              <TableHead>Durum</TableHead>
-              <TableHead className="text-right">İşlem</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
-                  Bu filtrelerle eşleşen kayıt yok.
-                </TableCell>
-              </TableRow>
+  function renderMobileRow(r: CariRow) {
+    const trailing = [
+      ...(canPay && r.balance > 0
+        ? [{ label: "Ödeme al", icon: Banknote, tone: "primary" as const, onAction: () => openPay(r) }]
+        : []),
+      ...(r.phone
+        ? [{ label: "Ara", icon: Phone, tone: "neutral" as const, onAction: () => (window.location.href = telHref(r.phone!)) }]
+        : []),
+    ];
+    return (
+      <SwipeRow trailing={trailing}>
+        <button
+          type="button"
+          onClick={() => openRow(r)}
+          aria-label={`${r.name}, ${r.balance > 0 ? `${formatMoney(r.balance)} borç` : "borcu yok"}. Hesabı aç`}
+          className="flex min-h-[60px] w-full items-center gap-3 px-4 py-2.5 text-left transition-colors active:bg-press focus-visible:outline-offset-[-3px]"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[1rem] leading-[1.3125rem] font-semibold">{r.name}</span>
+            <span className="block truncate text-subhead text-label-2">
+              {r.lastPaymentAt ? `Son ödeme ${formatDate(r.lastPaymentAt)}` : "Henüz ödeme yok"}
+            </span>
+          </span>
+          <span className="flex shrink-0 flex-col items-end gap-0.5">
+            {r.balance > 0 ? (
+              <Money amount={r.balance} tone="debt" overdue={r.overdue} className="text-[0.9375rem]" />
             ) : (
-              filtered.map((r) => {
-                const st = statusOf(r);
-                const wa = r.balance > 0 ? waLink(r.phone, `Merhaba ${r.name}, ${formatPrice(r.balance)} tutarındaki ödemenizle ilgili bir hatırlatma yapmak istedik. Detaylar için bize ulaşabilirsiniz.`) : null;
-                return (
-                  <TableRow key={r.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2.5">
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                          {r.name.slice(0, 2).toLocaleUpperCase("tr")}
-                        </span>
-                        <div className="min-w-0">
-                          <Link href={`/musteriler/${r.id}`} className="block truncate font-medium leading-tight hover:text-primary hover:underline">{r.name}</Link>
-                          <p className="truncate text-xs text-muted-foreground">{r.phone ?? "—"}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{formatPrice(r.charges)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-positive">{formatPrice(r.payments)}</TableCell>
-                    <TableCell className={cn("text-right font-semibold tabular-nums", r.balance > 0 && "text-danger", r.balance < 0 && "text-primary")}>
-                      {formatPrice(Math.abs(r.balance))}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {r.lastPaymentAt ? formatDate(r.lastPaymentAt) : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {st === "overdue" ? <Badge variant="danger">Gecikmiş</Badge>
-                        : st === "debtor" ? <Badge variant="warning">Borçlu</Badge>
-                        : st === "credit" ? <Badge variant="info">Alacaklı</Badge>
-                        : <Badge variant="positive">Kapalı</Badge>}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1.5">
-                        {wa && (
-                          <a href={wa} target="_blank" rel="noreferrer" title="Ödeme hatırlat (WhatsApp)" className="flex size-7 items-center justify-center rounded-md bg-positive/10 text-positive transition-colors hover:bg-positive/20">
-                            <MessageCircle className="size-3.5" />
-                          </a>
-                        )}
-                        {r.phone && (
-                          <a href={`tel:${r.phone}`} title="Ara" className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors hover:bg-primary/20">
-                            <Phone className="size-3.5" />
-                          </a>
-                        )}
-                        <Link href="/tahsilat" title="Tahsilat ekle" className={cn(buttonVariants({ size: "icon-sm", variant: "outline" }))}>
-                          <Banknote className="size-3.5" />
-                        </Link>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+              <StatusCell r={r} />
             )}
-          </TableBody>
-        </Table>
-      </div>
+            {r.balance > 0 && <span className="text-subhead whitespace-nowrap text-label-2">{r.overdue ? "Gecikmiş" : "Borçlu"}</span>}
+          </span>
+        </button>
+      </SwipeRow>
+    );
+  }
 
-      <p className="text-xs text-muted-foreground">
-        Bakiye = (paket alımları + pakete bağlı olmayan tamamlanmış randevular) − toplam tahsilat ·
-        &quot;Gecikmiş&quot;: 30 günden eski ödenmemiş bakiye · &quot;Alacaklı&quot;: avans/fazla ödeme.
-      </p>
+  // ---- Boş durumlar ----
+  const empty =
+    searched.length === 0 ? (
+      <EmptyState
+        variant="inline"
+        icon={Search}
+        title="Sonuç yok"
+        description={q.trim() ? `“${q.trim()}” ile eşleşen müşteri yok. Yazımı kontrol edin.` : "Aradığınız müşteri yok."}
+        action={
+          <Button variant="secondary" onClick={clearFilters}>
+            Aramayı temizle
+          </Button>
+        }
+      />
+    ) : (
+      <EmptyState
+        variant="inline"
+        icon={Scale}
+        title={scope === "gecikmis" ? "Gecikmiş ödeme yok" : "Borçlu müşteri yok"}
+        description={
+          scope === "gecikmis"
+            ? "30 günü geçen açık borç yok. Tüm müşterilerin hesabı güncel."
+            : "Tüm müşterilerin hesabı kapalı."
+        }
+        action={
+          <Button variant="secondary" onClick={() => set({ durum: null })}>
+            Tüm müşterileri göster
+          </Button>
+        }
+      />
+    );
+
+  const paySheetCustomers = payFor ? [{ id: payFor.id, full_name: payFor.name }] : customers;
+  const paySheetPackages = payFor ? packages.filter((p) => p.customer_id === payFor.id) : packages;
+
+  return (
+    <div className="space-y-8">
+      <PageHeader
+        title="Cari Hesap"
+        description="Kimin ne kadar borcu olduğunu, ne zaman ödeme yaptığını görün ve ödeme alın."
+        search={
+          <SearchField
+            variant="glass"
+            value={q}
+            onValueChange={(v) => {
+              setQ(v);
+              set({ q: v.trim() ? v : null });
+            }}
+            placeholder="Müşteri ara"
+            aria-label="Müşteri ara"
+          />
+        }
+        primary={
+          canPay ? <ToolbarAction prominent icon={Plus} label="Ödeme al" onClick={() => openPay()} disabled={customers.length === 0} /> : undefined
+        }
+      />
+
+      {loadFailed ? (
+        <ErrorState
+          title="Cari hesaplar yüklenemedi"
+          description="Bağlantıda bir sorun olabilir. Tekrar deneyin; sorun sürerse sayfayı yenileyin."
+          onRetry={() => router.refresh()}
+        />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon={Scale}
+          title="Henüz cari hareket yok"
+          description="Paket sattıkça, fiyatlı randevu tamamlandıkça ve ödeme aldıkça müşterilerin hesabı burada görünür."
+          action={
+            <Button asChild>
+              <Link href="/paketler?yeni=1">
+                <Plus />
+                Paket sat
+              </Link>
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          <MetricStrip aria-label="Cari özeti">
+            <Metric
+              label="Toplam alacak"
+              value={formatMoney(totals.receivable)}
+              tone={totals.receivable > 0 ? "danger" : "default"}
+              context={totals.debtors > 0 ? `${totals.debtors} borçlu müşteri` : "Borçlu müşteri yok"}
+            />
+            <Metric
+              label="Gecikmiş"
+              value={formatMoney(totals.overdueAmount)}
+              tone={totals.overdueAmount > 0 ? "danger" : "default"}
+              context={totals.overdueCount > 0 ? `${totals.overdueCount} müşteri · 30+ gün` : "Gecikmiş yok"}
+            />
+            <Metric label="Toplam satış" value={formatMoney(totals.charges)} />
+            <Metric label="Tahsil edilen" value={formatMoney(totals.payments)} />
+          </MetricStrip>
+
+          <div className={cn("grid items-start gap-5", "xl:grid-cols-[minmax(0,1fr)_23rem]")}>
+            <div className="min-w-0 space-y-4">
+              <FilterBar
+                scope={{
+                  "aria-label": "Hesap durumu",
+                  value: scope,
+                  onValueChange: (v) => set({ durum: v === "tumu" ? null : v }),
+                  items: [
+                    { value: "tumu", label: "Tümü", count: counts.tumu },
+                    { value: "borclu", label: "Borçlu", count: counts.borclu },
+                    { value: "gecikmis", label: "Gecikmiş", count: counts.gecikmis },
+                  ],
+                }}
+                onClearAll={q.trim() ? clearFilters : undefined}
+                result={`${filtered.length} müşteri`}
+              />
+              <DataTable
+                caption="Cari hesaplar"
+                columns={columns}
+                rows={filtered}
+                getRowId={(r) => r.id}
+                defaultSort={{ key: "balance", dir: "desc" }}
+                activeId={isPhone ? null : isXl ? effSel : sheetOpen ? selId : null}
+                onRowActivate={openRow}
+                renderMobileRow={renderMobileRow}
+                empty={empty}
+                footer={<span>{filtered.length} müşteri</span>}
+              />
+            </div>
+
+            <aside
+              aria-label="Hesap ayrıntısı"
+              className="hidden max-h-[calc(100dvh-var(--toolbar-h)-2rem)] overflow-y-auto overscroll-contain xl:sticky xl:top-[calc(var(--toolbar-h)+1rem)] xl:block"
+            >
+              {asideRow ? (
+                <CariPane key={asideRow.id} row={asideRow} canPay={canPay} onPay={() => openPay(asideRow)} />
+              ) : (
+                <EmptyState icon={UserRound} title="Müşteri seçin" description="Hareketleri görmek için listeden bir müşteri seçin." />
+              )}
+            </aside>
+          </div>
+        </>
+      )}
+
+      {/* Dar ekranlarda hesap ayrıntısı: telefonda alt sayfa, tablette sağ panel */}
+      <Sheet open={sheetOpen && !isXl && !!sheetRow} onOpenChange={setSheetOpen}>
+        <SheetContent side="auto" className="sm:max-w-[26rem]">
+          <SheetHeader>
+            <SheetTitle>Hesap ayrıntısı</SheetTitle>
+            <SheetDescription className="sr-only">Seçili müşterinin bakiyesi ve hareketleri</SheetDescription>
+          </SheetHeader>
+          <div className="px-4 pb-6">
+            {sheetRow && (
+              <CariPane
+                key={sheetRow.id}
+                row={sheetRow}
+                canPay={canPay}
+                onPay={() => {
+                  setSheetOpen(false);
+                  openPay(sheetRow);
+                }}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <PaymentSheet
+        open={payOpen}
+        onOpenChange={(o) => !o && closePay()}
+        customers={paySheetCustomers}
+        packages={paySheetPackages}
+        initial={payFor ? { customer_id: payFor.id, amount: payFor.balance > 0 ? round2(payFor.balance) : undefined } : undefined}
+        description={payFor?.name}
+      />
     </div>
   );
 }

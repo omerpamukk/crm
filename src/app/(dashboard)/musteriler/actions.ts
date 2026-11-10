@@ -5,9 +5,23 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessId } from "@/lib/supabase/business";
 import { logBusinessAction } from "@/lib/supabase/business-audit";
+import { getAccountContext } from "@/lib/supabase/account";
+import { can, denied } from "@/lib/permissions";
+import { fromDateTimeLocal, zonedParts } from "@/lib/zaman";
 import { customerSchema, type CustomerInput } from "./schema";
 
 type ActionResult = { error?: string };
+
+/** Müşteri yazma işlemleri için sunucu tarafı yetki kontrolü (arayüz gizlemesi tek başına yetmez). */
+async function canManageCustomers(): Promise<boolean> {
+  const { role } = await getAccountContext();
+  return can(role, "musteri_yonet");
+}
+
+function todayKeyTR(): string {
+  const p = zonedParts(Date.now());
+  return `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.d).padStart(2, "0")}`;
+}
 
 /** Form girdisini DB satırına dönüştürür (boş alanlar null, tags → dizi). */
 function toRow(values: CustomerInput) {
@@ -32,6 +46,7 @@ export async function createCustomer(
   input: CustomerInput,
   options?: { asLead?: boolean }
 ): Promise<ActionResult> {
+  if (!(await canManageCustomers())) return denied();
   const parsed = customerSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri" };
@@ -89,6 +104,9 @@ export interface CustomerDetailInput {
 export async function createCustomerWithDetails(
   input: CustomerDetailInput
 ): Promise<ActionResult> {
+  // Yeni müşteri eklemek tüm rollere açık (Uzman dahil); düzenleme/silme musteri_yonet ister.
+  const { role } = await getAccountContext();
+  if (!can(role, "musteri_ekle")) return denied();
   const fullName = `${input.first_name?.trim() ?? ""} ${input.last_name?.trim() ?? ""}`.trim();
   if (!fullName) return { error: "Ad zorunludur." };
   if (input.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
@@ -121,7 +139,10 @@ export async function createCustomerWithDetails(
     .select("id")
     .single();
 
-  if (error) return { error: `Müşteri eklenemedi: ${error.message}` };
+  if (error) {
+    console.error("createCustomerWithDetails:", error);
+    return { error: "Müşteri eklenemedi. Biraz sonra tekrar deneyin." };
+  }
 
   const total = input.total_sessions ? Number(input.total_sessions) : 0;
   if (input.service?.trim() && total > 0 && customer) {
@@ -131,10 +152,12 @@ export async function createCustomerWithDetails(
       service_name: input.service.trim(),
       total_sessions: total,
       remaining_sessions: total,
-      purchased_at: new Date().toISOString().slice(0, 10),
+      // Bugün (İstanbul günü), işletme saatiyle öğlen.
+      purchased_at: fromDateTimeLocal(`${todayKeyTR()}T12:00`),
     });
     if (pkgErr) {
-      return { error: `Müşteri eklendi ama paket oluşturulamadı: ${pkgErr.message}` };
+      console.error("createCustomerWithDetails paket:", pkgErr);
+      return { error: "Müşteri eklendi ama paket oluşturulamadı. Paketi müşteri kartından ekleyin." };
     }
   }
 
@@ -146,6 +169,7 @@ export async function updateCustomer(
   id: string,
   input: CustomerInput
 ): Promise<ActionResult> {
+  if (!(await canManageCustomers())) return denied();
   const parsed = customerSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri" };
@@ -171,6 +195,7 @@ export async function updateCustomer(
 }
 
 export async function deleteCustomer(id: string): Promise<ActionResult> {
+  if (!(await canManageCustomers())) return denied();
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
   if (!businessId) return { error: "Oturum bulunamadı." };
@@ -210,6 +235,7 @@ export async function updateCustomerStatus(
   id: string,
   status: string
 ): Promise<ActionResult> {
+  if (!(await canManageCustomers())) return denied();
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
   if (!businessId) return { error: "Oturum bulunamadı." };

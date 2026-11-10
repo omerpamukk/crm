@@ -1,19 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { FormActions } from "@/components/shared/form-sheet";
 import type { Staff } from "@/types/database";
 
 import { staffSchema, type StaffInput } from "./schema";
 import { createStaff, updateStaff } from "./actions";
 
+/** Personel ekleme / düzenleme formu. Not, "Gelişmiş" altında kapalı başlar. */
 export function StaffForm({
   staff,
   onSuccess,
@@ -38,7 +42,7 @@ export function StaffForm({
       title: staff?.title ?? "",
       phone: staff?.phone ?? "",
       email: staff?.email ?? "",
-      commission_rate: staff?.commission_rate?.toString() ?? "",
+      commission_rate: staff?.commission_rate ? String(staff.commission_rate) : "",
       is_active: staff?.is_active ?? true,
       note: staff?.note ?? "",
     },
@@ -46,65 +50,44 @@ export function StaffForm({
 
   async function onSubmit(values: StaffInput) {
     setFormError(null);
-    const result = isEdit
-      ? await updateStaff(staff!.id, values)
-      : await createStaff(values);
-
+    const result = isEdit ? await updateStaff(staff!.id, values) : await createStaff(values);
     if (result.error) {
       setFormError(result.error);
       return;
     }
-
     toast.success(isEdit ? "Personel güncellendi" : "Personel eklendi");
     onSuccess();
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
       <div className="space-y-2">
         <Label htmlFor="full_name">Ad soyad *</Label>
-        <Input id="full_name" {...register("full_name")} />
-        {errors.full_name && (
-          <p className="text-sm text-danger">{errors.full_name.message}</p>
-        )}
+        <Input id="full_name" autoComplete="off" {...register("full_name")} />
+        {errors.full_name && <p className="text-sm text-danger-text">{errors.full_name.message}</p>}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="title">Ünvan</Label>
-          <Input
-            id="title"
-            placeholder="Kuaför, terapist, danışman..."
-            {...register("title")}
-          />
+          <Input id="title" placeholder="Örn. Uzman, danışman" {...register("title")} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="commission_rate">Komisyon (%)</Label>
-          <Input
-            id="commission_rate"
-            inputMode="decimal"
-            placeholder="0"
-            {...register("commission_rate")}
-          />
-          {errors.commission_rate && (
-            <p className="text-sm text-danger">
-              {errors.commission_rate.message}
-            </p>
-          )}
+          <Input id="commission_rate" inputMode="decimal" placeholder="0" {...register("commission_rate")} />
+          {errors.commission_rate && <p className="text-sm text-danger-text">{errors.commission_rate.message}</p>}
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="phone">Telefon</Label>
-          <Input id="phone" {...register("phone")} />
+          <Input id="phone" type="tel" inputMode="tel" {...register("phone")} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">E-posta</Label>
-          <Input id="email" type="email" {...register("email")} />
-          {errors.email && (
-            <p className="text-sm text-danger">{errors.email.message}</p>
-          )}
+          <Input id="email" type="email" inputMode="email" autoComplete="off" {...register("email")} />
+          {errors.email && <p className="text-sm text-danger-text">{errors.email.message}</p>}
         </div>
       </div>
 
@@ -112,33 +95,44 @@ export function StaffForm({
         control={control}
         name="is_active"
         render={({ field }) => (
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="size-4 rounded border-input accent-primary"
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[0.9375rem] font-medium">
+                Aktif personel
+              </p>
+              <p id="is_active_hint" className="text-subhead text-label-2">
+                Pasif personel randevu atamasında görünmez.
+              </p>
+            </div>
+            <Switch
               checked={field.value}
-              onChange={(e) => field.onChange(e.target.checked)}
+              onCheckedChange={field.onChange}
+              label="Aktif personel"
+              aria-describedby="is_active_hint"
             />
-            Aktif personel (pasif personel randevu atamasında gizlenir)
-          </label>
+          </div>
         )}
       />
 
-      <div className="space-y-2">
+      <Disclosure title="Gelişmiş" contentClassName="space-y-2 pt-3">
         <Label htmlFor="note">Not</Label>
-        <Textarea id="note" rows={2} {...register("note")} />
-      </div>
+        <Textarea id="note" rows={3} placeholder="Yalnızca yönetici görür." {...register("note")} />
+      </Disclosure>
 
-      {formError && <p className="text-sm text-danger">{formError}</p>}
+      {formError && (
+        <p role="alert" className="text-sm text-danger-text">
+          {formError}
+        </p>
+      )}
 
-      <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          İptal
+      <FormActions>
+        <Button type="button" variant="secondary" onClick={onCancel}>
+          Vazgeç
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Kaydediliyor..." : isEdit ? "Güncelle" : "Ekle"}
+          {isSubmitting ? "Kaydediliyor" : isEdit ? "Kaydet" : "Personel ekle"}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

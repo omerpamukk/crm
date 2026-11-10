@@ -1,251 +1,248 @@
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/shared/page-header";
+import { can } from "@/lib/permissions";
+import { getBusinessId } from "@/lib/supabase/business";
+import { fetchDebtors } from "@/lib/balances";
 import { requireCapability } from "@/lib/supabase/guard";
+import { DAY, daysUntilBirthday } from "../panel/dates";
+import type { PackageOption, ServiceOption, StaffOption } from "../musteriler/customer-types";
 
 import { OpportunitiesView, type OppCategory, type OppItem } from "./opportunities-view";
 
 export const metadata = { title: "Gelir Fırsatları" };
 
-const DAY = 86_400_000;
+/** Her grupta gösterilecek en çok kişi (sayı ise her zaman gerçek toplamdır). */
+const LIST_LIMIT = 200;
 
-function pickOne<T>(v: T | T[] | null): T | null {
-  return Array.isArray(v) ? (v[0] ?? null) : v;
-}
+type One<T> = T | T[] | null;
+const pickOne = <T,>(v: One<T>): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
 
-function daysUntilBirthday(birthday: string, today: Date): number | null {
-  const [, m, d] = birthday.split("-").map(Number);
-  if (!m || !d) return null;
-  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  let next = new Date(today.getFullYear(), m - 1, d);
-  if (next.getTime() < todayMid.getTime()) next = new Date(today.getFullYear() + 1, m - 1, d);
-  return Math.round((next.getTime() - todayMid.getTime()) / DAY);
-}
-
-type Cust = {
+type Cust = { id: string; full_name: string; phone: string | null; last_visit_at: string | null };
+type PkgRow = {
   id: string;
-  full_name: string;
-  phone: string | null;
-  last_visit_at: string | null;
-  birthday: string | null;
-  created_at: string;
-  is_lead: boolean;
+  customer_id: string | null;
+  service_name: string | null;
+  remaining_sessions: number | null;
+  price: number | null;
+  paid_amount: number | null;
+  purchased_at: string | null;
+  customer: One<{ full_name: string; phone: string | null }>;
+};
+type ApptRow = {
+  customer_id: string | null;
+  starts_at: string;
+  customer: One<{ full_name: string; phone: string | null }>;
 };
 
-// Gerçek veri kullanılır. (Demo blok yalnızca geçici önizleme içindi.)
-const DEMO = false;
-const it = (
-  name: string, phone: string, meta: string, value: number | null,
-  call = false
-): OppItem => ({
-  id: `${name}-${meta}`, name, phone, meta, value,
-  waMsg: `Merhaba ${name}, size özel bir fırsatımız var, bekleriz! 💜`, call,
-});
-const DEMO_CATEGORIES: OppCategory[] = [
-  {
-    key: "inactive", title: "90+ Gündür Gelmeyenler", subtitle: "Kayıp müşteri riski — hemen ulaş",
-    count: 14, footerHref: "/musteriler", footerLabel: "Müşterilere Git",
-    items: [it("Beren Yurt", "05321112233", "112 gün", 4200), it("Can Mercan", "05322223344", "98 gün", 1800), it("Naz Şahin", "05323334455", "91 gün", 9600)],
-  },
-  {
-    key: "ending", title: "Paketi Bitmek Üzere", subtitle: "Son 1-2 seans kalan müşteriler",
-    count: 8, footerHref: "/paketler", footerLabel: "Paketleri Yönet",
-    items: [it("Elif Yıldız", "05324445566", "Son 1 seans", 7000), it("Murat Demir", "05325556677", "Son 2 seans", 2000), it("Selin Kaya", "05326667788", "Son 2 seans", 2400)],
-  },
-  {
-    key: "noshow", title: "Randevu Alıp Gelmeyenler", subtitle: "No-show listesi — takip et",
-    count: 6, footerHref: "/randevular", footerLabel: "Yeni Randevu Al",
-    items: [it("Fatma D.", "05327778899", "Dün 14:00", null, true), it("Kemal A.", "05328889900", "2 gün önce", null, true)],
-  },
-  {
-    key: "teklif", title: "Teklif Alıp Satın Almayanlar", subtitle: "Yakın kapanış fırsatı",
-    count: 9, footerHref: "/leadler", footerLabel: "İndirim Teklif Et",
-    items: [it("Kerem Akın", "05329990011", "5 gün", 12000, true), it("Lale Yücel", "05330001122", "3 gün", 7500, true)],
-  },
-  {
-    key: "ongorusme", title: "Ön Görüşme → Dönüşmeyenler", subtitle: "Görüşüldü ama satış olmadı",
-    count: 11, footerHref: "/leadler", footerLabel: "Lead'lere Git",
-    items: [it("Naz Şahin", "05331112233", "10 gün önce", null, true), it("Hande Koç", "05332223344", "7 gün önce", null, true)],
-  },
-  {
-    key: "birthday", title: "Doğum Günü Yaklaşanlar", subtitle: "Önümüzdeki 30 gün içinde",
-    count: 7, footerHref: "/musteriler", footerLabel: "Müşterilere Git",
-    items: [it("Zeynep Arslan", "05333334455", "Bugün", null), it("Ahmet Çelik", "05334445566", "3 gün sonra", null), it("Selin Kaya", "05335556677", "6 gün sonra", null)],
-  },
-  {
-    key: "periodic", title: "Tekrar İşlem Zamanı Gelenler", subtitle: "Periyodik bakım vakti geldi",
-    count: 12, footerHref: "/randevular", footerLabel: "Randevu Oluştur",
-    items: [it("Murat Demir", "05336667788", "Cilt Bakımı · 4 hafta", null), it("Elif Yıldız", "05337778899", "Kalıcı Makyaj · 6 hafta", null)],
-  },
-  {
-    key: "debt", title: "Borcu Olan Müşteriler", subtitle: "Toplam alacak: ₺18.400",
-    count: 5, footerHref: "/cari", footerLabel: "Tahsilat Paneli",
-    items: [it("Ahmet Çelik", "05338889900", "Gecikmiş", 7000, true), it("Selin Kaya", "05339990011", "2 gün", 4500, true), it("Murat Demir", "05340001122", "Bu ay", 6900, true)],
-  },
-];
-
 export default async function FirsatlarPage() {
-  await requireCapability("musteri_yonet");
+  const { role } = await requireCapability("musteri_yonet");
+  const abilities = { book: can(role, "randevu_yonet"), pay: can(role, "tahsilat") };
   const supabase = await createClient();
+  const businessId = await getBusinessId(supabase);
+  const debtors = abilities.pay && businessId ? await fetchDebtors(supabase, businessId) : { rows: [], error: false };
   const now = new Date();
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * DAY).toISOString();
+  const twentyEightDaysAgo = new Date(now.getTime() - 28 * DAY).toISOString();
 
-  const [custRes, payRes, pkgRes, noShowRes, apptIdsRes, interIdsRes] =
+  const [inactiveRes, pkgRes, birthdayRes, noShowRes, periodicRes, leadRes, servicesRes, staffRes] =
     await Promise.all([
-      supabase.from("customers").select("id, full_name, phone, last_visit_at, birthday, created_at, is_lead"),
-      supabase.from("payments").select("customer_id, amount"),
-      supabase.from("packages").select("customer_id, service_name, remaining_sessions, price, paid_amount, purchased_at, customer:customers(full_name, phone)"),
-      supabase.from("appointments").select("customer_id, starts_at, customer:customers(full_name, phone)").eq("status", "no_show").order("starts_at", { ascending: false }),
-      supabase.from("appointments").select("customer_id").not("customer_id", "is", null),
-      supabase.from("interactions").select("customer_id"),
+      // Genel Bakış'taki sayıyla aynı ölçü: 90 gündür gelmeyen müşteriler
+      supabase
+        .from("customers")
+        .select("id, full_name, phone, last_visit_at", { count: "exact" })
+        .eq("is_lead", false)
+        .not("last_visit_at", "is", null)
+        .lte("last_visit_at", ninetyDaysAgo)
+        .order("last_visit_at", { ascending: true })
+        .limit(LIST_LIMIT),
+      supabase
+        .from("packages")
+        .select("id, customer_id, service_name, remaining_sessions, price, paid_amount, purchased_at, customer:customers(full_name, phone)"),
+      supabase
+        .from("customers")
+        .select("id, full_name, phone, birthday")
+        .eq("is_lead", false)
+        .not("birthday", "is", null),
+      supabase
+        .from("appointments")
+        .select("customer_id, starts_at, customer:customers(full_name, phone)")
+        .eq("status", "no_show")
+        .order("starts_at", { ascending: false })
+        .limit(LIST_LIMIT),
+      supabase
+        .from("customers")
+        .select("id, full_name, phone, last_visit_at")
+        .eq("is_lead", false)
+        .not("last_visit_at", "is", null)
+        .lte("last_visit_at", twentyEightDaysAgo)
+        .gt("last_visit_at", ninetyDaysAgo)
+        .order("last_visit_at", { ascending: true })
+        .limit(LIST_LIMIT),
+      supabase
+        .from("customers")
+        .select("id, full_name, phone, created_at")
+        .eq("is_lead", true)
+        .order("created_at", { ascending: true })
+        .limit(LIST_LIMIT),
+      abilities.book ? supabase.from("services").select("id, name, price").order("name") : null,
+      abilities.book
+        ? supabase.from("staff").select("id, full_name").eq("is_active", true).order("full_name")
+        : null,
     ]);
 
-  const customers = (custRes.data ?? []) as Cust[];
+  const loadFailed = Boolean(inactiveRes.error || pkgRes.error || birthdayRes.error);
+  if (loadFailed) console.error("firsatlar:", inactiveRes.error ?? pkgRes.error ?? birthdayRes.error);
 
-  const ltv = new Map<string, number>();
-  for (const p of (payRes.data ?? []) as { customer_id: string | null; amount: number | null }[]) {
-    if (!p.customer_id) continue;
-    ltv.set(p.customer_id, (ltv.get(p.customer_id) ?? 0) + (p.amount ?? 0));
-  }
+  const daysSince = (iso: string | null) =>
+    iso ? Math.max(Math.floor((now.getTime() - new Date(iso).getTime()) / DAY), 0) : 0;
+  const pkgs = (pkgRes.data ?? []) as unknown as PkgRow[];
 
-  const apptSet = new Set(((apptIdsRes.data ?? []) as { customer_id: string }[]).map((a) => a.customer_id));
-  const interSet = new Set(((interIdsRes.data ?? []) as { customer_id: string }[]).map((i) => i.customer_id));
-
+  // Aynı müşterinin en son hizmeti (bakım zamanı satırında gösterilir)
   const serviceByCustomer = new Map<string, string>();
-  for (const p of (pkgRes.data ?? []) as { customer_id: string | null; service_name: string | null }[]) {
+  for (const p of pkgs) {
     if (p.customer_id && p.service_name && !serviceByCustomer.has(p.customer_id)) {
       serviceByCustomer.set(p.customer_id, p.service_name);
     }
   }
 
-  const daysSince = (iso: string | null) =>
-    iso ? Math.floor((now.getTime() - new Date(iso).getTime()) / DAY) : null;
+  // Randevusu ya da görüşmesi olan lead'leri ayıkla (yalnızca bu lead'ler için sorgula)
+  const leads = (leadRes.data ?? []) as { id: string; full_name: string; phone: string | null; created_at: string }[];
+  const leadIds = leads.map((l) => l.id);
+  const [leadApptRes, leadInterRes] = leadIds.length
+    ? await Promise.all([
+        supabase.from("appointments").select("customer_id").in("customer_id", leadIds),
+        supabase.from("interactions").select("customer_id").in("customer_id", leadIds),
+      ])
+    : [null, null];
+  const apptSet = new Set(((leadApptRes?.data ?? []) as { customer_id: string }[]).map((a) => a.customer_id));
+  const interSet = new Set(((leadInterRes?.data ?? []) as { customer_id: string }[]).map((i) => i.customer_id));
 
-  const realCustomers = customers.filter((c) => !c.is_lead);
-
-  // 1) 90+ gündür gelmeyenler
-  const inactiveItems: OppItem[] = realCustomers
-    .map((c) => ({ c, days: daysSince(c.last_visit_at) }))
-    .filter((x): x is { c: Cust; days: number } => x.days !== null && x.days >= 90)
-    .sort((a, b) => b.days - a.days)
-    .map(({ c, days }) => ({
-      id: c.id, customerId: c.id, name: c.full_name, phone: c.phone,
-      meta: `${days} gün`, value: ltv.get(c.id) ?? null,
-      waMsg: `Merhaba ${c.full_name}, sizi özledik! Size özel bir fırsatımız var, tekrar bekleriz. 💜`,
-      call: false,
-    }));
-
-  // 2) Paketi bitmek üzere (son 1-2 seans)
-  const endingItems: OppItem[] = ((pkgRes.data ?? []) as {
-    customer_id: string | null; remaining_sessions: number | null; price: number | null;
-    customer: { full_name: string; phone: string | null } | { full_name: string; phone: string | null }[] | null;
-  }[])
+  // 1) Paketi bitmek üzere (Genel Bakış ile aynı ölçü: son 1-2 seans)
+  const ending: OppItem[] = pkgs
     .filter((p) => (p.remaining_sessions ?? 0) > 0 && (p.remaining_sessions ?? 0) <= 2)
     .sort((a, b) => (a.remaining_sessions ?? 0) - (b.remaining_sessions ?? 0))
-    .map((p, i) => {
-      const cust = pickOne(p.customer);
+    .map((p) => {
+      const c = pickOne(p.customer);
       return {
-        id: p.customer_id ?? `ending-${i}`, customerId: p.customer_id,
-        name: cust?.full_name ?? "—", phone: cust?.phone ?? null,
-        meta: `Son ${p.remaining_sessions} seans`, value: p.price ?? null,
-        waMsg: `Merhaba ${cust?.full_name ?? ""}, paketinizde son seanslarınız kaldı. Yenileme için size özel fırsatımız var!`,
-        call: false,
+        key: `ending-${p.id}`,
+        customerId: p.customer_id,
+        name: c?.full_name ?? "Müşteri belirtilmedi",
+        phone: c?.phone ?? null,
+        subtitle: `${p.service_name ?? "Paket"} · son ${p.remaining_sessions} seans`,
+        amount: null,
+        message: `Merhaba ${c?.full_name ?? ""}, paketinizde son seanslarınız kaldı. Yenileme için size özel bir fırsatımız var.`,
       };
     });
 
-  // 3) Randevu alıp gelmeyenler (no-show)
-  const noShowItems: OppItem[] = ((noShowRes.data ?? []) as {
-    customer_id: string | null; starts_at: string;
-    customer: { full_name: string; phone: string | null } | { full_name: string; phone: string | null }[] | null;
-  }[])
-    .map((a) => {
-      const cust = pickOne(a.customer);
-      const d = daysSince(a.starts_at) ?? 0;
-      return {
-        id: `${a.customer_id}-${a.starts_at}`, customerId: a.customer_id,
-        name: cust?.full_name ?? "—", phone: cust?.phone ?? null,
-        meta: d <= 0 ? "Bugün" : d === 1 ? "Dün" : `${d} gün önce`, value: null,
-        waMsg: `Merhaba ${cust?.full_name ?? ""}, kaçırdığınız randevunuz için yeni bir tarih ayarlayalım mı?`,
-        call: true,
-      };
-    });
-
-  // 4) Ön görüşme → dönüşmeyenler (görüşülmüş lead, randevu yok)
-  const ongorusmeItems: OppItem[] = customers
-    .filter((c) => c.is_lead && interSet.has(c.id) && !apptSet.has(c.id))
-    .map((c) => ({ c, days: daysSince(c.created_at) ?? 0 }))
-    .sort((a, b) => b.days - a.days)
-    .map(({ c, days }) => ({
-      id: c.id, customerId: c.id, name: c.full_name, phone: c.phone,
-      meta: `${days} gün önce`, value: null,
-      waMsg: `Merhaba ${c.full_name}, görüşmemizin ardından size özel bir teklif hazırladık!`,
-      call: true,
-    }));
-
-  // 5) Doğum günü yaklaşanlar (30 gün içinde)
-  const birthdayItems: OppItem[] = realCustomers
-    .map((c) => ({ c, d: c.birthday ? daysUntilBirthday(c.birthday, now) : null }))
-    .filter((x): x is { c: Cust; d: number } => x.d !== null && x.d <= 30)
-    .sort((a, b) => a.d - b.d)
-    .map(({ c, d }) => ({
-      id: c.id, customerId: c.id, name: c.full_name, phone: c.phone,
-      meta: d === 0 ? "Bugün" : `${d} gün sonra`, value: null,
-      waMsg: `İyi ki doğdunuz ${c.full_name}! Size özel bir hediyemiz var, bekleriz.`,
-      call: false,
-    }));
-
-  // 6) Tekrar işlem zamanı gelenler (28-89 gün önce gelmiş)
-  const periodicItems: OppItem[] = realCustomers
-    .map((c) => ({ c, days: daysSince(c.last_visit_at) }))
-    .filter((x): x is { c: Cust; days: number } => x.days !== null && x.days >= 28 && x.days < 90)
-    .sort((a, b) => b.days - a.days)
-    .map(({ c, days }) => ({
-      id: c.id, customerId: c.id, name: c.full_name, phone: c.phone,
-      meta: `${serviceByCustomer.get(c.id) ?? "Bakım"} · ${Math.floor(days / 7)} hafta`, value: null,
-      waMsg: `Merhaba ${c.full_name}, bakım zamanınız geldi! Randevunuzu birlikte oluşturalım mı?`,
-      call: false,
-    }));
-
-  // 7) Borcu olan müşteriler
-  const debtMap = new Map<string, { name: string; phone: string | null; debt: number; overdue: boolean }>();
-  for (const p of (pkgRes.data ?? []) as {
-    customer_id: string | null; price: number | null; paid_amount: number | null; purchased_at: string | null;
-    customer: { full_name: string; phone: string | null } | { full_name: string; phone: string | null }[] | null;
-  }[]) {
-    const debt = (p.price ?? 0) - (p.paid_amount ?? 0);
-    if (debt <= 0 || !p.customer_id) continue;
-    const cust = pickOne(p.customer);
-    const overdue = !!p.purchased_at && now.getTime() - new Date(p.purchased_at).getTime() > 30 * DAY;
-    const ex = debtMap.get(p.customer_id);
-    if (ex) { ex.debt += debt; ex.overdue = ex.overdue || overdue; }
-    else debtMap.set(p.customer_id, { name: cust?.full_name ?? "—", phone: cust?.phone ?? null, debt, overdue });
-  }
-  const debtors = [...debtMap.entries()].sort((a, b) => b[1].debt - a[1].debt);
-  const totalDebt = debtors.reduce((s, [, d]) => s + d.debt, 0);
-  const debtItems: OppItem[] = debtors.map(([id, d]) => ({
-    id, customerId: id, name: d.name, phone: d.phone,
-    meta: d.overdue ? "Gecikmiş" : "", value: d.debt,
-    waMsg: `Merhaba ${d.name}, ödemenizle ilgili bir hatırlatma yapmak istedik. Detaylar için bize ulaşabilirsiniz.`,
-    call: true,
+  // 2) 90+ gündür gelmeyen
+  const inactive: OppItem[] = ((inactiveRes.data ?? []) as Cust[]).map((c) => ({
+    key: `inactive-${c.id}`,
+    customerId: c.id,
+    name: c.full_name,
+    phone: c.phone,
+    subtitle: `${daysSince(c.last_visit_at)} gündür gelmiyor`,
+    amount: null,
+    message: `Merhaba ${c.full_name}, sizi özledik. Size özel bir fırsatımız var, tekrar bekleriz.`,
   }));
 
-  const realCategories: OppCategory[] = [
-    { key: "inactive", title: "90+ Gündür Gelmeyenler", subtitle: "Kayıp müşteri riski — hemen ulaş", count: inactiveItems.length, items: inactiveItems, footerHref: "/musteriler", footerLabel: "Müşterilere Git" },
-    { key: "ending", title: "Paketi Bitmek Üzere", subtitle: "Son 1-2 seans kalan müşteriler", count: endingItems.length, items: endingItems, footerHref: "/paketler", footerLabel: "Paketleri Yönet" },
-    { key: "noshow", title: "Randevu Alıp Gelmeyenler", subtitle: "No-show listesi — takip et", count: noShowItems.length, items: noShowItems, footerHref: "/randevular", footerLabel: "Yeni Randevu Al" },
-    { key: "ongorusme", title: "Ön Görüşme → Dönüşmeyenler", subtitle: "Görüşüldü ama satış olmadı", count: ongorusmeItems.length, items: ongorusmeItems, footerHref: "/leadler", footerLabel: "Lead'lere Git" },
-    { key: "birthday", title: "Doğum Günü Yaklaşanlar", subtitle: "Önümüzdeki 30 gün içinde", count: birthdayItems.length, items: birthdayItems, footerHref: "/musteriler", footerLabel: "Müşterilere Git" },
-    { key: "periodic", title: "Tekrar İşlem Zamanı Gelenler", subtitle: "Periyodik bakım vakti geldi", count: periodicItems.length, items: periodicItems, footerHref: "/randevular", footerLabel: "Randevu Oluştur" },
-    { key: "debt", title: "Borcu Olan Müşteriler", subtitle: totalDebt > 0 ? `Toplam alacak: ₺${totalDebt.toLocaleString("tr-TR")}` : "Açık ödemeler", count: debtItems.length, items: debtItems, footerHref: "/cari", footerLabel: "Tahsilat Paneli" },
-  ];
+  // 3) Bu hafta doğum günü (7 gün içinde; Genel Bakış ile aynı ölçü)
+  const birthday: OppItem[] = ((birthdayRes.data ?? []) as (Cust & { birthday: string })[])
+    .map((c) => ({ c, left: daysUntilBirthday(c.birthday, now) }))
+    .filter((x): x is { c: Cust & { birthday: string }; left: number } => x.left !== null && x.left <= 7)
+    .sort((a, b) => a.left - b.left)
+    .map(({ c, left }) => ({
+      key: `birthday-${c.id}`,
+      customerId: c.id,
+      name: c.full_name,
+      phone: c.phone,
+      subtitle: left === 0 ? "Bugün doğum günü" : left === 1 ? "Yarın doğum günü" : `${left} gün sonra doğum günü`,
+      amount: null,
+      message: `İyi ki doğdunuz ${c.full_name}. Size özel bir hediyemiz var, bekleriz.`,
+    }));
 
-  const categories = DEMO ? DEMO_CATEGORIES : realCategories;
+  // 4) Randevuya gelmeyenler
+  const noShow: OppItem[] = ((noShowRes.data ?? []) as unknown as ApptRow[]).map((a, i) => {
+    const c = pickOne(a.customer);
+    const d = daysSince(a.starts_at);
+    return {
+      key: `noshow-${a.customer_id ?? i}-${a.starts_at}`,
+      customerId: a.customer_id,
+      name: c?.full_name ?? "Müşteri belirtilmedi",
+      phone: c?.phone ?? null,
+      subtitle: d === 0 ? "Bugün gelmedi" : d === 1 ? "Dün gelmedi" : `${d} gün önce gelmedi`,
+      amount: null,
+      message: `Merhaba ${c?.full_name ?? ""}, kaçırdığınız randevu için yeni bir tarih ayarlayalım mı?`,
+    };
+  });
+
+  // 5) Görüşülüp randevu almayan lead'ler
+  const noBooking: OppItem[] = leads
+    .filter((l) => interSet.has(l.id) && !apptSet.has(l.id))
+    .map((l) => ({
+      key: `lead-${l.id}`,
+      customerId: l.id,
+      name: l.full_name,
+      phone: l.phone,
+      subtitle: `${daysSince(l.created_at)} gün önce eklendi`,
+      amount: null,
+      message: `Merhaba ${l.full_name}, görüşmemizin ardından size uygun bir randevu ayarlayalım mı?`,
+    }));
+
+  // 6) Bakım zamanı gelenler (28-89 gün önce gelmiş)
+  const periodic: OppItem[] = ((periodicRes.data ?? []) as Cust[]).map((c) => ({
+    key: `periodic-${c.id}`,
+    customerId: c.id,
+    name: c.full_name,
+    phone: c.phone,
+    subtitle: `${serviceByCustomer.get(c.id) ?? "Son ziyaret"} · ${Math.floor(daysSince(c.last_visit_at) / 7)} hafta önce`,
+    amount: null,
+    message: `Merhaba ${c.full_name}, yeni bir randevu zamanı geldi. Randevunuzu birlikte ayarlayalım mı?`,
+  }));
+
+  // 7) Açık borcu olanlar
+  // Tek kaynak: customer_balances (0031; src/lib/balances.ts) — diğer ekranlarla aynı borç.
+  const debt: OppItem[] = debtors.rows.map((d) => ({
+    key: `debt-${d.customer_id}`,
+    customerId: d.customer_id,
+    name: d.full_name,
+    phone: d.phone,
+    subtitle: d.overdue_amount > 0 ? "Gecikmiş borç" : "Açık borç",
+    amount: d.balance,
+    message: `Merhaba ${d.full_name}, ödemenizle ilgili bir hatırlatma yapmak istedik. Ayrıntılar için bize ulaşabilirsiniz.`,
+  }));
+
+  const categories: OppCategory[] = [
+    { key: "paket", title: "Paketi bitmek üzere", hint: "Yenileme teklifi sunun", count: ending.length, items: ending, link: abilities.pay ? { href: "/paketler", label: "Paketler" } : null },
+    { key: "gelmeyen", title: "90+ gündür gelmeyen", hint: "Geri kazanım mesajı gönderin", count: inactiveRes.count ?? inactive.length, items: inactive, link: { href: "/musteriler", label: "Müşteriler" } },
+    { key: "dogumgunu", title: "Bu hafta doğum günü", hint: "Tebrik edin, hediye seans önerin", count: birthday.length, items: birthday, link: { href: "/musteriler", label: "Müşteriler" } },
+    { key: "iptal", title: "Randevuya gelmeyenler", hint: "Yeni bir tarih önerin", count: noShow.length, items: noShow, link: { href: "/randevular", label: "Randevular" } },
+    { key: "lead", title: "Randevu almayan lead'ler", hint: "Görüştünüz ama randevu oluşmadı", count: noBooking.length, items: noBooking, link: { href: "/leadler", label: "Lead'ler" } },
+    { key: "bakim", title: "Bakım zamanı gelenler", hint: "Yeni randevu önerin", count: periodic.length, items: periodic, link: { href: "/randevular", label: "Randevular" } },
+    { key: "borc", title: "Açık borcu olanlar", hint: "Nazik bir hatırlatma gönderin", count: debt.length, items: debt, link: abilities.pay ? { href: "/cari", label: "Cari Hesap" } : null },
+  ];
+  // Borç yalnızca tahsilat yetkisi olana gösterilir (Genel Bakış'taki gibi)
+  const shown = categories.filter((c) => c.key !== "borc" || abilities.pay);
+
+  const services = ((servicesRes?.data ?? []) as ServiceOption[]) ?? [];
+  const staff = ((staffRes?.data ?? []) as StaffOption[]) ?? [];
+  const packages: PackageOption[] = abilities.book
+    ? pkgs
+        .filter((p) => p.customer_id && (p.remaining_sessions ?? 0) > 0)
+        .map((p) => ({
+          id: p.id,
+          customer_id: p.customer_id,
+          service_name: p.service_name,
+          remaining_sessions: p.remaining_sessions,
+        }))
+    : [];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Gelir Fırsatları"
-        description="Mevcut verilerinden otomatik hesaplanan, aksiyon alınabilir müşteri grupları."
-      />
-      <OpportunitiesView categories={categories} />
-    </div>
+    <OpportunitiesView
+      categories={shown}
+      canBook={abilities.book}
+      services={services}
+      staff={staff}
+      packages={packages}
+      loadFailed={loadFailed}
+    />
   );
 }

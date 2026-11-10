@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { UserX, LogOut } from "lucide-react";
+import { LogOut, UserX } from "lucide-react";
 
 import { signOutAndClear } from "@/app/admin/view-as-actions";
 import { Button } from "@/components/ui/button";
+import { AuthCard, AuthFrame } from "@/app/(auth)/auth-shell";
 
 export default function HesapYokPage() {
   const [out, setOut] = useState(false);
@@ -15,21 +16,17 @@ export default function HesapYokPage() {
   }
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-muted/30 p-6 text-center">
-      <span className="flex size-16 items-center justify-center rounded-2xl bg-danger/10 text-danger">
-        <UserX className="size-8" />
-      </span>
-      <div className="max-w-md space-y-1.5">
-        <h1 className="text-xl font-bold">Hesabınız bir işletmeye bağlı değil</h1>
-        <p className="text-sm text-muted-foreground">
-          Bu hesap henüz bir işletmeye atanmamış. Lütfen hizmet sağlayıcınız (ajansınız)
-          ile iletişime geçin; hesabınızı doğru işletmeye bağlasınlar.
-        </p>
-      </div>
-      <Button variant="outline" onClick={logout} disabled={out}>
-        <LogOut className="size-4" />
-        Çıkış yap
-      </Button>
-    </div>
+    <AuthFrame>
+      <AuthCard
+        icon={UserX}
+        title="Hesabınız bir işletmeye bağlı değil"
+        description="Bu hesap henüz bir işletmeye atanmamış. Hizmet sağlayıcınızla (ajansınız) iletişime geçin; hesabınızı doğru işletmeye bağlasınlar."
+      >
+        <Button size="lg" onClick={logout} disabled={out} className="w-full">
+          <LogOut />
+          {out ? "Çıkış yapılıyor..." : "Çıkış yap"}
+        </Button>
+      </AuthCard>
+    </AuthFrame>
   );
 }

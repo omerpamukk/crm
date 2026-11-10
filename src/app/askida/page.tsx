@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { PauseCircle, LogOut } from "lucide-react";
+import { LogOut, PauseCircle } from "lucide-react";
 
 import { signOutAndClear } from "@/app/admin/view-as-actions";
 import { Button } from "@/components/ui/button";
+import { AuthCard, AuthFrame } from "@/app/(auth)/auth-shell";
 
 export default function AskidaPage() {
   const [out, setOut] = useState(false);
@@ -15,21 +16,17 @@ export default function AskidaPage() {
   }
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-muted/30 p-6 text-center">
-      <span className="flex size-16 items-center justify-center rounded-2xl bg-warning/12 text-amber-600">
-        <PauseCircle className="size-8" />
-      </span>
-      <div className="max-w-md space-y-1.5">
-        <h1 className="text-xl font-bold">Aboneliğiniz askıya alındı</h1>
-        <p className="text-sm text-muted-foreground">
-          İşletmenizin paneline erişim şu anda duraklatıldı. Erişimi yeniden açmak için
-          lütfen hizmet sağlayıcınız (ajansınız) ile iletişime geçin.
-        </p>
-      </div>
-      <Button variant="outline" onClick={logout} disabled={out}>
-        <LogOut className="size-4" />
-        Çıkış yap
-      </Button>
-    </div>
+    <AuthFrame>
+      <AuthCard
+        icon={PauseCircle}
+        title="Aboneliğiniz askıya alındı"
+        description="Panele erişim şu anda duraklatıldı. Erişimi yeniden açmak için hizmet sağlayıcınızla (ajansınız) iletişime geçin."
+      >
+        <Button size="lg" onClick={logout} disabled={out} className="w-full">
+          <LogOut />
+          {out ? "Çıkış yapılıyor..." : "Çıkış yap"}
+        </Button>
+      </AuthCard>
+    </AuthFrame>
   );
 }

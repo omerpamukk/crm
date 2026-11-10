@@ -15,7 +15,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { NAV_SECTIONS } from "@/lib/nav";
+import { NAV_SECTIONS, navSectionsForRole } from "@/lib/nav";
+import { can } from "@/lib/permissions";
+import type { UserRole } from "@/types/database";
+import { spring } from "@/lib/motion";
 import { searchCustomers, type CustomerHit } from "./search-actions";
 
 type Item = {
@@ -27,28 +30,36 @@ type Item = {
   group: string;
 };
 
+// Adlar sayfalardaki düğmelerle aynı ("Tek şey, tek ad").
 const QUICK_ACTIONS: Item[] = [
-  { id: "qa-customer", label: "Yeni Müşteri", hint: "ekle", icon: UserPlus, href: "/musteriler?yeni=1", group: "Hızlı Aksiyon" },
-  { id: "qa-appt", label: "Yeni Randevu", hint: "oluştur", icon: CalendarPlus, href: "/randevular?yeni=1", group: "Hızlı Aksiyon" },
-  { id: "qa-payment", label: "Ödeme Al", hint: "tahsilat", icon: Banknote, href: "/tahsilat?yeni=1", group: "Hızlı Aksiyon" },
-  { id: "qa-lead", label: "Yeni Lead", hint: "pipeline", icon: Columns3, href: "/leadler?yeni=1", group: "Hızlı Aksiyon" },
+  { id: "qa-appt", label: "Yeni randevu", icon: CalendarPlus, href: "/randevular?yeni=1", group: "Hızlı işlem" },
+  { id: "qa-customer", label: "Yeni müşteri", icon: UserPlus, href: "/musteriler?yeni=1", group: "Hızlı işlem" },
+  { id: "qa-payment", label: "Ödeme al", icon: Banknote, href: "/tahsilat?yeni=1", group: "Hızlı işlem" },
+  { id: "qa-lead", label: "Yeni lead", icon: Columns3, href: "/leadler?yeni=1", group: "Hızlı işlem" },
 ];
 
+/**
+ * Genel arama ve komut paleti (⌘K / Ctrl+K; telefonda sekme çubuğundaki
+ * arama düğmesi). Müşteri arar, sayfaya gider, hızlı işlem başlatır.
+ * Rolün göremediği sayfa ve işlem listede çıkmaz.
+ */
 export function CommandPalette({
   open,
   onOpenChange,
+  role,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  role?: UserRole;
 }) {
   return (
     <AnimatePresence>
-      {open && <Palette onClose={() => onOpenChange(false)} />}
+      {open && <Palette onClose={() => onOpenChange(false)} role={role} />}
     </AnimatePresence>
   );
 }
 
-function Palette({ onClose }: { onClose: () => void }) {
+function Palette({ onClose, role }: { onClose: () => void; role?: UserRole }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<CustomerHit[]>([]);
@@ -56,16 +67,27 @@ function Palette({ onClose }: { onClose: () => void }) {
 
   const navItems: Item[] = useMemo(
     () =>
-      NAV_SECTIONS.flatMap((s) =>
+      (role ? navSectionsForRole(role) : NAV_SECTIONS).flatMap((s) =>
         s.items.map((i) => ({
           id: i.href,
           label: i.label,
           icon: i.icon,
           href: i.href,
-          group: s.label,
+          group: "Sayfalar",
         }))
       ),
-    []
+    [role]
+  );
+  const quickActions = useMemo(
+    () =>
+      QUICK_ACTIONS.filter((a) => {
+        if (!role) return true;
+        if (a.id === "qa-payment") return can(role, "tahsilat");
+        if (a.id === "qa-appt") return can(role, "randevu_yonet");
+        if (a.id === "qa-customer") return can(role, "musteri_ekle");
+        return can(role, "musteri_yonet");
+      }),
+    [role]
   );
 
   // ESC ile kapat + palet açıkken arka planın kaymasını engelle.
@@ -101,11 +123,16 @@ function Palette({ onClose }: { onClose: () => void }) {
     }
 
     document.addEventListener("keydown", onKey);
+    // Kaydırmayı kilitle; kaydırma çubuğunun boşluğunu koru (sayfa sağa kaymasın)
     const prev = document.body.style.overflow;
+    const prevPad = document.body.style.paddingRight;
+    const gap = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = "hidden";
+    if (gap > 0) document.body.style.paddingRight = `${gap}px`;
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      document.body.style.paddingRight = prevPad;
       previouslyFocused?.focus?.();
     };
   }, [onClose]);
@@ -135,41 +162,43 @@ function Palette({ onClose }: { onClose: () => void }) {
       href: `/musteriler/${h.id}`,
       group: "Müşteriler",
     }));
-    for (const item of [...customerItems, ...QUICK_ACTIONS, ...navItems]) {
+    for (const item of [...customerItems, ...quickActions, ...navItems]) {
       const list = map.get(item.group) ?? [];
       list.push(item);
       map.set(item.group, list);
     }
     return [...map.entries()];
-  }, [hits, navItems]);
+  }, [hits, navItems, quickActions]);
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[12vh]"
+      className="fixed inset-0 z-[70] flex items-start justify-center p-2 pt-[max(8px,env(safe-area-inset-top))] md:p-4 md:pt-[12vh]"
       role="dialog"
       aria-modal="true"
-      aria-label="Komut paleti"
+      aria-label="Ara"
     >
       <motion.button
         type="button"
         aria-label="Kapat"
+        tabIndex={-1}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
-        className="absolute inset-0 bg-foreground/25 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/25"
         onClick={onClose}
       />
       <motion.div
-        initial={{ opacity: 0, scale: 0.97, y: -8 }}
+        initial={{ opacity: 0, scale: 0.96, y: -8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.98, y: -4 }}
-        transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
+        exit={{ opacity: 0, scale: 0.97, y: -6 }}
+        transition={spring.default}
         ref={dialogRef}
-        className="relative w-full max-w-xl overflow-hidden rounded-lg border bg-popover shadow-soft-lg"
+        className="glass-strong relative w-full max-w-xl overflow-hidden rounded-[22px]"
       >
         <Command
           loop
+          label="Ara"
           // Kendi arama/filtrelememizi cmdk'nın puanlamasıyla birleştir:
           // müşteri sonuçları sunucudan geldiği için onları hep göster.
           filter={(value, search) => {
@@ -180,30 +209,39 @@ function Palette({ onClose }: { onClose: () => void }) {
               : 0;
           }}
         >
-          <div className="flex items-center gap-2.5 border-b px-4">
-            <Search className="size-4 shrink-0 text-muted-foreground" />
+          <div className="flex items-center gap-2.5 border-b border-separator px-4">
+            <Search aria-hidden className="size-[18px] shrink-0 text-label-2" />
             <Command.Input
               autoFocus
               value={query}
               onValueChange={setQuery}
-              placeholder="Sayfa ara, müşteri bul veya komut yaz…"
-              className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              placeholder="Müşteri, sayfa ya da işlem ara"
+              className="h-12 min-w-0 flex-1 bg-transparent text-base text-label outline-none placeholder:text-label-3 md:h-[52px] md:text-[0.9375rem]"
             />
-            <kbd className="hidden rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
-              ESC
+            <kbd className="hidden rounded-md bg-fill px-1.5 py-0.5 text-[0.6875rem] font-semibold text-label-2 md:inline">
+              esc
             </kbd>
+            <button
+              type="button"
+              onClick={onClose}
+              className="-mr-2 h-9 shrink-0 rounded-full px-3 text-[0.9375rem] font-semibold text-primary-text hover:bg-hover md:hidden"
+            >
+              Vazgeç
+            </button>
           </div>
 
-          <Command.List className="max-h-[55vh] overflow-y-auto p-2">
-            <Command.Empty className="py-8 text-center text-sm text-muted-foreground">
-              Sonuç yok.
+          <Command.List className="max-h-[min(60vh,28rem)] overflow-y-auto overscroll-contain p-1.5">
+            <Command.Empty className="px-3 py-8 text-center text-[0.875rem] text-label-2">
+              {query.trim().length >= 2
+                ? `“${query.trim()}” ile eşleşen sonuç yok. Telefonun son 4 hanesini deneyin.`
+                : "Aramak için yazmaya başlayın."}
             </Command.Empty>
 
             {groups.map(([group, items]) => (
               <Command.Group
                 key={group}
                 heading={group}
-                className="mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-muted-foreground"
+                className="mb-1 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-[0.75rem] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-label-2"
               >
                 {items.map((item) => {
                   const Icon = item.icon;
@@ -212,14 +250,16 @@ function Palette({ onClose }: { onClose: () => void }) {
                       key={item.id}
                       value={`${item.id} ${item.label}`}
                       onSelect={() => go(item.href)}
-                      className="group flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-colors data-[selected=true]:bg-accent"
+                      className="group flex min-h-10 cursor-pointer items-center gap-3 rounded-[10px] px-2.5 py-2 text-[0.9375rem] data-[selected=true]:bg-primary-fill data-[selected=true]:text-on-primary-fill"
                     >
-                      <Icon className="size-4 shrink-0 text-muted-foreground group-data-[selected=true]:text-primary" />
-                      <span className="flex-1 truncate">{item.label}</span>
+                      <Icon aria-hidden className="size-[18px] shrink-0 text-primary group-data-[selected=true]:text-on-primary-fill" />
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
                       {item.hint && (
-                        <span className="text-xs text-muted-foreground">{item.hint}</span>
+                        <span className="shrink-0 text-[0.8125rem] text-label-2 tabular-nums group-data-[selected=true]:text-[color:var(--on-primary-fill-2)]">
+                          {item.hint}
+                        </span>
                       )}
-                      <CornerDownLeft className="size-3.5 text-muted-foreground opacity-0 group-data-[selected=true]:opacity-100" />
+                      <CornerDownLeft aria-hidden className="hidden size-3.5 shrink-0 opacity-0 group-data-[selected=true]:opacity-100 md:block" />
                     </Command.Item>
                   );
                 })}

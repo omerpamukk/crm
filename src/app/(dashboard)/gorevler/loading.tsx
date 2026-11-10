@@ -2,17 +2,23 @@ import { PageHeaderSkeleton, Skeleton } from "@/components/shared/skeletons";
 
 export default function Loading() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8" role="status" aria-label="Yükleniyor">
       <PageHeaderSkeleton />
-      <div className="flex gap-4 overflow-hidden">
+      <div className="scrollbar-none flex gap-4 overflow-hidden" aria-hidden>
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="w-72 shrink-0 space-y-2 rounded-lg border bg-muted/30 p-3">
+          <div key={i} className="surface w-72 shrink-0 space-y-2.5 p-3 max-md:hidden">
             <Skeleton className="h-4 w-28" />
             {Array.from({ length: 3 }).map((_, j) => (
-              <Skeleton key={j} className="h-20 w-full rounded-lg" />
+              <Skeleton key={j} className="h-20 w-full rounded-xl" />
             ))}
           </div>
         ))}
+        <div className="w-full space-y-3 md:hidden">
+          <Skeleton className="h-11 w-full rounded-full" />
+          {Array.from({ length: 5 }).map((_, j) => (
+            <Skeleton key={j} className="h-14 w-full rounded-xl" />
+          ))}
+        </div>
       </div>
     </div>
   );

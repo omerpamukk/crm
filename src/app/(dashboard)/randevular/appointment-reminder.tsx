@@ -19,35 +19,43 @@ function waLink(phone: string, text: string): string {
 
 /**
  * Müşteriye WhatsApp'tan randevu hatırlatması gönderir (hazır mesajla wa.me açar).
- * Telefon yoksa pasif görünür.
+ * Telefon yoksa pasif görünür. `iconOnly`: tablo satırında yalnızca simge
+ * (ekran okuyucu adı ve ipucu yine "Hatırlat").
  */
 export function AppointmentReminder({
   phone,
   customerName,
   startsAt,
   serviceName,
+  iconOnly = false,
+  className,
 }: {
   phone: string | null;
   customerName: string;
   startsAt: string;
   serviceName: string | null;
+  iconOnly?: boolean;
+  className?: string;
 }) {
   const when = formatDateTime(startsAt);
   const firstName = customerName.split(" ")[0] || customerName;
   const svc = serviceName ? ` ${serviceName}` : "";
-  const text = `Merhaba ${firstName}, ${when} tarihli${svc} randevunuzu hatırlatmak isteriz. Görüşmek üzere! 🌸`;
+  const text = `Merhaba ${firstName}, ${when} tarihli${svc} randevunuzu hatırlatmak isteriz. Görüşmek üzere!`;
+  const size = iconOnly ? "icon-sm" : "lg";
 
   if (!phone) {
     return (
       <span
+        aria-disabled="true"
         className={cn(
-          buttonVariants({ variant: "ghost", size: "sm" }),
-          "pointer-events-none gap-1.5 text-muted-foreground/50"
+          buttonVariants({ variant: "secondary", size }),
+          "pointer-events-none opacity-45",
+          className
         )}
         title="Telefon numarası yok"
       >
-        <MessageCircle className="size-4" />
-        Hatırlat
+        <MessageCircle />
+        <span className={iconOnly ? "sr-only" : undefined}>Hatırlat</span>
       </span>
     );
   }
@@ -58,13 +66,14 @@ export function AppointmentReminder({
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        buttonVariants({ variant: "ghost", size: "sm" }),
-        "gap-1.5 text-positive hover:bg-positive/10 hover:text-positive"
+        buttonVariants({ variant: iconOnly ? "ghost" : "secondary", size }),
+        "text-positive-text",
+        className
       )}
-      title="WhatsApp'tan hatırlat"
+      title={`${customerName}: WhatsApp'tan hatırlat`}
     >
-      <MessageCircle className="size-4" />
-      Hatırlat
+      <MessageCircle />
+      <span className={iconOnly ? "sr-only" : undefined}>Hatırlat</span>
     </a>
   );
 }

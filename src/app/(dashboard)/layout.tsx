@@ -1,12 +1,10 @@
+import { cookies } from "next/headers";
+
 import { getAccountContext } from "@/lib/supabase/account";
 import { createClient } from "@/lib/supabase/server";
-import { SidebarNav } from "@/components/layout/sidebar-nav";
-import { MobileNav } from "@/components/layout/mobile-nav";
-import { TopBar, type AppNotification } from "@/components/layout/top-bar";
-import { ViewAsBanner } from "@/components/layout/view-as-banner";
-import { PageTransition } from "@/components/layout/page-transition";
-import { PageTitleBar } from "@/components/layout/page-title-bar";
-import { Toaster } from "@/components/ui/sonner";
+import { AppShell } from "@/components/layout/app-shell";
+import type { AppNotification } from "@/components/layout/notifications";
+import { SIDEBAR_GROUPS_COOKIE, SIDEBAR_HIDDEN_COOKIE } from "@/components/layout/shell-cookies";
 
 export default async function DashboardLayout({
   children,
@@ -17,9 +15,14 @@ export default async function DashboardLayout({
     await getAccountContext();
   const displayName = fullName ?? email ?? "Kullanıcı";
 
+  // Kenar çubuğu tercihleri çerezde: sunucu doğru durumla çizer, sıçrama olmaz.
+  const cookieStore = await cookies();
+  const sidebarHidden = cookieStore.get(SIDEBAR_HIDDEN_COOKIE)?.value === "1";
+  const collapsedGroups = (cookieStore.get(SIDEBAR_GROUPS_COOKIE)?.value ?? "")
+    .split(",")
+    .filter(Boolean);
+
   // Menü rozetleri tek RPC ile gelir (0022_search_perf.sql).
-  // Önceden burada HER SAYFA GEZİNTİSİNDE packages tablosunun tamamı
-  // çekilip JS'te borç hesaplanıyordu; artık hesap DB'de yapılıyor.
   const supabase = await createClient();
   const [{ data: badgeData, error: badgeError }, notifRes] = await Promise.all([
     supabase.rpc("sidebar_badges"),
@@ -71,7 +74,7 @@ export default async function DashboardLayout({
 
   const badges = { overdueCari };
 
-  // Menüde gösterilen kayıt sayıları (referans arayüzdeki gibi)
+  // Menüde gösterilen kayıt sayıları
   const counts: Record<string, number> = {
     "/musteriler": b.customers ?? 0,
     "/leadler": b.leads ?? 0,
@@ -79,55 +82,20 @@ export default async function DashboardLayout({
   };
 
   return (
-    <div className="flex min-h-svh bg-background">
-      {/* Klavye kullanıcısı 8 bölümlü menüyü her sayfada geçmek zorunda kalmasın */}
-      <a
-        href="#icerik"
-        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-[var(--radius-md)] focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-soft-lg"
-      >
-        İçeriğe geç
-      </a>
-
-      {/* Masaüstü: ikon şeridi + açılır bölüm paneli (sticky, tam boy) */}
-      <aside className="sticky top-0 hidden h-svh shrink-0 md:block">
-        <SidebarNav
-          businessName={businessName}
-          displayName={displayName}
-          roleLabel={roleLabel}
-          role={role}
-          badges={badges}
-          counts={counts}
-        />
-      </aside>
-
-      {/* İçerik */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        {impersonating && <ViewAsBanner businessName={businessName} manageMode={manageMode} />}
-        {/* Üst bar — masaüstünde arama + bildirim, mobilde hamburger + bildirim */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md md:gap-5 md:px-6">
-          <div className="flex items-center gap-2 md:hidden">
-            <MobileNav
-              businessName={businessName}
-              displayName={displayName}
-              roleLabel={roleLabel}
-              role={role}
-              badges={badges}
-              counts={counts}
-            />
-            <span className="truncate font-semibold">{businessName}</span>
-          </div>
-          <PageTitleBar />
-          <TopBar notifications={notifications} />
-        </header>
-
-        <main id="icerik" tabIndex={-1} className="flex-1 px-4 py-6 md:px-8 md:py-8">
-          <div className="page-shell">
-            <PageTransition>{children}</PageTransition>
-          </div>
-        </main>
-      </div>
-
-      <Toaster />
-    </div>
+    <AppShell
+      businessName={businessName}
+      displayName={displayName}
+      roleLabel={roleLabel}
+      role={role}
+      badges={badges}
+      counts={counts}
+      notifications={notifications}
+      impersonating={impersonating}
+      manageMode={manageMode}
+      initialSidebarHidden={sidebarHidden}
+      initialCollapsedGroups={collapsedGroups}
+    >
+      {children}
+    </AppShell>
   );
 }

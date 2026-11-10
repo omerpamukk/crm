@@ -1,37 +1,40 @@
 "use client";
 
 import { useTransition } from "react";
-import { Eye, Pencil, LogOut } from "lucide-react";
+import { Eye, LogOut, Pencil } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { exitViewAs } from "@/app/admin/view-as-actions";
 
+/**
+ * Ajans yöneticisi bir firmaya girdiğinde içeriğin üstündeki bant.
+ * Görüntüleme: turuncu (salt okunur) · Yönetim: kırmızı (değişiklikler firmaya
+ * yazılır). "Firmadan çık" admin ekranındaki düğmeyle aynı addır.
+ */
 export function ViewAsBanner({ businessName, manageMode }: { businessName: string; manageMode: boolean }) {
   const [pending, start] = useTransition();
+  const detail = manageMode ? "yönetiyorsunuz, değişiklikler firmaya yazılır" : "görüntülüyorsunuz, salt okunur";
   return (
-    <div className={cn(
-      "flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2 text-sm",
-      manageMode ? "border-rose-300 bg-rose-50 text-rose-900" : "border-amber-300 bg-amber-50 text-amber-900"
-    )}>
-      <span className="flex items-center gap-2 font-medium">
-        {manageMode ? <Pencil className="size-4" /> : <Eye className="size-4" />}
-        {manageMode ? (
-          <><strong>{businessName}</strong> firmasını <strong>YÖNETİYORSUNUZ</strong> — yaptığınız değişiklikler firmanın verisine yazılır.</>
-        ) : (
-          <><strong>{businessName}</strong> firmasını görüntülüyorsunuz — salt okunur (değişiklik yapılamaz).</>
-        )}
+    <div
+      role="status"
+      className={cn(
+        "mx-2 mt-2 flex min-w-0 items-center gap-2.5 rounded-2xl py-2 pr-2 pl-3.5 text-[0.8125rem] md:mx-4",
+        manageMode ? "bg-danger-soft text-danger-text" : "bg-warning-soft text-warning-text"
+      )}
+    >
+      {manageMode ? <Pencil aria-hidden className="size-4 shrink-0" /> : <Eye aria-hidden className="size-4 shrink-0" />}
+      <span className="min-w-0 flex-1 truncate text-label" title={`${businessName} firmasını ${detail}`}>
+        <strong className="font-semibold">{businessName}</strong>
+        <span className="text-label-2"> firmasındasınız · {detail}</span>
       </span>
       <button
         type="button"
         onClick={() => start(() => exitViewAs())}
         disabled={pending}
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-lg border bg-white px-2.5 py-1 text-xs font-semibold transition-colors disabled:opacity-50",
-          manageMode ? "border-rose-400 text-rose-900 hover:bg-rose-100" : "border-amber-400 text-amber-900 hover:bg-amber-100"
-        )}
+        className="pressable inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 text-[0.8125rem] font-semibold whitespace-nowrap text-label disabled:opacity-45"
       >
-        <LogOut className="size-3.5" />
-        Admin paneline dön
+        <LogOut aria-hidden className="size-3.5" />
+        Firmadan çık
       </button>
     </div>
   );

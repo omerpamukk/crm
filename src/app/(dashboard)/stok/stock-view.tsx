@@ -1,50 +1,53 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Boxes,
-  Coins,
-  AlertTriangle,
-  ShoppingCart,
-  Plus,
-  Pencil,
-  Trash2,
   ArrowDownToLine,
   ArrowUpFromLine,
-  History,
+  Boxes,
+  ListFilter,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
-import { formatPrice } from "@/lib/format";
-import { PageHeader } from "@/components/shared/page-header";
-import { StatCard } from "@/components/shared/stat-card";
-import { EmptyState } from "@/components/shared/empty-state";
+import { formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SearchField } from "@/components/ui/search-field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ToolbarAction } from "@/components/layout/toolbar-action";
+import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
+import { FilterBar } from "@/components/shared/filter-bar";
+import { FormSheet } from "@/components/shared/form-sheet";
+import { ListGroup, ListRow } from "@/components/shared/list-group";
+import { Metric, MetricStrip } from "@/components/shared/metric";
+import { formatMoney, Money } from "@/components/shared/money";
+import { PageHeader } from "@/components/shared/page-header";
+import { PageSkeleton } from "@/components/shared/skeletons";
+import { StatusBadge, StatusIcons } from "@/components/shared/status";
+import type { StatusVariant } from "@/lib/constants";
 
-import { createProduct, updateProduct, deleteProduct, addMovement } from "./actions";
-import { UNITS, type ProductInput } from "./schema";
+import { useRandevuParams } from "../randevular/use-randevu-params";
+import { deleteProduct } from "./actions";
+import { MovementForm } from "./movement-form";
+import { ProductForm } from "./product-form";
 
 export interface StockProduct {
   id: string;
@@ -70,419 +73,507 @@ export interface StockMovement {
   note: string | null;
 }
 
-const MOVEMENT_LABEL: Record<StockMovement["kind"], { label: string; tone: string }> = {
-  in: { label: "Giriş", tone: "bg-positive/12 text-positive" },
-  out: { label: "Çıkış", tone: "bg-danger/12 text-danger" },
-  adjust: { label: "Sayım", tone: "bg-primary/10 text-primary" },
-  consume: { label: "Seansta kullanıldı", tone: "bg-warning/12 text-amber-600" },
-};
-
-/** Stok durumu: kritik seviyeye göre. */
-function statusOf(p: StockProduct): { label: string; tone: string } {
-  if (p.stock_qty <= 0) return { label: "Tükendi", tone: "bg-danger/12 text-danger" };
-  if (p.critical_level > 0 && p.stock_qty <= p.critical_level)
-    return { label: "Kritik", tone: "bg-danger/12 text-danger" };
-  if (p.critical_level > 0 && p.stock_qty <= p.critical_level * 2)
-    return { label: "Az", tone: "bg-warning/12 text-amber-600" };
-  return { label: "Yeterli", tone: "bg-positive/12 text-positive" };
+const noopSubscribe = () => () => {};
+function useMounted() {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
 }
 
-const EMPTY: ProductInput = {
-  name: "",
-  sku: "",
-  category: "",
-  unit: "adet",
-  stock_qty: "",
-  critical_level: "",
-  cost_price: "",
-  sale_price: "",
-  is_active: true,
+const QTY = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 });
+const qtyText = (n: number, unit: string) => `${QTY.format(n)} ${unit}`;
+const tr = (s: string) => s.toLocaleLowerCase("tr-TR");
+
+const MOVEMENT: Record<StockMovement["kind"], { label: string; icon: LucideIcon; sign: string }> = {
+  in: { label: "Giriş", icon: ArrowDownToLine, sign: "+" },
+  out: { label: "Çıkış", icon: ArrowUpFromLine, sign: "−" },
+  adjust: { label: "Sayım", icon: Boxes, sign: "=" },
+  consume: { label: "Seansta kullanıldı", icon: ArrowUpFromLine, sign: "−" },
 };
+
+type StockLevel = "tukendi" | "kritik" | "az" | "yeterli";
+
+/** Stok durumu: kritik seviyeye göre. Renk yanında simge ve metin vardır. */
+function levelOf(p: StockProduct): { key: StockLevel; label: string; variant: StatusVariant } {
+  if (p.stock_qty <= 0) return { key: "tukendi", label: "Tükendi", variant: "danger" };
+  if (p.critical_level > 0 && p.stock_qty <= p.critical_level) return { key: "kritik", label: "Kritik", variant: "danger" };
+  if (p.critical_level > 0 && p.stock_qty <= p.critical_level * 2) return { key: "az", label: "Az", variant: "warning" };
+  return { key: "yeterli", label: "Yeterli", variant: "positive" };
+}
+
+type Scope = "hepsi" | "dikkat" | "yeterli";
+
+type Panel = { kind: "product"; product: StockProduct | null } | { kind: "movement"; product: StockProduct; move: "in" | "out" };
+
+function LevelBadge({ p }: { p: StockProduct }) {
+  const l = levelOf(p);
+  return (
+    <StatusBadge variant={l.variant} icon={l.key === "tukendi" ? StatusIcons.cancelled : undefined}>
+      {l.label}
+    </StatusBadge>
+  );
+}
+
+function RowMenu({
+  name,
+  onIn,
+  onOut,
+  onEdit,
+  onDelete,
+}: {
+  name: string;
+  onIn: () => void;
+  onOut: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon-sm" className="max-md:size-11" aria-label={`${name} işlemleri`}>
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={onIn}>
+          <ArrowDownToLine />
+          Stok girişi
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onOut}>
+          <ArrowUpFromLine />
+          Stok çıkışı
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onEdit}>
+          <Pencil />
+          Düzenle
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={onDelete}>
+          <Trash2 />
+          Sil
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export function StockView({
   products,
   movements,
+  loadFailed,
 }: {
   products: StockProduct[];
   movements: StockMovement[];
+  loadFailed: boolean;
 }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  const mounted = useMounted();
+  const { params, set } = useRandevuParams();
 
-  const [q, setQ] = useState("");
-  const [category, setCategory] = useState("all");
-  const [status, setStatus] = useState("all");
+  const [q, setQ] = useState(() => params.get("q") ?? "");
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const [deleting, setDeleting] = useState<StockProduct | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<StockProduct | null>(null);
-  const [form, setForm] = useState<ProductInput>(EMPTY);
-
-  const [movOpen, setMovOpen] = useState<{ product: StockProduct; kind: "in" | "out" } | null>(null);
-  const [movQty, setMovQty] = useState("");
-  const [movNote, setMovNote] = useState("");
-
-  const [confirmDel, setConfirmDel] = useState<StockProduct | null>(null);
-
-  function run(fn: () => Promise<{ error?: string }>, okMsg: string) {
-    start(async () => {
-      const res = await fn();
-      if (res.error) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success(okMsg);
-      router.refresh();
-    });
-  }
+  const createOpen = params.get("yeni") === "1";
+  const panelOpen = createOpen || panel !== null;
+  const activePanel: Panel | null = panel ?? (createOpen ? { kind: "product", product: null } : null);
 
   const categories = useMemo(
-    () => [...new Set(products.map((p) => p.category).filter(Boolean))] as string[],
+    () => [...new Set(products.map((p) => p.category?.trim()).filter(Boolean))].sort((a, b) => a!.localeCompare(b!, "tr")) as string[],
     [products]
   );
+  const category = categories.includes(params.get("kategori") ?? "") ? (params.get("kategori") as string) : "all";
+  const rawScope = params.get("durum");
+  const scope: Scope = rawScope === "dikkat" || rawScope === "yeterli" ? rawScope : "hepsi";
 
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLocaleLowerCase("tr");
-    return products.filter((p) => {
-      if (needle) {
-        const hay = `${p.name} ${p.sku ?? ""}`.toLocaleLowerCase("tr");
-        if (!hay.includes(needle)) return false;
-      }
-      if (category !== "all" && p.category !== category) return false;
-      if (status !== "all" && statusOf(p).label !== status) return false;
-      return true;
-    });
-  }, [products, q, category, status]);
-
-  const stats = useMemo(() => {
-    const totalValue = products.reduce(
-      (sum, p) => sum + p.stock_qty * (p.cost_price ?? 0),
-      0
-    );
-    const critical = products.filter(
-      (p) => p.stock_qty <= 0 || (p.critical_level > 0 && p.stock_qty <= p.critical_level)
-    ).length;
-    const monthOut = movements
-      .filter((m) => (m.kind === "out" || m.kind === "consume"))
-      .reduce((sum, m) => sum + m.qty, 0);
-    return { totalValue, critical, monthOut };
-  }, [products, movements]);
-
-  function openNew() {
-    setEditing(null);
-    setForm(EMPTY);
-    setFormOpen(true);
-  }
-
-  function openEdit(p: StockProduct) {
-    setEditing(p);
-    setForm({
-      name: p.name,
-      sku: p.sku ?? "",
-      category: p.category ?? "",
-      unit: p.unit,
-      stock_qty: "",
-      critical_level: String(p.critical_level ?? ""),
-      cost_price: p.cost_price != null ? String(p.cost_price) : "",
-      sale_price: p.sale_price != null ? String(p.sale_price) : "",
-      is_active: p.is_active,
-    });
-    setFormOpen(true);
-  }
-
-  function saveProduct() {
-    if (!form.name.trim()) return;
-    setFormOpen(false);
-    if (editing) {
-      run(() => updateProduct(editing.id, form), "Ürün güncellendi");
-    } else {
-      run(() => createProduct(form), "Ürün eklendi");
+  const metrics = useMemo(() => {
+    let value = 0;
+    let critical = 0;
+    let low = 0;
+    for (const p of products) {
+      value += p.stock_qty * (p.cost_price ?? 0);
+      const k = levelOf(p).key;
+      if (k === "tukendi" || k === "kritik") critical++;
+      else if (k === "az") low++;
     }
+    return { value, critical, low };
+  }, [products]);
+
+  const needle = tr(q.trim());
+  const searched = useMemo(
+    () =>
+      products.filter((p) => {
+        if (category !== "all" && p.category !== category) return false;
+        if (needle && !tr(`${p.name} ${p.sku ?? ""}`).includes(needle)) return false;
+        return true;
+      }),
+    [products, needle, category]
+  );
+  const counts = useMemo(() => {
+    const attention = searched.filter((p) => levelOf(p).key !== "yeterli").length;
+    return { hepsi: searched.length, dikkat: attention, yeterli: searched.length - attention };
+  }, [searched]);
+  const rows = useMemo(
+    () =>
+      searched.filter((p) => {
+        const ok = levelOf(p).key === "yeterli";
+        return scope === "hepsi" ? true : scope === "yeterli" ? ok : !ok;
+      }),
+    [searched, scope]
+  );
+
+  const hasFilters = category !== "all" || q.trim() !== "";
+  function clearFilters() {
+    setQ("");
+    set({ q: null, kategori: null });
+  }
+  function openCreate() {
+    set({ yeni: "1" });
+  }
+  function closePanel() {
+    setPanel(null);
+    if (params.get("yeni")) set({ yeni: null });
   }
 
-  function saveMovement() {
-    if (!movOpen || !movQty.trim()) return;
-    const { product, kind } = movOpen;
-    setMovOpen(null);
-    setMovQty("");
-    setMovNote("");
-    run(
-      () => addMovement({ product_id: product.id, kind, qty: movQty, note: movNote }),
-      kind === "in" ? "Stok girişi kaydedildi" : "Stok çıkışı kaydedildi"
+  async function confirmDelete() {
+    if (!deleting) return;
+    setBusy(true);
+    const res = await deleteProduct(deleting.id);
+    setBusy(false);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success("Ürün silindi");
+    setDeleting(null);
+    router.refresh();
+  }
+
+  const menuOf = (p: StockProduct) => (
+    <RowMenu
+      name={p.name}
+      onIn={() => setPanel({ kind: "movement", product: p, move: "in" })}
+      onOut={() => setPanel({ kind: "movement", product: p, move: "out" })}
+      onEdit={() => setPanel({ kind: "product", product: p })}
+      onDelete={() => setDeleting(p)}
+    />
+  );
+
+  const columns: DataTableColumn<StockProduct>[] = [
+    {
+      key: "name",
+      header: "Ürün",
+      sortValue: (p) => p.name,
+      cell: (p) => (
+        <span className="block min-w-0">
+          <span className="block truncate font-medium" title={p.name}>
+            {p.name}
+          </span>
+          {p.sku && <span className="block truncate text-subhead text-label-2">{p.sku}</span>}
+        </span>
+      ),
+    },
+    {
+      key: "category",
+      header: "Kategori",
+      hideBelow: "@3xl",
+      sortValue: (p) => p.category ?? "",
+      cell: (p) => <span className="text-label-2">{p.category ?? "—"}</span>,
+    },
+    {
+      key: "qty",
+      header: "Stok",
+      align: "right",
+      sortValue: (p) => p.stock_qty,
+      cell: (p) => <span className="whitespace-nowrap font-semibold tabular-nums">{qtyText(p.stock_qty, p.unit)}</span>,
+    },
+    {
+      key: "level",
+      header: "Durum",
+      sortValue: (p) => levelOf(p).label,
+      cell: (p) => <LevelBadge p={p} />,
+    },
+    {
+      key: "value",
+      header: "Değer",
+      align: "right",
+      hideBelow: "@4xl",
+      sortValue: (p) => (p.cost_price ? p.stock_qty * p.cost_price : null),
+      cell: (p) => (p.cost_price ? <Money amount={p.stock_qty * p.cost_price} tone="muted" /> : <span className="text-label-3">—</span>),
+    },
+    {
+      key: "actions",
+      header: <span className="sr-only">İşlemler</span>,
+      align: "right",
+      cell: (p) => (
+        <span className="flex items-center justify-end gap-1">
+          <Button
+            variant="tinted"
+            size="sm"
+            onClick={() => setPanel({ kind: "movement", product: p, move: "in" })}
+            aria-label={`${p.name} için stok girişi`}
+          >
+            <ArrowDownToLine />
+            Stok girişi
+          </Button>
+          {menuOf(p)}
+        </span>
+      ),
+    },
+  ];
+
+  function renderMobileRow(p: StockProduct) {
+    return (
+      <div className="flex min-h-[60px] items-center gap-1 pr-1 pl-4">
+        <button
+          type="button"
+          onClick={() => setPanel({ kind: "product", product: p })}
+          aria-label={`${p.name}, ${qtyText(p.stock_qty, p.unit)}. Ürünü düzenle`}
+          className="flex min-w-0 flex-1 items-center gap-3 py-2.5 text-left focus-visible:outline-offset-[-3px]"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[1rem] leading-[1.3125rem] font-semibold">{p.name}</span>
+            <span className="block truncate text-subhead text-label-2 tabular-nums">{qtyText(p.stock_qty, p.unit)}</span>
+          </span>
+          <span className="shrink-0">
+            <LevelBadge p={p} />
+          </span>
+        </button>
+        {menuOf(p)}
+      </div>
     );
   }
+
+  const addAction = (
+    <Button onClick={openCreate}>
+      <Plus />
+      Yeni ürün
+    </Button>
+  );
+
+  const empty =
+    searched.length === 0 ? (
+      <EmptyState
+        variant="inline"
+        icon={Search}
+        title="Sonuç yok"
+        description="Aramaya ve filtrelere uyan ürün yok. Filtreleri temizleyip tekrar deneyin."
+        action={
+          <Button variant="secondary" onClick={clearFilters}>
+            Filtreleri temizle
+          </Button>
+        }
+      />
+    ) : (
+      <EmptyState
+        variant="inline"
+        icon={Boxes}
+        title={scope === "dikkat" ? "Dikkat gerektiren ürün yok" : "Bu durumda ürün yok"}
+        description="Listeyi değiştirip tüm ürünlere bakabilirsiniz."
+        action={
+          <Button variant="secondary" onClick={() => set({ durum: null })}>
+            Tüm ürünler
+          </Button>
+        }
+      />
+    );
+
+  const filterPopover =
+    categories.length > 0 ? (
+      <Popover>
+        <PopoverTrigger asChild>
+          <ToolbarAction icon={ListFilter} label="Filtrele" mobile="icon" badge={category !== "all" ? 1 : undefined} />
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[19rem] space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="f-kategori">Kategori</Label>
+            <Select value={category} onValueChange={(v) => set({ kategori: v === "all" ? null : v })}>
+              <SelectTrigger id="f-kategori" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tüm kategoriler</SelectItem>
+                {categories.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {category !== "all" && (
+            <Button variant="plain" size="sm" onClick={() => set({ kategori: null })}>
+              Filtreleri temizle
+            </Button>
+          )}
+        </PopoverContent>
+      </Popover>
+    ) : undefined;
+
+  const tokens =
+    category !== "all"
+      ? [{ key: "kategori", label: category, title: `Kategori: ${category}`, onRemove: () => set({ kategori: null }) }]
+      : [];
+
+  const panelTitle =
+    activePanel?.kind === "movement"
+      ? activePanel.move === "in"
+        ? "Stok girişi"
+        : "Stok çıkışı"
+      : activePanel?.product
+        ? "Ürünü düzenle"
+        : "Yeni ürün";
+  const panelDescription =
+    activePanel?.kind === "movement"
+      ? `${activePanel.product.name} · eldeki ${qtyText(activePanel.product.stock_qty, activePanel.product.unit)}`
+      : activePanel?.product
+        ? "Bilgileri güncelleyin. Stok miktarı giriş ve çıkışlarla değişir."
+        : "Ürün adı yeterli; diğer alanlar isteğe bağlıdır.";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title="Stok"
-        description="Ürün ve malzemeleri takip et; kritik seviyeye düşenleri anında gör."
-      >
-        <Button onClick={openNew}>
-          <Plus className="size-4" />
-          Ürün Ekle
-        </Button>
-      </PageHeader>
+        description="Ürün ve malzemeleri takip edin; azalanları hemen görün."
+        search={
+          <SearchField
+            variant="glass"
+            value={q}
+            onValueChange={(v) => {
+              setQ(v);
+              set({ q: v.trim() ? v : null });
+            }}
+            placeholder="Ürün ara"
+            aria-label="Ürün ara"
+          />
+        }
+        secondary={filterPopover}
+        primary={<ToolbarAction prominent icon={Plus} label="Yeni ürün" onClick={openCreate} />}
+      />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Toplam Ürün" value={String(products.length)} icon={Boxes} sub={`${categories.length} kategori`} />
-        <StatCard label="Stok Değeri" value={formatPrice(stats.totalValue)} icon={Coins} hint="Alış fiyatı × miktar" />
-        <StatCard
-          label="Kritik Stok"
-          value={String(stats.critical)}
-          icon={AlertTriangle}
-          accent={stats.critical > 0 ? "text-danger" : undefined}
-          sub={stats.critical > 0 ? "Sipariş gerekiyor" : "Sorun yok"}
+      {loadFailed ? (
+        <ErrorState
+          title="Stok yüklenemedi"
+          description="Bağlantıda bir sorun olabilir. Tekrar deneyin; sorun sürerse sayfayı yenileyin."
+          onRetry={() => router.refresh()}
         />
-        <StatCard label="Son Çıkışlar" value={String(stats.monthOut)} icon={ShoppingCart} sub="Son 30 hareket" />
-      </div>
-
-      {products.length === 0 ? (
+      ) : !mounted ? (
+        <PageSkeleton kpis={4} rows={6} />
+      ) : products.length === 0 ? (
         <EmptyState
           icon={Boxes}
           title="Henüz ürün yok"
-          description="Kullandığın malzeme ve satılan ürünleri ekle; stok otomatik takip edilsin."
-          action={<Button onClick={openNew}><Plus className="size-4" />Ürün Ekle</Button>}
+          description="Kullandığınız malzemeleri ve sattığınız ürünleri ekleyin; stok otomatik takip edilsin."
+          action={addAction}
         />
       ) : (
-        <Card>
-          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
-            <CardTitle className="text-base">Ürünler</CardTitle>
-            <div className="flex flex-wrap gap-2">
-              <Input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Ürün veya kod ara…"
-                className="h-9 w-44"
-                aria-label="Ürün ara"
-              />
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                aria-label="Kategori filtresi"
-                className="h-9 rounded-[var(--radius-md)] border border-input bg-card px-3 text-sm"
-              >
-                <option value="all">Tüm kategoriler</option>
-                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                aria-label="Durum filtresi"
-                className="h-9 rounded-[var(--radius-md)] border border-input bg-card px-3 text-sm"
-              >
-                <option value="all">Tüm durumlar</option>
-                <option value="Kritik">Kritik</option>
-                <option value="Az">Az</option>
-                <option value="Yeterli">Yeterli</option>
-                <option value="Tükendi">Tükendi</option>
-              </select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {filtered.length === 0 ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">
-                Bu filtrede ürün yok.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableHead>Ürün</TableHead>
-                    <TableHead className="hidden sm:table-cell">Kod</TableHead>
-                    <TableHead className="hidden md:table-cell">Kategori</TableHead>
-                    <TableHead className="text-right">Stok</TableHead>
-                    <TableHead>Durum</TableHead>
-                    <TableHead className="hidden lg:table-cell text-right">Değer</TableHead>
-                    <TableHead className="w-40" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((p) => {
-                    const st = statusOf(p);
-                    return (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell className="hidden sm:table-cell text-muted-foreground">{p.sku ?? "—"}</TableCell>
-                        <TableCell className="hidden md:table-cell text-muted-foreground">{p.category ?? "—"}</TableCell>
-                        <TableCell className="text-right tabular-nums font-semibold">
-                          {p.stock_qty} <span className="text-xs font-normal text-muted-foreground">{p.unit}</span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={cn("rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium", st.tone)}>
-                            {st.label}
-                          </span>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell text-right tabular-nums text-muted-foreground">
-                          {p.cost_price ? formatPrice(p.stock_qty * p.cost_price) : "—"}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex justify-end gap-1">
-                            <Button size="icon-sm" variant="outline" aria-label="Stok girişi" title="Stok girişi" onClick={() => { setMovOpen({ product: p, kind: "in" }); setMovQty(""); setMovNote(""); }}>
-                              <ArrowDownToLine className="size-3.5" />
-                            </Button>
-                            <Button size="icon-sm" variant="outline" aria-label="Stok çıkışı" title="Stok çıkışı" onClick={() => { setMovOpen({ product: p, kind: "out" }); setMovQty(""); setMovNote(""); }}>
-                              <ArrowUpFromLine className="size-3.5" />
-                            </Button>
-                            <Button size="icon-sm" variant="outline" aria-label="Düzenle" title="Düzenle" onClick={() => openEdit(p)}>
-                              <Pencil className="size-3.5" />
-                            </Button>
-                            <Button size="icon-sm" variant="outline" aria-label="Sil" title="Sil" onClick={() => setConfirmDel(p)}>
-                              <Trash2 className="size-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      )}
+        <>
+          <MetricStrip aria-label="Stok özeti">
+            <Metric label="Ürün" value={String(products.length)} context={categories.length > 0 ? `${categories.length} kategori` : undefined} />
+            <Metric label="Stok değeri" value={formatMoney(metrics.value)} context="Alış fiyatı × miktar" />
+            <Metric
+              label="Kritik stok"
+              value={String(metrics.critical)}
+              tone={metrics.critical > 0 ? "danger" : "default"}
+              context={metrics.critical > 0 ? "Tükenen veya kritik seviyede" : "Sorun yok"}
+            />
+            <Metric label="Az kalan" value={String(metrics.low)} context={metrics.low > 0 ? "Yakında bitebilir" : "Azalan ürün yok"} />
+          </MetricStrip>
 
-      {movements.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <History className="size-4 text-primary" />
-              Son Hareketler
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="row-list">
+          <div className="space-y-4">
+            <FilterBar
+              scope={{
+                "aria-label": "Stok durumu",
+                value: scope,
+                onValueChange: (v) => set({ durum: v === "hepsi" ? null : v }),
+                items: [
+                  { value: "hepsi", label: "Tümü", count: counts.hepsi },
+                  { value: "dikkat", label: "Dikkat gerekli", count: counts.dikkat },
+                  { value: "yeterli", label: "Yeterli", count: counts.yeterli },
+                ],
+              }}
+              tokens={tokens}
+              onClearAll={hasFilters ? clearFilters : undefined}
+              result={`${rows.length} ürün`}
+            />
+            <DataTable
+              caption="Ürünler"
+              columns={columns}
+              rows={rows}
+              getRowId={(p) => p.id}
+              defaultSort={{ key: "name", dir: "asc" }}
+              onRowActivate={(p) => setPanel({ kind: "product", product: p })}
+              renderMobileRow={renderMobileRow}
+              empty={empty}
+              footer={<span>{rows.length} ürün</span>}
+            />
+          </div>
+
+          {movements.length > 0 && (
+            <ListGroup title="Son hareketler" detail={`Son ${movements.length} kayıt`} inset={52} aria-label="Son stok hareketleri">
               {movements.map((m) => {
-                const meta = MOVEMENT_LABEL[m.kind];
+                const meta = MOVEMENT[m.kind];
+                const Icon = meta.icon;
                 return (
-                  <li key={m.id} className="flex flex-wrap items-center gap-2 py-2.5 text-sm">
-                    <span className="w-24 shrink-0 text-xs text-muted-foreground">
-                      {new Date(m.createdAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
-                    </span>
-                    <Badge className={cn("shrink-0", meta.tone)}>{meta.label}</Badge>
-                    <span className="flex-1 font-medium">{m.productName}</span>
-                    <span className="tabular-nums font-semibold">
-                      {m.kind === "in" ? "+" : m.kind === "adjust" ? "=" : "−"}{m.qty} {m.unit}
-                    </span>
-                    {m.note && <span className="w-full text-xs text-muted-foreground sm:w-auto">{m.note}</span>}
-                  </li>
+                  <ListRow
+                    key={m.id}
+                    leading={<Icon aria-hidden className="size-5 text-label-2" />}
+                    title={m.productName}
+                    subtitle={[meta.label, formatDate(m.createdAt), m.note].filter(Boolean).join(" · ")}
+                    trailing={
+                      <span className="font-semibold tabular-nums">
+                        {meta.sign}
+                        {qtyText(m.qty, m.unit)}
+                      </span>
+                    }
+                  />
                 );
               })}
-            </ul>
-          </CardContent>
-        </Card>
+            </ListGroup>
+          )}
+        </>
       )}
 
-      {/* Ürün ekle / düzenle */}
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-md">
+      <FormSheet open={panelOpen} onOpenChange={(o) => !o && closePanel()} title={panelTitle} description={panelDescription}>
+        {activePanel?.kind === "movement" ? (
+          <MovementForm
+            key={`${activePanel.product.id}-${activePanel.move}`}
+            productId={activePanel.product.id}
+            kind={activePanel.move}
+            unit={activePanel.product.unit}
+            onSuccess={() => {
+              closePanel();
+              router.refresh();
+            }}
+            onCancel={closePanel}
+          />
+        ) : activePanel ? (
+          <ProductForm
+            key={activePanel.product?.id ?? "yeni"}
+            product={activePanel.product ?? undefined}
+            categories={categories}
+            onSuccess={() => {
+              closePanel();
+              router.refresh();
+            }}
+            onCancel={closePanel}
+          />
+        ) : null}
+      </FormSheet>
+
+      <Dialog open={deleting !== null} onOpenChange={(o) => !o && !busy && setDeleting(null)}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? "Ürünü Düzenle" : "Yeni Ürün"}</DialogTitle>
+            <DialogTitle>Ürünü sil</DialogTitle>
             <DialogDescription>
-              {editing ? "Bilgileri güncelle. Stok miktarı hareketlerle değişir." : "Ürün bilgilerini gir."}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="p-name">Ürün Adı</Label>
-              <Input id="p-name" autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="p-sku">Kod</Label>
-                <Input id="p-sku" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} placeholder="CBK001" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="p-cat">Kategori</Label>
-                <Input id="p-cat" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} placeholder="güzellik" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="p-unit">Birim</Label>
-                <select id="p-unit" value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))} className="h-9 w-full rounded-[var(--radius-md)] border border-input bg-card px-3 text-sm">
-                  {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="p-crit">Kritik Seviye</Label>
-                <Input id="p-crit" inputMode="decimal" value={form.critical_level} onChange={(e) => setForm((f) => ({ ...f, critical_level: e.target.value }))} placeholder="3" />
-              </div>
-            </div>
-            {!editing && (
-              <div className="space-y-1.5">
-                <Label htmlFor="p-qty">Açılış Stoğu</Label>
-                <Input id="p-qty" inputMode="decimal" value={form.stock_qty} onChange={(e) => setForm((f) => ({ ...f, stock_qty: e.target.value }))} placeholder="0" />
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="p-cost">Alış Fiyatı</Label>
-                <Input id="p-cost" inputMode="decimal" value={form.cost_price} onChange={(e) => setForm((f) => ({ ...f, cost_price: e.target.value }))} placeholder="0" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="p-sale">Satış Fiyatı</Label>
-                <Input id="p-sale" inputMode="decimal" value={form.sale_price} onChange={(e) => setForm((f) => ({ ...f, sale_price: e.target.value }))} placeholder="0" />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)}>İptal</Button>
-            <Button onClick={saveProduct} disabled={!form.name.trim() || pending}>
-              {pending ? "Kaydediliyor…" : "Kaydet"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Stok hareketi */}
-      <Dialog open={!!movOpen} onOpenChange={(o) => !o && setMovOpen(null)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{movOpen?.kind === "in" ? "Stok Girişi" : "Stok Çıkışı"}</DialogTitle>
-            <DialogDescription>{movOpen?.product.name}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="m-qty">Miktar ({movOpen?.product.unit})</Label>
-              <Input id="m-qty" autoFocus inputMode="decimal" value={movQty} onChange={(e) => setMovQty(e.target.value)} placeholder="0" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="m-note">Not</Label>
-              <Input id="m-note" value={movNote} onChange={(e) => setMovNote(e.target.value)} placeholder="Opsiyonel" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setMovOpen(null)}>İptal</Button>
-            <Button onClick={saveMovement} disabled={!movQty.trim() || pending}>
-              {pending ? "Kaydediliyor…" : "Kaydet"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Silme onayı */}
-      <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Ürün silinsin mi?</DialogTitle>
-            <DialogDescription>
-              <b>{confirmDel?.name}</b> ve tüm stok hareketleri kalıcı olarak silinecek.
+              “{deleting?.name}” ve tüm stok hareketleri kalıcı olarak silinecek. Bu işlem geri alınamaz.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDel(null)}>Vazgeç</Button>
-            <Button
-              variant="destructive"
-              disabled={pending}
-              onClick={() => {
-                const p = confirmDel;
-                setConfirmDel(null);
-                if (p) run(() => deleteProduct(p.id), "Ürün silindi");
-              }}
-            >
-              Sil
+            <Button variant="secondary" onClick={() => setDeleting(null)} disabled={busy}>
+              Vazgeç
+            </Button>
+            <Button variant="destructive-solid" onClick={confirmDelete} disabled={busy}>
+              {busy ? "Siliniyor" : "Sil"}
             </Button>
           </DialogFooter>
         </DialogContent>

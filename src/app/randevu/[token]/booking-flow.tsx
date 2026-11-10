@@ -1,21 +1,30 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import {
-  Flower2,
-  Scissors,
-  CalendarDays,
-  Clock,
-  User,
-  CheckCircle2,
-  ChevronLeft,
-  Check,
-} from "lucide-react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { CalendarX2, CheckCircle2, ChevronLeft } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { formatPrice } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { EmptyState } from "@/components/shared/empty-state";
+import { Skeleton } from "@/components/shared/skeletons";
 
 import { submitBooking, getBookedSlots } from "./actions";
+import {
+  addDays,
+  dayLabel,
+  dayParts,
+  isoWeekday,
+  nowMinutes,
+  slotTimes,
+  timeToMinutes,
+  toStartsAt,
+} from "./booking-time";
+import { contactSchema, type ContactInput } from "./schema";
 
 export interface BookingConfig {
   valid: boolean;
@@ -27,26 +36,25 @@ export interface BookingConfig {
   services?: { id: string; name: string; price: number | null; duration_min: number | null }[];
 }
 
-const tl = (v: number | null) =>
-  v == null ? "—" : new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY" }).format(v);
+const STEP_TITLES = ["Hizmet seçin", "Gün ve saat seçin", "Bilgileriniz", "Onay"] as const;
+const DAYS_AHEAD = 21;
 
-const MONTHS = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
-const WD = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
-
-/** JS getDay (0=Paz..6=Cmt) → bizim format (1=Pzt..7=Paz) */
-function isoWeekday(d: Date) {
-  const g = d.getDay();
-  return g === 0 ? 7 : g;
-}
-
-const STEPS = [
-  { n: 1, label: "Hizmet", icon: Scissors },
-  { n: 2, label: "Tarih & Saat", icon: CalendarDays },
-  { n: 3, label: "Bilgilerin", icon: User },
-  { n: 4, label: "Onay", icon: CheckCircle2 },
-];
-
-export function BookingFlow({ token, config }: { token: string; config: BookingConfig }) {
+/**
+ * Online randevu: müşteri telefondan açar. Tek sütun, büyük dokunma hedefleri.
+ * Adımlar: hizmet → gün ve saat → bilgiler → onay. Bütün gün/saat hesabı
+ * işletmenin saat diliminde (İstanbul) yapılır; sunucuya gerçek an (ISO)
+ * gönderilir.
+ */
+export function BookingFlow({
+  token,
+  config,
+  today,
+}: {
+  token: string;
+  config: BookingConfig;
+  /** Bugünün İstanbul günü ("2026-11-06"); sunucuda hesaplanır. */
+  today: string;
+}) {
   const services = config.services ?? [];
   const slot = config.slot_minutes ?? 30;
   const startTime = config.start_time ?? "09:00";
@@ -56,396 +64,423 @@ export function BookingFlow({ token, config }: { token: string; config: BookingC
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [kvkk, setKvkk] = useState(false);
-  // Seçilen gündeki dolu saatler — sunucudan gelir, listeden çıkarılır.
+  // Seçilen gündeki dolu saatler: sunucudan gelir, listeden çıkarılır.
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  // Gün seçildiği andaki İstanbul saati (bugünün geçmiş saatlerini elemek için).
+  const [cutoff, setCutoff] = useState(0);
 
   const service = services.find((s) => s.id === serviceId) ?? null;
 
-  // Önümüzdeki 21 günden çalışma günlerine denk gelenler
+  const {
+    register,
+    handleSubmit,
+    control,
+    getValues,
+    formState: { errors },
+  } = useForm<ContactInput>({
+    resolver: zodResolver(contactSchema),
+    defaultValues: { name: "", phone: "", kvkk: false },
+  });
+
+  // Önümüzdeki günlerden çalışma günlerine denk gelenler
   const dates = useMemo(() => {
     const workDays = config.work_days ?? [1, 2, 3, 4, 5];
-    const out: Date[] = [];
-    const base = new Date();
-    base.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 21; i++) {
-      const d = new Date(base);
-      d.setDate(base.getDate() + i);
-      if (workDays.includes(isoWeekday(d))) out.push(d);
-    }
-    return out;
-  }, [config.work_days]);
-
-  // Açılış-kapanış arası slot saatleri
-  const times = useMemo(() => {
-    const [sh, sm] = startTime.split(":").map(Number);
-    const [eh, em] = endTime.split(":").map(Number);
-    const startMin = sh * 60 + sm;
-    const endMin = eh * 60 + em;
     const out: string[] = [];
-    for (let m = startMin; m + slot <= endMin; m += slot) {
-      const h = Math.floor(m / 60);
-      const mm = m % 60;
-      out.push(`${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`);
+    for (let i = 0; i < DAYS_AHEAD; i++) {
+      const key = addDays(today, i);
+      if (workDays.includes(isoWeekday(key))) out.push(key);
     }
     return out;
-  }, [startTime, endTime, slot]);
+  }, [config.work_days, today]);
 
-  /**
-   * Gün seçimi: dolu saatler o anda getirilir.
-   * (useEffect yerine olay içinde — türev state kaskadı oluşmasın.)
-   */
-  function pickDate(iso: string) {
-    setDate(iso);
+  const times = useMemo(() => slotTimes(startTime, endTime, slot), [startTime, endTime, slot]);
+
+  /** Gün seçimi: dolu saatler o anda getirilir. */
+  function pickDate(key: string) {
+    setDate(key);
     setTime(null);
+    setError(null);
     setBookedSlots([]);
-    getBookedSlots(token, iso)
+    setCutoff(nowMinutes());
+    setLoadingSlots(true);
+    getBookedSlots(token, key)
       .then(setBookedSlots)
-      .catch(() => setBookedSlots([]));
+      .catch(() => setBookedSlots([]))
+      .finally(() => setLoadingSlots(false));
   }
 
-  // Bugün için geçmiş saatleri ve dolu slotları ele
-  const availableTimes = useMemo(() => {
-    const today = new Date();
-    const isToday = date === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const nowMin = today.getHours() * 60 + today.getMinutes();
-    return times.filter((t) => {
-      if (bookedSlots.includes(t)) return false;
-      if (!isToday) return true;
-      const [h, m] = t.split(":").map(Number);
-      return h * 60 + m > nowMin;
-    });
-  }, [times, bookedSlots, date]);
+  const availableTimes = useMemo(
+    () =>
+      times.filter((t) => {
+        if (bookedSlots.includes(t)) return false;
+        if (date !== today) return true;
+        return timeToMinutes(t) > cutoff;
+      }),
+    [times, bookedSlots, date, today, cutoff]
+  );
 
-  const dateLabel = (iso: string) => {
-    const d = new Date(`${iso}T00:00:00`);
-    return `${WD[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`;
-  };
-
-  function submit() {
+  function submit(contact: ContactInput) {
     if (!service || !date || !time) return;
     setError(null);
-    const startsAt = new Date(`${date}T${time}:00`).toISOString();
+    const startsAt = toStartsAt(date, time);
+    if (!startsAt) {
+      setError("Seçtiğiniz saat geçerli değil. Lütfen başka bir saat seçin.");
+      return;
+    }
     startTransition(async () => {
       const res = await submitBooking({
         token,
-        name,
-        phone,
+        name: contact.name,
+        phone: contact.phone,
         serviceId: service.id,
         startsAt,
-        kvkk,
+        kvkk: contact.kvkk,
       });
-      if (!res.ok) setError(res.error ?? "Bir hata oluştu.");
-      else setDone(true);
+      if (res.ok) {
+        setDone(true);
+        return;
+      }
+      const msg = res.error ?? "Randevu oluşturulamadı. Lütfen tekrar deneyin.";
+      // Saat başkası tarafından alınmışsa gün ve saat adımına dön.
+      if (msg.includes("doldu")) {
+        setStep(2);
+        pickDate(date);
+      }
+      setError(msg);
     });
   }
 
   if (done) {
+    const name = getValues("name");
     return (
-      <Shell businessName={config.business_name}>
-        <div className="flex flex-col items-center gap-4 py-10 text-center">
-          <span className="flex size-16 items-center justify-center rounded-full bg-positive/12 text-positive">
-            <CheckCircle2 className="size-9" />
-          </span>
-          <div>
-            <h2 className="text-xl font-bold">Randevu Talebin Alındı 🎉</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {service?.name} · {date && dateLabel(date)} · {time}
-            </p>
-          </div>
-          <p className="max-w-xs text-sm text-muted-foreground">
-            İşletme randevunu onayladığında seninle iletişime geçecek. Teşekkürler, {name.split(" ")[0]}!
+      <Frame businessName={config.business_name}>
+        <div className="flex flex-col items-center gap-3 py-6 text-center">
+          <CheckCircle2 aria-hidden className="size-12 text-positive-text" strokeWidth={1.5} />
+          <h2 className="text-title-3 font-semibold">Randevu talebiniz alındı</h2>
+          <p className="text-[0.9375rem] text-label-2">
+            {service?.name} · {date && dayLabel(date)} · {time}
+          </p>
+          <p className="max-w-xs text-[0.9375rem] text-label-2">
+            İşletme randevunuzu onayladığında sizinle iletişime geçecek. Teşekkürler{name ? `, ${name.split(" ")[0]}` : ""}.
           </p>
         </div>
-      </Shell>
+      </Frame>
     );
   }
 
-  const canNext =
-    (step === 1 && !!serviceId) ||
-    (step === 2 && !!date && !!time) ||
-    (step === 3 && name.trim().length > 1 && phone.trim().length >= 7 && kvkk);
-
   return (
-    <Shell businessName={config.business_name}>
-      {/* Adım göstergesi */}
-      <div className="mb-5 flex items-center justify-between">
-        {STEPS.map((s, i) => {
-          const active = s.n === step;
-          const complete = s.n < step;
-          const Icon = s.icon;
-          return (
-            <div key={s.n} className="flex flex-1 items-center last:flex-none">
-              <div className="flex flex-col items-center gap-1">
-                <span
-                  className={cn(
-                    "flex size-8 items-center justify-center rounded-full text-xs font-bold transition-colors",
-                    active && "bg-primary text-primary-foreground",
-                    complete && "bg-positive text-white",
-                    !active && !complete && "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {complete ? <Check className="size-4" /> : <Icon className="size-4" />}
-                </span>
-                <span
-                  className={cn(
-                    "text-[10px] font-medium",
-                    active ? "text-foreground" : "text-muted-foreground"
-                  )}
-                >
-                  {s.label}
-                </span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <span
-                  className={cn(
-                    "mx-1 h-0.5 flex-1 rounded",
-                    s.n < step ? "bg-positive" : "bg-muted"
-                  )}
-                />
-              )}
-            </div>
-          );
-        })}
+    <Frame businessName={config.business_name}>
+      {/* Adım göstergesi: çubuk + metin (renk tek başına anlam taşımaz) */}
+      <div className="mb-5" role="group" aria-label={`Adım ${step} / ${STEP_TITLES.length}`}>
+        <div className="flex gap-1.5" aria-hidden>
+          {STEP_TITLES.map((_, i) => (
+            <span
+              key={i}
+              className={cn("h-1 flex-1 rounded-full", i < step ? "bg-primary-fill" : "bg-fill-2")}
+            />
+          ))}
+        </div>
+        <p className="mt-2 text-subhead text-label-2">
+          Adım {step} / {STEP_TITLES.length}
+        </p>
       </div>
 
-      {/* Adım 1: Hizmet */}
-      {step === 1 && (
-        <div className="space-y-2">
-          <h2 className="mb-2 font-semibold">Hangi hizmeti almak istersin?</h2>
-          {services.length === 0 ? (
-            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-              Şu anda online randevuya açık hizmet bulunmuyor.
-            </p>
-          ) : (
-            services.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setServiceId(s.id)}
-                className={cn(
-                  "flex w-full items-center justify-between rounded-xl border p-3 text-left transition-colors",
-                  serviceId === s.id
-                    ? "border-primary bg-primary/5 ring-1 ring-primary"
-                    : "hover:bg-muted/50"
-                )}
-              >
-                <div>
-                  <p className="font-medium">{s.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {s.duration_min ? `${s.duration_min} dk` : "—"}
-                  </p>
-                </div>
-                <span className="font-semibold text-primary">{tl(s.price)}</span>
-              </button>
-            ))
-          )}
-        </div>
-      )}
+      <h2 className="mb-3 text-title-3 font-semibold">
+        {step}. {STEP_TITLES[step - 1]}
+      </h2>
 
-      {/* Adım 2: Tarih & Saat */}
-      {step === 2 && (
-        <div className="space-y-4">
-          <div>
-            <h2 className="mb-2 font-semibold">Tarih seç</h2>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {dates.map((d) => {
-                const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-                const on = date === iso;
-                return (
+      {/* Adım 1: Hizmet */}
+      {step === 1 &&
+        (services.length === 0 ? (
+          <EmptyState
+            variant="inline"
+            icon={CalendarX2}
+            title="Online randevuya açık hizmet yok"
+            description="Randevu almak için lütfen işletmeyi arayın."
+          />
+        ) : (
+          <ul role="radiogroup" aria-label="Hizmet" className="space-y-2">
+            {services.map((s) => {
+              const on = serviceId === s.id;
+              return (
+                <li key={s.id}>
                   <button
-                    key={iso}
                     type="button"
-                    onClick={() => pickDate(iso)}
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setServiceId(s.id)}
                     className={cn(
-                      "flex min-w-14 shrink-0 flex-col items-center rounded-xl border px-3 py-2 transition-colors",
-                      on ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted/50"
+                      "focus-ring pressable flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition-colors",
+                      on ? "bg-primary-soft ring-2 ring-primary" : "bg-fill hover:bg-fill-2"
                     )}
                   >
-                    <span className="text-[10px] uppercase">{WD[d.getDay()]}</span>
-                    <span className="text-lg font-bold leading-tight">{d.getDate()}</span>
-                    <span className="text-[10px]">{MONTHS[d.getMonth()]}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[0.9375rem] font-medium">{s.name}</span>
+                      {s.duration_min ? (
+                        <span className="block text-subhead text-label-2">{s.duration_min} dk</span>
+                      ) : null}
+                    </span>
+                    <span className="shrink-0 text-[0.9375rem] font-semibold tabular-nums">
+                      {formatPrice(s.price)}
+                    </span>
                   </button>
-                );
-              })}
-            </div>
-          </div>
+                </li>
+              );
+            })}
+          </ul>
+        ))}
 
-          {date && (
-            <div>
-              <h2 className="mb-2 flex items-center gap-1.5 font-semibold">
-                <Clock className="size-4" /> Saat seç
-              </h2>
-              {availableTimes.length === 0 && (
-                <p className="rounded-lg border border-dashed py-6 text-center text-sm text-muted-foreground">
-                  Bu gün için uygun saat kalmadı. Başka bir gün seçin.
-                </p>
-              )}
-              <div className="grid grid-cols-4 gap-2">
-                {availableTimes.map((t) => {
-                  const on = time === t;
+      {/* Adım 2: Gün ve saat */}
+      {step === 2 && (
+        <div className="space-y-5">
+          {error && (
+            <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-[0.9375rem] text-danger-text">
+              {error}
+            </p>
+          )}
+          {dates.length === 0 ? (
+            <EmptyState
+              variant="inline"
+              icon={CalendarX2}
+              title="Uygun gün bulunamadı"
+              description="Randevu almak için lütfen işletmeyi arayın."
+            />
+          ) : (
+            <>
+              <div
+                role="radiogroup"
+                aria-label="Gün"
+                className="scrollbar-none -mx-5 flex gap-2 overflow-x-auto px-5 pb-1"
+              >
+                {dates.map((key) => {
+                  const p = dayParts(key);
+                  const on = date === key;
                   return (
                     <button
-                      key={t}
+                      key={key}
                       type="button"
-                      onClick={() => setTime(t)}
+                      role="radio"
+                      aria-checked={on}
+                      aria-label={dayLabel(key)}
+                      onClick={() => pickDate(key)}
                       className={cn(
-                        "rounded-lg border py-2 text-sm font-medium transition-colors",
-                        on ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted/50"
+                        "focus-ring pressable flex min-h-[4.25rem] min-w-[3.75rem] shrink-0 flex-col items-center justify-center rounded-2xl px-2 py-2 transition-colors",
+                        on
+                          ? "bg-primary-fill text-on-primary-fill"
+                          : "bg-fill text-label hover:bg-fill-2"
                       )}
                     >
-                      {t}
+                      <span className="text-caption uppercase">{p.weekday}</span>
+                      <span className="text-title-3 leading-tight font-semibold tabular-nums">{p.day}</span>
+                      <span className="text-caption">{p.month}</span>
                     </button>
                   );
                 })}
               </div>
-            </div>
+
+              {date && (
+                <div>
+                  <h3 className="mb-2 text-[0.9375rem] font-semibold">Saat</h3>
+                  {loadingSlots ? (
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" aria-busy aria-label="Saatler yükleniyor">
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <Skeleton key={i} className="h-11 rounded-xl" />
+                      ))}
+                    </div>
+                  ) : availableTimes.length === 0 ? (
+                    <p className="rounded-xl bg-fill px-4 py-6 text-center text-[0.9375rem] text-label-2">
+                      Bu gün için boş saat kalmadı. Başka bir gün seçin.
+                    </p>
+                  ) : (
+                    <div role="radiogroup" aria-label="Saat" className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {availableTimes.map((t) => {
+                        const on = time === t;
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            role="radio"
+                            aria-checked={on}
+                            onClick={() => setTime(t)}
+                            className={cn(
+                              "focus-ring pressable h-11 rounded-xl text-[0.9375rem] font-medium tabular-nums transition-colors",
+                              on
+                                ? "bg-primary-fill text-on-primary-fill"
+                                : "bg-fill text-label hover:bg-fill-2"
+                            )}
+                          >
+                            {t}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
 
       {/* Adım 3: Bilgiler */}
       {step === 3 && (
-        <div className="space-y-4">
-          <h2 className="font-semibold">İletişim bilgilerin</h2>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" htmlFor="b-name">
-              Ad Soyad
-            </label>
-            <input
+        <form
+          id="contact-form"
+          onSubmit={handleSubmit(() => {
+            setError(null);
+            setStep(4);
+          })}
+          className="space-y-4"
+          noValidate
+        >
+          <div className="space-y-2">
+            <Label htmlFor="b-name">Ad soyad</Label>
+            <Input
               id="b-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Adın ve soyadın"
-              className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
+              autoComplete="name"
+              placeholder="Adınız ve soyadınız"
+              className="h-11"
+              aria-invalid={!!errors.name}
+              {...register("name")}
             />
+            {errors.name && <p className="text-subhead text-danger-text">{errors.name.message}</p>}
           </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" htmlFor="b-phone">
-              Telefon
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="b-phone">Telefon</Label>
+            <Input
               id="b-phone"
               type="tel"
               inputMode="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="05XX XXX XX XX"
-              className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
+              autoComplete="tel"
+              placeholder="05xx xxx xx xx"
+              className="h-11"
+              aria-invalid={!!errors.phone}
+              {...register("phone")}
             />
+            {errors.phone && <p className="text-subhead text-danger-text">{errors.phone.message}</p>}
           </div>
 
-          {/* KVKK açık rıza — yasal zorunluluk */}
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border bg-muted/30 p-3">
-            <input
-              type="checkbox"
-              checked={kvkk}
-              onChange={(e) => setKvkk(e.target.checked)}
-              className="mt-0.5 size-4 shrink-0 accent-primary"
+          {/* KVKK açık rıza: yasal zorunluluk */}
+          <div className="space-y-2">
+            <Controller
+              control={control}
+              name="kvkk"
+              render={({ field }) => (
+                <label
+                  htmlFor="b-kvkk"
+                  className="flex min-h-11 cursor-pointer items-start gap-3 rounded-2xl bg-fill px-4 py-3"
+                >
+                  <input
+                    id="b-kvkk"
+                    type="checkbox"
+                    checked={field.value}
+                    onChange={(e) => field.onChange(e.target.checked)}
+                    aria-invalid={!!errors.kvkk}
+                    className="focus-ring mt-0.5 size-5 shrink-0 accent-[var(--primary-fill)]"
+                  />
+                  <span className="text-subhead leading-relaxed text-label-2">
+                    Randevu oluşturmak için ad, soyad ve telefon bilgilerimin işlenmesine ve randevu hatırlatmaları için
+                    benimle iletişime geçilmesine <b className="text-label">açık rıza</b> veriyorum (KVKK).
+                  </span>
+                </label>
+              )}
             />
-            <span className="text-xs leading-relaxed text-muted-foreground">
-              Randevu oluşturmak amacıyla ad, soyad ve telefon bilgimin
-              işlenmesine ve randevu hatırlatmaları için benimle iletişime
-              geçilmesine <b className="text-foreground">açık rıza</b> veriyorum
-              (KVKK).
-            </span>
-          </label>
-        </div>
+            {errors.kvkk && <p className="text-subhead text-danger-text">{errors.kvkk.message}</p>}
+          </div>
+        </form>
       )}
 
       {/* Adım 4: Onay */}
       {step === 4 && (
         <div className="space-y-4">
-          <h2 className="font-semibold">Randevunu onayla</h2>
-          <div className="space-y-3 rounded-xl border p-4 text-sm">
-            <Row icon={Scissors} label="Hizmet" value={service?.name ?? "—"} extra={tl(service?.price ?? null)} />
-            <Row icon={CalendarDays} label="Tarih" value={date ? dateLabel(date) : "—"} />
-            <Row icon={Clock} label="Saat" value={time ?? "—"} />
-            <Row icon={User} label="Ad Soyad" value={name} />
-            <Row icon={User} label="Telefon" value={phone} />
-          </div>
+          <dl className="surface-flat divide-y divide-[color:var(--separator)] px-4 text-[0.9375rem]">
+            <SummaryRow label="Hizmet" value={service?.name ?? "—"} extra={service ? formatPrice(service.price) : undefined} />
+            <SummaryRow label="Gün" value={date ? dayLabel(date) : "—"} />
+            <SummaryRow label="Saat" value={time ?? "—"} />
+            <SummaryRow label="Ad soyad" value={getValues("name")} />
+            <SummaryRow label="Telefon" value={getValues("phone")} />
+          </dl>
           {error && (
-            <p className="rounded-lg bg-danger/10 p-3 text-sm text-danger">{error}</p>
+            <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-[0.9375rem] text-danger-text">
+              {error}
+            </p>
           )}
         </div>
       )}
 
-      {/* Alt navigasyon */}
+      {/* Alt gezinme */}
       <div className="mt-6 flex items-center gap-2">
         {step > 1 && (
-          <Button variant="outline" onClick={() => setStep((s) => s - 1)} disabled={pending}>
+          <Button
+            variant="secondary"
+            size="lg"
+            onClick={() => {
+              setError(null);
+              setStep((s) => s - 1);
+            }}
+            disabled={pending}
+          >
             <ChevronLeft />
             Geri
           </Button>
         )}
-        {step < 4 ? (
-          <Button className="flex-1" onClick={() => setStep((s) => s + 1)} disabled={!canNext}>
-            Devam Et
+        {step === 1 && (
+          <Button size="lg" className="flex-1" onClick={() => setStep(2)} disabled={!serviceId}>
+            Devam et
           </Button>
-        ) : (
-          <Button className="flex-1" onClick={submit} disabled={pending}>
-            {pending ? "Gönderiliyor…" : "Randevuyu Oluştur"}
+        )}
+        {step === 2 && (
+          <Button size="lg" className="flex-1" onClick={() => setStep(3)} disabled={!date || !time}>
+            Devam et
+          </Button>
+        )}
+        {step === 3 && (
+          <Button type="submit" form="contact-form" size="lg" className="flex-1">
+            Devam et
+          </Button>
+        )}
+        {step === 4 && (
+          <Button size="lg" className="flex-1" onClick={handleSubmit(submit)} disabled={pending}>
+            {pending ? "Gönderiliyor..." : "Randevuyu oluştur"}
           </Button>
         )}
       </div>
-    </Shell>
+    </Frame>
   );
 }
 
-function Row({
-  icon: Icon,
-  label,
-  value,
-  extra,
-}: {
-  icon: typeof Scissors;
-  label: string;
-  value: string;
-  extra?: string;
-}) {
+function SummaryRow({ label, value, extra }: { label: string; value: string; extra?: string }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="flex items-center gap-2 text-muted-foreground">
-        <Icon className="size-4" />
-        {label}
-      </span>
-      <span className="text-right font-medium">
+    <div className="flex min-h-12 items-center justify-between gap-4 py-2">
+      <dt className="shrink-0 text-label-2">{label}</dt>
+      <dd className="min-w-0 text-right font-medium break-words">
         {value}
-        {extra && <span className="ml-2 text-primary">{extra}</span>}
-      </span>
+        {extra && <span className="ml-2 tabular-nums text-label-2">{extra}</span>}
+      </dd>
     </div>
   );
 }
 
-function Shell({
-  businessName,
-  children,
-}: {
-  businessName?: string;
-  children: React.ReactNode;
-}) {
+/** Sayfa çerçevesi: kabuk yok; Randevu Linki'ndeki önizlemeyle aynı başlık bandı. */
+function Frame({ businessName, children }: { businessName?: string; children: React.ReactNode }) {
   return (
-    <div className="min-h-svh bg-muted/30 py-6">
-      <div className="mx-auto max-w-md px-4">
-        <div className="mb-4 flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-violet-500 text-white">
-            <Flower2 className="size-6" />
-          </span>
-          <div>
-            <p className="font-bold leading-tight">{businessName ?? "Online Randevu"}</p>
-            <p className="text-xs text-muted-foreground">Online Randevu</p>
-          </div>
+    <div className="min-h-svh px-4 py-6 sm:py-10">
+      <div aria-hidden className="app-wall" />
+      <main className="mx-auto w-full max-w-md">
+        <div className="surface overflow-hidden">
+          <header className="bg-primary-fill px-5 py-5 text-center text-on-primary-fill">
+            <p className="text-subhead opacity-85">Online randevu</p>
+            <h1 className="mt-0.5 text-title-3 font-semibold break-words">
+              {businessName ?? "Randevunuzu oluşturun"}
+            </h1>
+          </header>
+          <div className="p-5">{children}</div>
         </div>
-        <div className="rounded-2xl border bg-card p-5 shadow-sm">{children}</div>
-        <p className="mt-3 text-center text-[11px] text-muted-foreground">
-          Randevu sistemi · {businessName}
-        </p>
-      </div>
+      </main>
     </div>
   );
 }

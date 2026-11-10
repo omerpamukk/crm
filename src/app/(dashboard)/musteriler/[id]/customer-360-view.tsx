@@ -3,31 +3,63 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, ArrowRightLeft, Banknote, Calendar, CalendarCheck, CalendarPlus, Clock, Coins, FileText, Mail, MessageCircle, Package as PackageIcon, Phone, Send, Sparkles, UserCircle2, Wallet } from "lucide-react";
+import {
+  ArrowRightLeft,
+  Banknote,
+  Calendar,
+  CalendarCheck,
+  CalendarPlus,
+  ChevronLeft,
+  FileText,
+  MessageCircle,
+  Package as PackageIcon,
+  Phone,
+  Plus,
+  StickyNote,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
-import { StatCard } from "@/components/shared/stat-card";
-import { formatPrice, formatDate, formatDateTime } from "@/lib/format";
 import {
   appointmentStatusLabel,
   appointmentStatusVariant,
   customerStatusLabel,
   customerStatusVariant,
+  paymentMethodLabel,
   paymentStatusLabel,
   paymentStatusVariant,
-  paymentMethodLabel,
 } from "@/lib/constants";
-import type { Customer, Package, Payment, Interaction } from "@/types/database";
+import { formatDate, formatDateTime, formatTime } from "@/lib/format";
+import { zonedParts, zonedWallToUtcMs } from "@/lib/zaman";
+import type { Customer, Interaction, Package, Payment } from "@/types/database";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { toastUndo } from "@/components/ui/sonner";
+import { ToolbarAction } from "@/components/layout/toolbar-action";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
+import { GeldiButton } from "@/components/shared/geldi-button";
+import { ListGroup, ListRow } from "@/components/shared/list-group";
+import { Metric, MetricStrip } from "@/components/shared/metric";
+import { formatMoney, Money } from "@/components/shared/money";
+import { PackageProgress } from "@/components/shared/package-progress";
+import { PageHeader } from "@/components/shared/page-header";
+import { StatusBadge, StatusDot } from "@/components/shared/status";
 
-import { AppointmentForm } from "../../randevular/appointment-form";
-import { PaymentForm } from "../../tahsilat/payment-form";
+import { markArrived, undoArrived } from "../../randevular/actions";
 import { addCustomerNote } from "../interaction-actions";
+import { CustomerActions } from "../customer-actions";
+import { AppointmentSheet, PaymentSheet } from "../customer-sheets";
+import {
+  DAY,
+  INTERACTION_LABEL,
+  apptWhen,
+  telHref,
+  waLink,
+  type CustomerAbilities,
+} from "../customer-types";
 
 export type ApptItem = {
   id: string;
@@ -35,31 +67,22 @@ export type ApptItem = {
   status: string | null;
   price: number | null;
   package_id: string | null;
+  arrived_at: string | null;
   service: { name: string; duration_min: number | null; price: number | null } | null;
   staff_member: { full_name: string } | null;
 };
 
-const DAY = 86_400_000;
-
-const INTERACTION_META: Record<string, { icon: typeof Calendar; tone: string; label: string }> = {
-  mesaj: { icon: MessageCircle, tone: "bg-primary/10 text-primary", label: "Mesaj" },
-  arama: { icon: Phone, tone: "bg-sky-100 text-sky-600", label: "Arama" },
-  randevu_olusturuldu: { icon: Calendar, tone: "bg-violet-100 text-violet-600", label: "Randevu oluşturuldu" },
-  randevu_tamamlandi: { icon: CalendarCheck, tone: "bg-positive/10 text-positive", label: "Randevu tamamlandı" },
-  not: { icon: FileText, tone: "bg-amber-100 text-amber-600", label: "Not" },
-  asama_degisikligi: { icon: ArrowRightLeft, tone: "bg-muted text-muted-foreground", label: "Aşama değişikliği" },
+const INTERACTION_ICON: Record<string, LucideIcon> = {
+  mesaj: MessageCircle,
+  arama: Phone,
+  randevu_olusturuldu: Calendar,
+  randevu_tamamlandi: CalendarCheck,
+  not: FileText,
+  asama_degisikligi: ArrowRightLeft,
 };
 
-function initials(name: string) {
-  const p = name.trim().split(/\s+/);
-  return ((p[0]?.[0] ?? "") + (p[1]?.[0] ?? "")).toUpperCase() || "?";
-}
-
-function waLink(phone: string) {
-  const d = phone.replace(/\D/g, "");
-  const n = d.startsWith("90") ? d : d.startsWith("0") ? `90${d.slice(1)}` : `90${d}`;
-  return `https://wa.me/${n}`;
-}
+const HISTORY_LIMIT = 6;
+const NOTE_LIMIT = 4;
 
 export function Customer360View({
   customer,
@@ -70,6 +93,10 @@ export function Customer360View({
   services,
   staff,
   assigneeName,
+  abilities,
+  canArrive,
+  loadFailed,
+  balance,
 }: {
   customer: Customer;
   appointments: ApptItem[];
@@ -79,6 +106,11 @@ export function Customer360View({
   services: { id: string; name: string; price: number | null }[];
   staff: { id: string; full_name: string }[];
   assigneeName: string | null;
+  abilities: CustomerAbilities;
+  canArrive: boolean;
+  loadFailed: boolean;
+  /** Açık borç: customer_balances tek kaynağından (0031). */
+  balance: number;
 }) {
   const router = useRouter();
   const [nowMs] = useState(() => Date.now());
@@ -86,32 +118,44 @@ export function Customer360View({
   const [payOpen, setPayOpen] = useState(false);
   const [note, setNote] = useState("");
   const [pending, startTransition] = useTransition();
+  const [allHistory, setAllHistory] = useState(false);
+  const [allNotes, setAllNotes] = useState(false);
 
-  // Metrikler
+  const showMoney = abilities.pay;
+  const tr = zonedParts(nowMs); // gün başlangıcı İstanbul saatine göre
+  const startOfToday = new Date(zonedWallToUtcMs(tr.y, tr.m, tr.d, 0, 0));
+
   const totalPaid = payments.reduce((s, p) => s + (p.amount ?? 0), 0);
-  const openDebt = packages.reduce((s, p) => s + Math.max((p.price ?? 0) - (p.paid_amount ?? 0), 0), 0);
-  const activePackages = packages.filter((p) => (p.remaining_sessions ?? 0) > 0);
+  const openDebt = Math.max(balance, 0);
+
+  // Yaklaşan: bugünden itibaren planlı ya da gelmiş (bugün gelen müşteri de görünür).
   const upcoming = appointments
-    .filter((a) => new Date(a.starts_at).getTime() > nowMs && a.status === "planned")
+    .filter(
+      (a) =>
+        new Date(a.starts_at).getTime() >= startOfToday.getTime() &&
+        (a.status === "planned" || a.status === "arrived")
+    )
     .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
-  const nextAppt = upcoming[0] ?? null;
+  const upcomingIds = new Set(upcoming.map((a) => a.id));
+  const history = appointments.filter((a) => !upcomingIds.has(a.id));
+  const shownHistory = allHistory ? history : history.slice(0, HISTORY_LIMIT);
+
   const lastVisit = customer.last_visit_at;
   const daysSinceVisit = lastVisit ? Math.floor((nowMs - new Date(lastVisit).getTime()) / DAY) : null;
 
-  // Önerilen sonraki aksiyon
-  const reco = (() => {
-    if (openDebt > 0)
-      return { tone: "danger" as const, icon: Wallet, text: `${formatPrice(openDebt)} açık borç var — tahsilat zamanı.`, action: () => setPayOpen(true), actionLabel: "Ödeme Al" };
-    if (nextAppt)
-      return { tone: "info" as const, icon: CalendarCheck, text: `Sıradaki randevu: ${formatDateTime(nextAppt.starts_at)}${nextAppt.service?.name ? ` · ${nextAppt.service.name}` : ""}.`, action: null, actionLabel: null };
-    if (activePackages.some((p) => (p.remaining_sessions ?? 0) <= 2))
-      return { tone: "warning" as const, icon: PackageIcon, text: `Paketi bitmek üzere — yenileme teklifi sun.`, action: () => setApptOpen(true), actionLabel: "Randevu Ver" };
-    if (daysSinceVisit !== null && daysSinceVisit >= 60)
-      return { tone: "warning" as const, icon: Clock, text: `Son ziyaret ${daysSinceVisit} gün önce — geri kazanım için iletişime geç.`, action: customer.phone ? () => window.open(waLink(customer.phone as string), "_blank") : null, actionLabel: customer.phone ? "WhatsApp" : null };
-    return { tone: "info" as const, icon: Sparkles, text: `Aktif bir randevu yok — yeni randevu önererek bağı sürdür.`, action: () => setApptOpen(true), actionLabel: "Randevu Ver" };
-  })();
+  const notes = interactions.filter((i) => i.type === "not");
+  const contacts = interactions.filter((i) => i.type !== "not");
+  const shownNotes = allNotes ? notes : notes.slice(0, NOTE_LIMIT);
 
-  function submitNote() {
+  const pkgOpts = packages.map((p) => ({
+    id: p.id,
+    customer_id: p.customer_id,
+    service_name: p.service_name,
+    remaining_sessions: p.remaining_sessions,
+  }));
+
+  function submitNote(e: React.FormEvent) {
+    e.preventDefault();
     const v = note.trim();
     if (!v) return;
     startTransition(async () => {
@@ -125,306 +169,395 @@ export function Customer360View({
     });
   }
 
-  const customerOpt = [{ id: customer.id, full_name: customer.full_name }];
-  const pkgOpts = packages.map((p) => ({ id: p.id, customer_id: p.customer_id, service_name: p.service_name, remaining_sessions: p.remaining_sessions }));
+  async function arrive(a: ApptItem) {
+    const res = await markArrived(a.id);
+    if (res.error) {
+      toast.error(res.error);
+      throw new Error(res.error);
+    }
+    router.refresh();
+    toastUndo(`${customer.full_name} geldi`, () => {
+      void undoArrived(a.id).then((r) => {
+        if (r.error) toast.error(r.error);
+        else router.refresh();
+      });
+    });
+  }
 
-  const metrics = [
-    { label: "Yaşam Boyu Değer", value: formatPrice(totalPaid), icon: Coins, accent: "" },
-    { label: "Açık Borç", value: formatPrice(openDebt), icon: Wallet, accent: openDebt > 0 ? "text-danger" : "" },
-    { label: "Toplam Randevu", value: String(appointments.length), icon: CalendarCheck, accent: "" },
-    { label: "Son Ziyaret", value: lastVisit ? formatDate(lastVisit) : "—", icon: Clock, accent: "", sub: daysSinceVisit !== null ? `${daysSinceVisit} gün önce` : undefined },
-  ];
+  async function undo(a: ApptItem) {
+    const res = await undoArrived(a.id);
+    if (res.error) {
+      toast.error(res.error);
+      throw new Error(res.error);
+    }
+    router.refresh();
+  }
+
+  const header = (
+    <PageHeader
+      eyebrow={
+        <Link href="/musteriler" className="focus-ring inline-flex items-center gap-0.5 rounded">
+          <ChevronLeft aria-hidden className="size-3.5" />
+          Müşteriler
+        </Link>
+      }
+      title={customer.full_name}
+      description={customer.is_lead ? "Henüz müşteriye dönüşmemiş bir lead" : undefined}
+      secondary={
+        abilities.pay ? <ToolbarAction icon={Banknote} label="Ödeme al" onClick={() => setPayOpen(true)} /> : undefined
+      }
+      primary={
+        abilities.book ? (
+          <ToolbarAction prominent icon={Plus} label="Yeni randevu" onClick={() => setApptOpen(true)} />
+        ) : undefined
+      }
+    />
+  );
+
+  if (loadFailed) {
+    return (
+      <div className="space-y-8">
+        {header}
+        <ErrorState
+          title="Müşteri bilgileri yüklenemedi"
+          description="Bağlantıda bir sorun olabilir. Biraz sonra tekrar deneyin; sorun sürerse sayfayı yenileyin."
+          onRetry={() => router.refresh()}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <Link href="/musteriler" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
-        <ArrowLeft className="size-4" /> Müşteriler
-      </Link>
+    <div className="space-y-8">
+      {header}
 
-      {/* Profil başlığı */}
-      <Card>
-        <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex items-start gap-4">
-            <span className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-lg font-semibold text-primary">
-              {initials(customer.full_name)}
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-bold">{customer.full_name}</h1>
-                {customer.is_lead ? (
-                  <Badge variant="warning">Lead</Badge>
-                ) : (
-                  <Badge variant={customerStatusVariant(customer.status)}>{customerStatusLabel(customer.status)}</Badge>
-                )}
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                {customer.phone && <span className="inline-flex items-center gap-1"><Phone className="size-3.5" />{customer.phone}</span>}
-                {customer.email && <span className="inline-flex items-center gap-1"><Mail className="size-3.5" />{customer.email}</span>}
-                {customer.source && <span>· {customer.source}</span>}
-                {assigneeName && <span className="inline-flex items-center gap-1"><UserCircle2 className="size-3.5" />{assigneeName}</span>}
-              </div>
-              {customer.tags && customer.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {customer.tags.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Hızlı aksiyonlar */}
-          <div className="flex flex-wrap gap-2">
-            {customer.phone && (
-              <>
-                <Button variant="outline" size="sm" asChild><a href={waLink(customer.phone)} target="_blank" rel="noopener noreferrer"><MessageCircle className="size-4 text-positive" />WhatsApp</a></Button>
-                <Button variant="outline" size="sm" asChild><a href={`tel:${customer.phone}`}><Phone className="size-4" />Ara</a></Button>
-              </>
-            )}
-            <Button size="sm" onClick={() => setApptOpen(true)}><CalendarPlus className="size-4" />Randevu</Button>
-            <Button size="sm" onClick={() => setPayOpen(true)}><Banknote className="size-4" />Ödeme Al</Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Metrikler */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {metrics.map((m) => (
-          <StatCard
-            key={m.label}
-            label={m.label}
-            value={m.value}
-            icon={m.icon}
-            sub={m.sub}
-            accent={m.accent}
-          />
-        ))}
-      </div>
-
-      {/* Önerilen aksiyon */}
-      <div className={cn(
-        "flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 bg-card p-4 shadow-soft",
-        reco.tone === "danger" && "border-l-danger",
-        reco.tone === "warning" && "border-l-warning",
-        reco.tone === "info" && "border-l-primary"
-      )}>
-        <div className="flex items-center gap-3">
-          <span className={cn("flex size-9 items-center justify-center rounded-lg",
-            reco.tone === "danger" ? "bg-danger/10 text-danger" : reco.tone === "warning" ? "bg-warning/12 text-amber-600" : "bg-primary/10 text-primary")}>
-            <reco.icon className="size-4" />
-          </span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Önerilen Sonraki Aksiyon</p>
-            <p className="text-sm font-medium">{reco.text}</p>
-          </div>
-        </div>
-        {reco.action && reco.actionLabel && (
-          <Button size="sm" onClick={reco.action}>{reco.actionLabel}<ArrowRight className="size-4" /></Button>
-        )}
-      </div>
-
-      {/* Sekmeler */}
-      <Tabs defaultValue="genel">
-        <div className="overflow-x-auto">
-          <TabsList>
-            <TabsTrigger value="genel">Genel</TabsTrigger>
-            <TabsTrigger value="randevular">Randevular ({appointments.length})</TabsTrigger>
-            <TabsTrigger value="paketler">Paketler ({packages.length})</TabsTrigger>
-            <TabsTrigger value="odemeler">Ödemeler ({payments.length})</TabsTrigger>
-            <TabsTrigger value="zaman">Zaman Çizelgesi</TabsTrigger>
-          </TabsList>
-        </div>
-
-        {/* GENEL */}
-        <TabsContent value="genel" className="mt-4">
-          <div className="grid gap-5 lg:grid-cols-2">
-            <Card>
-              <CardContent className="space-y-3 p-5">
-                <p className="flex items-center gap-2 font-semibold"><CalendarCheck className="size-4 text-primary" />Sıradaki Randevu</p>
-                {nextAppt ? (
-                  <div className="rounded-lg border p-3">
-                    <p className="font-medium">{formatDateTime(nextAppt.starts_at)}</p>
-                    <p className="text-sm text-muted-foreground">{nextAppt.service?.name ?? "Hizmet belirtilmedi"}{nextAppt.staff_member?.full_name ? ` · ${nextAppt.staff_member.full_name}` : ""}</p>
-                  </div>
-                ) : (
-                  <p className="py-4 text-center text-sm text-muted-foreground">Planlı randevu yok.</p>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="space-y-3 p-5">
-                <p className="flex items-center gap-2 font-semibold"><PackageIcon className="size-4 text-primary" />Aktif Paketler</p>
-                {activePackages.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-muted-foreground">Aktif paket yok.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {activePackages.map((p) => (
-                      <li key={p.id} className="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm">
-                        <span className="font-medium">{p.service_name ?? "Paket"}</span>
-                        <span className="text-muted-foreground">{p.remaining_sessions}/{p.total_sessions} seans</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* RANDEVULAR */}
-        <TabsContent value="randevular" className="mt-4">
-          <Card>
-            <CardContent className="p-0">
-              {appointments.length === 0 ? (
-                <p className="py-10 text-center text-sm text-muted-foreground">Henüz randevu yok.</p>
+      {/* Kimlik: avatar, durum, iletişim, hızlı eylemler */}
+      <section aria-label="Müşteri bilgileri" className="space-y-4">
+        <div className="flex items-start gap-4">
+          <Avatar name={customer.full_name} size="xl" />
+          <div className="min-w-0 flex-1 space-y-2 pt-1">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              {customer.is_lead ? (
+                <Badge variant="warning">Lead</Badge>
               ) : (
-                <ul className="divide-y">
-                  {appointments.map((a) => (
-                    <li key={a.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">{formatDateTime(a.starts_at)}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {a.service?.name ?? "Hizmet belirtilmedi"}
-                          {a.service?.duration_min ? ` · ${a.service.duration_min} dk` : ""}
-                          {a.staff_member?.full_name ? ` · ${a.staff_member.full_name}` : ""}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-3">
-                        {a.price != null && <span className="text-sm font-medium tabular-nums">{formatPrice(a.price)}</span>}
-                        <Badge variant={appointmentStatusVariant(a.status)}>{appointmentStatusLabel(a.status)}</Badge>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                <StatusDot variant={customerStatusVariant(customer.status)}>{customerStatusLabel(customer.status)}</StatusDot>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* PAKETLER */}
-        <TabsContent value="paketler" className="mt-4">
-          {packages.length === 0 ? (
-            <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Henüz paket yok.</CardContent></Card>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {packages.map((p) => {
-                const debt = Math.max((p.price ?? 0) - (p.paid_amount ?? 0), 0);
-                return (
-                  <Card key={p.id}>
-                    <CardContent className="space-y-2 p-4">
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium">{p.service_name ?? "Paket"}</p>
-                        <Badge variant={paymentStatusVariant(p.payment_status)}>{paymentStatusLabel(p.payment_status)}</Badge>
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>{p.remaining_sessions}/{p.total_sessions} seans kaldı</span>
-                        <span>{formatDate(p.purchased_at)}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Fiyat: <span className="font-medium text-foreground">{formatPrice(p.price)}</span></span>
-                        {debt > 0 ? <span className="font-medium text-danger">Kalan: {formatPrice(debt)}</span> : <span className="font-medium text-positive">Ödendi</span>}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+              {(customer.tags ?? []).map((t) => (
+                <Badge key={t} variant="tag">
+                  {t}
+                </Badge>
+              ))}
             </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[0.9375rem] text-label-2">
+              {customer.phone && (
+                <a href={telHref(customer.phone)} className="focus-ring rounded whitespace-nowrap text-primary-text tabular-nums">
+                  {customer.phone}
+                </a>
+              )}
+              {customer.email && (
+                <a
+                  href={`mailto:${customer.email}`}
+                  className="focus-ring max-w-full truncate rounded text-primary-text"
+                  title={customer.email}
+                >
+                  {customer.email}
+                </a>
+              )}
+              {customer.source && <span className="whitespace-nowrap">Geldiği yer: {customer.source}</span>}
+              {assigneeName && <span className="whitespace-nowrap">Sorumlu: {assigneeName}</span>}
+              {customer.birthday && <span className="whitespace-nowrap">Doğum günü: {formatDate(customer.birthday)}</span>}
+            </div>
+            {customer.note && <p className="max-w-2xl text-[0.9375rem] text-label-2w">{customer.note}</p>}
+          </div>
+          {abilities.manage && (
+            <CustomerActions customer={customer} onDeleted={() => router.push("/musteriler")} className="shrink-0" />
           )}
-        </TabsContent>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {abilities.pay && (
+            <Button variant="tinted" className="md:hidden" onClick={() => setPayOpen(true)}>
+              <Banknote />
+              Ödeme al
+            </Button>
+          )}
+          {customer.phone && (
+            <>
+              <Button asChild variant="secondary">
+                <a href={waLink(customer.phone)} target="_blank" rel="noopener noreferrer">
+                  <MessageCircle />
+                  WhatsApp
+                </a>
+              </Button>
+              <Button asChild variant="secondary">
+                <a href={telHref(customer.phone)}>
+                  <Phone />
+                  Ara
+                </a>
+              </Button>
+            </>
+          )}
+        </div>
+      </section>
 
-        {/* ÖDEMELER */}
-        <TabsContent value="odemeler" className="mt-4">
-          <Card>
-            <CardContent className="p-0">
-              {payments.length === 0 ? (
-                <p className="py-10 text-center text-sm text-muted-foreground">Henüz ödeme yok.</p>
-              ) : (
-                <ul className="divide-y">
-                  {payments.map((p) => (
-                    <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                      <div>
-                        <p className="text-sm font-medium">{formatDate(p.created_at)}</p>
-                        <p className="text-xs text-muted-foreground">{paymentMethodLabel(p.method)}{p.note ? ` · ${p.note}` : ""}</p>
-                      </div>
-                      <span className="text-sm font-semibold tabular-nums text-positive">{formatPrice(p.amount)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+      <MetricStrip aria-label="Müşteri özeti">
+        {showMoney && <Metric label="Toplam ödeme" value={formatMoney(totalPaid)} context="şimdiye kadar" />}
+        {showMoney && (
+          <Metric
+            label="Açık borç"
+            value={formatMoney(openDebt)}
+            tone={openDebt > 0 ? "danger" : "default"}
+            context={openDebt > 0 ? "tahsil edilecek" : "borç yok"}
+          />
+        )}
+        <Metric label="Randevu" value={String(appointments.length)} context="toplam" />
+        <Metric
+          label="Son ziyaret"
+          value={lastVisit ? formatDate(lastVisit) : "Henüz yok"}
+          context={daysSinceVisit !== null ? (daysSinceVisit <= 0 ? "bugün" : `${daysSinceVisit} gün önce`) : undefined}
+        />
+      </MetricStrip>
 
-        {/* ZAMAN ÇİZELGESİ */}
-        <TabsContent value="zaman" className="mt-4">
-          <Card>
-            <CardContent className="space-y-4 p-5">
-              {/* Not ekleme */}
-              <div className="flex gap-2">
-                <input
+      <div className="grid items-start gap-8 lg:grid-cols-2">
+        <div className="min-w-0 space-y-8">
+          <ListGroup title="Yaklaşan randevular" detail={upcoming.length ? `${upcoming.length} randevu` : undefined}>
+            {upcoming.length === 0 ? (
+              <li>
+                <EmptyState
+                  variant="inline"
+                  icon={CalendarPlus}
+                  title="Yaklaşan randevu yok"
+                  description="Bu müşteriye yeni bir randevu verebilirsiniz."
+                  action={
+                    abilities.book ? (
+                      <Button onClick={() => setApptOpen(true)}>
+                        <Plus />
+                        Yeni randevu
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              </li>
+            ) : (
+              upcoming.map((a) => {
+                const w = apptWhen(a.starts_at, nowMs);
+                const arrived = a.status === "arrived";
+                const canMark = canArrive && w.today;
+                return (
+                  <ListRow
+                    key={a.id}
+                    title={`${w.day} ${w.time}`}
+                    subtitle={[a.service?.name, a.staff_member?.full_name].filter(Boolean).join(" · ") || "Hizmet belirtilmedi"}
+                    trailing={
+                      canMark ? (
+                        <GeldiButton
+                          size="sm"
+                          arrived={arrived}
+                          customerName={customer.full_name}
+                          onArrive={() => arrive(a)}
+                          onUndo={() => undo(a)}
+                        />
+                      ) : arrived ? (
+                        <StatusBadge variant="positive">Geldi{a.arrived_at ? ` · ${formatTime(a.arrived_at)}` : ""}</StatusBadge>
+                      ) : null
+                    }
+                  />
+                );
+              })
+            )}
+          </ListGroup>
+
+          <ListGroup
+            title="Randevu geçmişi"
+            detail={history.length ? `${history.length} randevu` : undefined}
+            footer={
+              history.length > HISTORY_LIMIT ? (
+                <Button variant="plain" size="sm" className="-mx-2" onClick={() => setAllHistory((v) => !v)}>
+                  {allHistory ? "Daha az göster" : `Tümünü göster (${history.length})`}
+                </Button>
+              ) : undefined
+            }
+          >
+            {history.length === 0 ? (
+              <li>
+                <EmptyState variant="inline" icon={Calendar} title="Henüz geçmiş randevu yok" />
+              </li>
+            ) : (
+              shownHistory.map((a) => (
+                <ListRow
+                  key={a.id}
+                  title={formatDateTime(a.starts_at)}
+                  subtitle={
+                    [a.service?.name, a.service?.duration_min ? `${a.service.duration_min} dk` : null, a.staff_member?.full_name]
+                      .filter(Boolean)
+                      .join(" · ") || "Hizmet belirtilmedi"
+                  }
+                  trailing={
+                    <>
+                      {showMoney && a.price != null && <Money amount={a.price} tone="muted" />}
+                      <StatusBadge variant={appointmentStatusVariant(a.status)}>{appointmentStatusLabel(a.status)}</StatusBadge>
+                    </>
+                  }
+                />
+              ))
+            )}
+          </ListGroup>
+
+          <ListGroup title="Notlar" detail={notes.length ? `${notes.length} not` : undefined}>
+            <li className="p-3">
+              <form onSubmit={submitNote} className="flex gap-2">
+                <Input
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") submitNote(); }}
-                  placeholder="Not ekle (Enter ile kaydet)…"
-                  className="h-10 flex-1 rounded-lg border border-input bg-background px-3 text-sm"
+                  placeholder="Not yazın"
+                  aria-label="Yeni not"
                 />
-                <Button onClick={submitNote} disabled={pending || !note.trim()}><Send className="size-4" />Ekle</Button>
-              </div>
+                <Button type="submit" variant="tinted" disabled={pending || !note.trim()}>
+                  Not ekle
+                </Button>
+              </form>
+            </li>
+            {shownNotes.map((n) => (
+              <ListRow
+                key={n.id}
+                leading={<StickyNote aria-hidden className="size-5 text-label-2" />}
+                title={<span className="whitespace-normal">{n.note}</span>}
+                trailing={<span className="text-subhead text-label-2">{formatDate(n.created_at)}</span>}
+                className="items-start"
+              />
+            ))}
+            {notes.length > NOTE_LIMIT && (
+              <li className="px-4 py-1">
+                <Button variant="plain" size="sm" className="-mx-2" onClick={() => setAllNotes((v) => !v)}>
+                  {allNotes ? "Daha az göster" : `Tüm notlar (${notes.length})`}
+                </Button>
+              </li>
+            )}
+          </ListGroup>
+        </div>
 
-              {interactions.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">Henüz etkileşim kaydı yok.</p>
+        <div className="min-w-0 space-y-8">
+          <ListGroup title="Paketler" detail={packages.length ? `${packages.length} paket` : undefined}>
+            {packages.length === 0 ? (
+              <li>
+                <EmptyState
+                  variant="inline"
+                  icon={PackageIcon}
+                  title="Paket yok"
+                  description="Bu müşterinin satın aldığı paket görünmüyor."
+                  action={
+                    abilities.pay ? (
+                      <Button asChild variant="secondary">
+                        <Link href="/paketler">Paketler</Link>
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              </li>
+            ) : (
+              packages.map((p) => {
+                const total = p.total_sessions ?? 0;
+                const left = p.remaining_sessions ?? 0;
+                const debt = Math.max((p.price ?? 0) - (p.paid_amount ?? 0), 0);
+                return (
+                  <li key={p.id} className="space-y-2 px-4 py-3">
+                    <PackageProgress
+                      label={<span className="font-semibold">{p.service_name ?? "Paket"}</span>}
+                      used={Math.max(total - left, 0)}
+                      total={total}
+                      className="max-w-none"
+                    />
+                    <div className="flex items-center justify-between gap-3 text-subhead text-label-2">
+                      <span className="truncate">{formatDate(p.purchased_at)}</span>
+                      {showMoney && (
+                        <span className="flex shrink-0 items-center gap-2">
+                          <Money amount={p.price ?? 0} tone="muted" />
+                          {debt > 0 ? (
+                            <Money amount={debt} tone="debt" suffix="kaldı" />
+                          ) : (
+                            <StatusBadge variant={paymentStatusVariant(p.payment_status)}>
+                              {paymentStatusLabel(p.payment_status)}
+                            </StatusBadge>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                );
+              })
+            )}
+          </ListGroup>
+
+          {showMoney && (
+            <ListGroup
+              title="Ödemeler"
+              detail={openDebt > 0 ? undefined : payments.length ? `${payments.length} ödeme` : undefined}
+              action={openDebt > 0 ? <Money amount={openDebt} tone="debt" suffix="açık borç" /> : undefined}
+            >
+              {payments.length === 0 ? (
+                <li>
+                  <EmptyState
+                    variant="inline"
+                    icon={Banknote}
+                    title="Henüz ödeme yok"
+                    description={openDebt > 0 ? "Açık borç için ödeme alabilirsiniz." : undefined}
+                    action={
+                      <Button onClick={() => setPayOpen(true)}>
+                        <Banknote />
+                        Ödeme al
+                      </Button>
+                    }
+                  />
+                </li>
               ) : (
-                <ul className="space-y-3">
-                  {interactions.map((it) => {
-                    const meta = INTERACTION_META[it.type] ?? INTERACTION_META.not;
-                    const Icon = meta.icon;
-                    return (
-                      <li key={it.id} className="flex gap-3">
-                        <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", meta.tone)}><Icon className="size-4" /></span>
-                        <div className="min-w-0 flex-1 border-b pb-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-medium">{meta.label}</span>
-                            <span className="text-xs text-muted-foreground">{formatDateTime(it.created_at)}</span>
-                          </div>
-                          {it.note && <p className="mt-0.5 text-sm text-muted-foreground">{it.note}</p>}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                payments.map((p) => (
+                  <ListRow
+                    key={p.id}
+                    title={formatDate(p.created_at)}
+                    subtitle={`${paymentMethodLabel(p.method)}${p.note ? ` · ${p.note}` : ""}`}
+                    trailing={<Money amount={p.amount} />}
+                  />
+                ))
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </ListGroup>
+          )}
 
-      {/* Randevu modalı */}
-      <Dialog open={apptOpen} onOpenChange={setApptOpen}>
-        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader><DialogTitle>Yeni Randevu — {customer.full_name}</DialogTitle></DialogHeader>
-          <AppointmentForm
-            customers={customerOpt}
-            services={services}
-            staff={staff}
-            packages={pkgOpts}
-            presetCustomerId={customer.id}
-            onSuccess={() => { setApptOpen(false); router.refresh(); }}
-            onCancel={() => setApptOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
+          <ListGroup title="İletişim geçmişi" detail={contacts.length ? `${contacts.length} kayıt` : undefined}>
+            {contacts.length === 0 ? (
+              <li>
+                <EmptyState
+                  variant="inline"
+                  icon={MessageCircle}
+                  title="Henüz iletişim kaydı yok"
+                  description="Mesaj, arama ve randevu hareketleri burada listelenir."
+                />
+              </li>
+            ) : (
+              contacts.slice(0, 12).map((it) => {
+                const Icon = INTERACTION_ICON[it.type] ?? FileText;
+                return (
+                  <ListRow
+                    key={it.id}
+                    leading={<Icon aria-hidden className="size-5 text-label-2" />}
+                    title={INTERACTION_LABEL[it.type] ?? "Hareket"}
+                    subtitle={it.note ?? undefined}
+                    trailing={<span className="text-subhead text-label-2">{formatDateTime(it.created_at)}</span>}
+                  />
+                );
+              })
+            )}
+          </ListGroup>
+        </div>
+      </div>
 
-      {/* Ödeme modalı */}
-      <Dialog open={payOpen} onOpenChange={setPayOpen}>
-        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader><DialogTitle>Ödeme Al — {customer.full_name}</DialogTitle></DialogHeader>
-          <PaymentForm
-            customers={customerOpt}
-            packages={pkgOpts}
-            initial={{ customer_id: customer.id }}
-            onSuccess={() => { setPayOpen(false); router.refresh(); }}
-            onCancel={() => setPayOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      <AppointmentSheet
+        customer={customer}
+        open={apptOpen}
+        onOpenChange={setApptOpen}
+        services={services}
+        staff={staff}
+        packages={pkgOpts}
+      />
+      <PaymentSheet customer={customer} open={payOpen} onOpenChange={setPayOpen} packages={pkgOpts} />
     </div>
   );
 }

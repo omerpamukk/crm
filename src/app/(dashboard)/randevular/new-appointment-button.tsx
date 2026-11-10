@@ -6,12 +6,13 @@ import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   AppointmentForm,
   type CustomerOption,
@@ -20,6 +21,10 @@ import {
   type PackageOption,
 } from "./appointment-form";
 
+/**
+ * "Yeni randevu" düğmesi + formu (telefonda alt sayfa, masaüstünde sağ panel).
+ * Dışa açık API'si (ad ve prop'lar) değişmedi.
+ */
 export function NewAppointmentButton({
   customers,
   services,
@@ -35,29 +40,32 @@ export function NewAppointmentButton({
   const [open, setOpen] = useState(false);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
         <Button disabled={customers.length === 0}>
-          <Plus className="size-4" />
+          <Plus />
           Yeni randevu
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Yeni randevu</DialogTitle>
-        </DialogHeader>
-        <AppointmentForm
-          customers={customers}
-          services={services}
-          staff={staff}
-          packages={packages}
-          onSuccess={() => {
-            setOpen(false);
-            router.refresh();
-          }}
-          onCancel={() => setOpen(false)}
-        />
-      </DialogContent>
-    </Dialog>
+      </SheetTrigger>
+      <SheetContent side="auto">
+        <SheetHeader>
+          <SheetTitle>Yeni randevu</SheetTitle>
+          <SheetDescription>Müşteri, hizmet ve saati seçin.</SheetDescription>
+        </SheetHeader>
+        <div className="px-4 pb-5">
+          <AppointmentForm
+            customers={customers}
+            services={services}
+            staff={staff}
+            packages={packages}
+            onSuccess={() => {
+              setOpen(false);
+              router.refresh();
+            }}
+            onCancel={() => setOpen(false)}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }

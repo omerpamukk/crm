@@ -3,6 +3,8 @@ import { getBusinessId } from "@/lib/supabase/business";
 import { requireCapability } from "@/lib/supabase/guard";
 import type { Business, Subscription } from "@/types/database";
 
+import { zonedParts } from "@/lib/zaman";
+
 import { SettingsView, type SettingsData } from "./settings-view";
 import { NOTIF_KEYS, type WorkingDay, type NotificationSettingInput } from "./schema";
 
@@ -58,6 +60,16 @@ function readDays(raw: unknown): WorkingDay[] {
   return days as WorkingDay[];
 }
 
+/** Aboneliğin bitmesine kaç gün var? İstanbul gününe göre; süresizse null. */
+function daysUntil(expiresAt: string | null | undefined): number | null {
+  if (!expiresAt) return null;
+  const ms = new Date(expiresAt).getTime();
+  if (Number.isNaN(ms)) return null;
+  const a = zonedParts(ms);
+  const b = zonedParts(Date.now());
+  return Math.round((Date.UTC(a.y, a.m - 1, a.d) - Date.UTC(b.y, b.m - 1, b.d)) / 86_400_000);
+}
+
 export default async function AyarlarPage() {
   const { fullName, email, roleLabel } = await requireCapability("ayarlar");
 
@@ -99,6 +111,7 @@ export default async function AyarlarPage() {
       .eq("business_id", businessId ?? ""),
   ]);
 
+  if (bizRes.error) console.error("ayarlar:", bizRes.error);
   const biz = bizRes.data as Partial<Business> | null;
   const profile = profileRes.data as { full_name: string | null; phone: string | null } | null;
 
@@ -121,10 +134,11 @@ export default async function AyarlarPage() {
       Subscription,
       "plan" | "status" | "price" | "started_at" | "expires_at"
     > | null) ?? null,
+    daysLeft: daysUntil((subRes.data as { expires_at: string | null } | null)?.expires_at),
     auditLog: (logRes.data ?? []) as SettingsData["auditLog"],
     notifications: readNotifs(notifRes.data),
     integrations: (integRes.data ?? []) as SettingsData["integrations"],
   };
 
-  return <SettingsView data={data} />;
+  return <SettingsView data={data} loadFailed={Boolean(bizRes.error) || !biz} />;
 }

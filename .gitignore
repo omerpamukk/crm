@@ -46,3 +46,4 @@ next-env.d.ts
 
 # üçüncü taraf skill (Apple HIG metni) — yalnızca yerel
 /.claude/skills/apple-design/
+/.claude/skills/apple-design-emil/

@@ -11,14 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { AuthCard } from "../auth-shell";
 import { useRecoveryLink } from "../use-recovery-link";
 
 const schema = z.object({
@@ -96,82 +89,74 @@ export default function GirisPage() {
   }
 
   if (link.status === "verifying") {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Bağlantı doğrulanıyor…</CardTitle>
-          <CardDescription>Birkaç saniye içinde yönlendirileceksin.</CardDescription>
-        </CardHeader>
-      </Card>
-    );
+    return <AuthCard title="Bağlantı doğrulanıyor…" description="Birkaç saniye içinde yönlendirileceksiniz." />;
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Giriş yap</CardTitle>
-        <CardDescription>Hesabınıza giriş yapın.</CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">E-posta</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              aria-invalid={!!errors.email}
-              aria-describedby={errors.email ? "email-error" : undefined}
-              {...register("email")}
-            />
-            {errors.email && (
-              <p id="email-error" role="alert" className="text-sm text-danger">
-                {errors.email.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Şifre</Label>
-              <Link
-                href="/sifremi-unuttum"
-                className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Şifremi unuttum
-              </Link>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              aria-invalid={!!errors.password}
-              aria-describedby={errors.password ? "password-error" : undefined}
-              {...register("password")}
-            />
-            {errors.password && (
-              <p id="password-error" role="alert" className="text-sm text-danger">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
-
-          {shownError && (
-            <p role="alert" className="text-sm text-danger">
-              {shownError}
+    <AuthCard
+      title="Giriş yap"
+      description="Hesabınıza giriş yapın."
+      footer={
+        <p className="text-subhead text-label-2">
+          Hesabınız yalnızca işletme yöneticiniz tarafından oluşturulur.
+        </p>
+      }
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <div className="space-y-2">
+          <Label htmlFor="email">E-posta</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            className="h-11 md:h-9"
+            aria-invalid={!!errors.email}
+            aria-describedby={errors.email ? "email-error" : undefined}
+            {...register("email")}
+          />
+          {errors.email && (
+            <p id="email-error" role="alert" className="text-subhead text-danger-text">
+              {errors.email.message}
             </p>
           )}
-        </CardContent>
+        </div>
 
-        <CardFooter className="mt-6 flex-col gap-3">
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? "Giriş yapılıyor..." : "Giriş yap"}
-          </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            Hesabın yalnızca işletme yöneticin tarafından oluşturulur.
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="password">Şifre</Label>
+            <Link
+              href="/sifremi-unuttum"
+              className="focus-ring -my-2 inline-flex min-h-11 items-center rounded-md px-1 text-subhead text-primary-text hover:underline md:min-h-0 md:py-2"
+            >
+              Şifremi unuttum
+            </Link>
+          </div>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            className="h-11 md:h-9"
+            aria-invalid={!!errors.password}
+            aria-describedby={errors.password ? "password-error" : undefined}
+            {...register("password")}
+          />
+          {errors.password && (
+            <p id="password-error" role="alert" className="text-subhead text-danger-text">
+              {errors.password.message}
+            </p>
+          )}
+        </div>
+
+        {shownError && (
+          <p role="alert" className="text-subhead text-danger-text">
+            {shownError}
           </p>
-        </CardFooter>
+        )}
+
+        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Giriş yapılıyor..." : "Giriş yap"}
+        </Button>
       </form>
-    </Card>
+    </AuthCard>
   );
 }

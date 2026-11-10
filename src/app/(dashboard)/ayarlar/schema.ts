@@ -26,13 +26,18 @@ export const ownerProfileSchema = z.object({
 export type OwnerProfileInput = z.infer<typeof ownerProfileSchema>;
 
 /** Tek bir günün çalışma saati. */
-export const workingDaySchema = z.object({
-  /** 1 = Pazartesi … 7 = Pazar */
-  day: z.number().int().min(1).max(7),
-  open: z.boolean(),
-  start: z.string().regex(/^\d{2}:\d{2}$/, "Saat SS:DD biçiminde olmalı"),
-  end: z.string().regex(/^\d{2}:\d{2}$/, "Saat SS:DD biçiminde olmalı"),
-});
+export const workingDaySchema = z
+  .object({
+    /** 1 = Pazartesi … 7 = Pazar */
+    day: z.number().int().min(1).max(7),
+    open: z.boolean(),
+    start: z.string().regex(/^\d{2}:\d{2}$/, "Açılış saatini girin"),
+    end: z.string().regex(/^\d{2}:\d{2}$/, "Kapanış saatini girin"),
+  })
+  .refine((d) => !d.open || d.start < d.end, {
+    message: "Kapanış saati açılıştan sonra olmalı",
+    path: ["end"],
+  });
 
 export const workingHoursSchema = z.object({
   days: z.array(workingDaySchema).length(7, "7 gün gönderilmeli"),

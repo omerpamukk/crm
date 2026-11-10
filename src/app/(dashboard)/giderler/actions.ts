@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import { getBusinessId } from "@/lib/supabase/business";
+import { authorize } from "@/lib/supabase/authorize";
 import { logBusinessAction } from "@/lib/supabase/business-audit";
+import { formatPrice } from "@/lib/format";
 import { expenseSchema, type ExpenseInput } from "./schema";
 
 type ActionResult = { error?: string };
@@ -20,6 +21,12 @@ function toRow(values: ExpenseInput) {
   };
 }
 
+function revalidateAll() {
+  revalidatePath("/giderler");
+  revalidatePath("/raporlar");
+  revalidatePath("/panel");
+}
+
 export async function createExpense(input: ExpenseInput): Promise<ActionResult> {
   const parsed = expenseSchema.safeParse(input);
   if (!parsed.success) {
@@ -27,66 +34,65 @@ export async function createExpense(input: ExpenseInput): Promise<ActionResult> 
   }
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "finans");
+  if ("error" in auth) return { error: auth.error };
 
   const { error } = await supabase
     .from("expenses")
-    .insert({ business_id: businessId, ...toRow(parsed.data) });
+    .insert({ business_id: auth.businessId, ...toRow(parsed.data) });
 
-  if (error) return { error: `Gider eklenemedi: ${error.message}` };
+  if (error) {
+    console.error("createExpense:", error);
+    return { error: "Gider eklenemedi. Tekrar deneyin." };
+  }
 
-  revalidatePath("/giderler");
-  revalidatePath("/raporlar");
+  revalidateAll();
   return {};
 }
 
-export async function updateExpense(
-  id: string,
-  input: ExpenseInput
-): Promise<ActionResult> {
+export async function updateExpense(id: string, input: ExpenseInput): Promise<ActionResult> {
   const parsed = expenseSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri" };
   }
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "finans");
+  if ("error" in auth) return { error: auth.error };
 
   const { error } = await supabase
     .from("expenses")
     .update(toRow(parsed.data))
     .eq("id", id)
-    .eq("business_id", businessId);
+    .eq("business_id", auth.businessId);
 
-  if (error) return { error: `Gider güncellenemedi: ${error.message}` };
+  if (error) {
+    console.error("updateExpense:", error);
+    return { error: "Gider güncellenemedi. Tekrar deneyin." };
+  }
 
-  revalidatePath("/giderler");
-  revalidatePath("/raporlar");
+  revalidateAll();
   return {};
 }
 
 export async function deleteExpense(id: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "finans");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const { data: before } = await supabase
     .from("expenses")
     .select("title, amount")
     .eq("id", id)
+    .eq("business_id", businessId)
     .maybeSingle();
 
-  const { error } = await supabase
-    .from("expenses")
-    .delete()
-    .eq("id", id)
-    .eq("business_id", businessId);
+  const { error } = await supabase.from("expenses").delete().eq("id", id).eq("business_id", businessId);
 
   if (error) {
     console.error("deleteExpense:", error);
-    return { error: "Gider silinemedi." };
+    return { error: "Gider silinemedi. Tekrar deneyin." };
   }
 
   const row = before as { title: string; amount: number } | null;
@@ -95,12 +101,9 @@ export async function deleteExpense(id: string): Promise<ActionResult> {
     action: "sil",
     entity: "gider",
     entityId: id,
-    summary: row
-      ? `${row.title} · ${new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY" }).format(row.amount)}`
-      : "Gider",
+    summary: row ? `${row.title} · ${formatPrice(row.amount)}` : "Gider",
   });
 
-  revalidatePath("/giderler");
-  revalidatePath("/raporlar");
+  revalidateAll();
   return {};
 }

@@ -137,3 +137,22 @@ export function sectionKeyForPath(pathname: string): string | null {
   }
   return null;
 }
+
+/**
+ * Telefon sekme çubuğu (iOS 26 düzeni): üç sık sayfa + "Menü".
+ * Arama ayrı bir düğmedir. Sekmeler de role göre süzülür; rolün göremediği
+ * sayfa sekmede de görünmez.
+ */
+export const MOBILE_TAB_HREFS = ["/panel", "/takvim", "/musteriler"] as const;
+
+/** Rolün görebildiği sekme sayfaları (Menü sekmesi her zaman ayrıca vardır). */
+export function mobileTabsForRole(role: UserRole): NavItem[] {
+  const visible = new Map(
+    navSectionsForRole(role)
+      .flatMap((s) => s.items)
+      .map((i) => [i.href, i] as const)
+  );
+  return MOBILE_TAB_HREFS.map((href) => visible.get(href)).filter(
+    (i): i is NavItem => Boolean(i)
+  );
+}

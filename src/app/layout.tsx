@@ -1,19 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-sans",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const jakarta = Plus_Jakarta_Sans({
-  variable: "--font-heading",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["500", "600", "700", "800"],
-});
+import { Providers } from "@/components/layout/providers";
 
 export const metadata: Metadata = {
   // %s → sayfa başlığı; sayfalar kendi title'ını verince "Müşteriler · CRM"
@@ -28,23 +16,29 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#6d3ef2",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f2f2f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
+/*
+ * Yazı tipi: sistem yığını (globals.css → --font-sans). next/font/google
+ * kaldırıldı; Apple cihazlarda SF Pro, Windows'ta Segoe UI kullanılır.
+ * suppressHydrationWarning: next-themes <html> sınıfını ilk boyamadan önce yazar.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="tr"
-      className={`${inter.variable} ${jakarta.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        {children}
+    <html lang="tr" className="h-full" suppressHydrationWarning>
+      <body className="flex min-h-full flex-col" suppressHydrationWarning>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

@@ -12,14 +12,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { AuthCard } from "../auth-shell";
 
 const schema = z.object({
   email: z.string().email("Geçerli bir e-posta adresi girin"),
@@ -66,77 +59,65 @@ export default function SifremiUnuttumPage() {
 
   if (sent) {
     return (
-      <Card className="w-full max-w-sm">
-        <CardHeader className="space-y-3 text-center">
-          <span className="mx-auto flex size-11 items-center justify-center rounded-[var(--radius-md)] bg-positive/10 text-positive">
-            <MailCheck className="size-5" />
-          </span>
-          <CardTitle>E-postanı kontrol et</CardTitle>
-          <CardDescription>
-            Bu adres kayıtlıysa, şifre sıfırlama bağlantısı gönderildi.
-            Bağlantı kısa süre geçerlidir.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter>
-          <Button variant="outline" asChild className="w-full">
+      <AuthCard
+        icon={MailCheck}
+        title="E-postanızı kontrol edin"
+        description="Bu adres kayıtlıysa şifre sıfırlama bağlantısı gönderildi. Bağlantı kısa süre geçerlidir."
+        footer={
+          <Button variant="secondary" size="lg" asChild className="w-full">
             <Link href="/giris">
-              <ArrowLeft className="size-4" />
+              <ArrowLeft />
               Girişe dön
             </Link>
           </Button>
-        </CardFooter>
-      </Card>
+        }
+      />
     );
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Şifremi unuttum</CardTitle>
-        <CardDescription>
-          Hesabının e-posta adresini gir; sıfırlama bağlantısı gönderelim.
-        </CardDescription>
-      </CardHeader>
-
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="email">E-posta</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="ornek@firma.com"
-              aria-invalid={!!errors.email}
-              aria-describedby={errors.email ? "email-error" : undefined}
-              {...register("email")}
-            />
-            {errors.email && (
-              <p id="email-error" role="alert" className="text-sm text-danger">
-                {errors.email.message}
-              </p>
-            )}
-          </div>
-
-          {formError && (
-            <p role="alert" className="text-sm text-danger">
-              {formError}
+    <AuthCard
+      title="Şifremi unuttum"
+      description="Hesabınızın e-posta adresini girin; size sıfırlama bağlantısı gönderelim."
+      footer={
+        <Link
+          href="/giris"
+          className="focus-ring inline-flex min-h-11 items-center rounded-md px-2 text-[0.9375rem] text-primary-text hover:underline"
+        >
+          Girişe dön
+        </Link>
+      }
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <div className="space-y-2">
+          <Label htmlFor="email">E-posta</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="ornek@firma.com"
+            className="h-11 md:h-9"
+            aria-invalid={!!errors.email}
+            aria-describedby={errors.email ? "email-error" : undefined}
+            {...register("email")}
+          />
+          {errors.email && (
+            <p id="email-error" role="alert" className="text-subhead text-danger-text">
+              {errors.email.message}
             </p>
           )}
-        </CardContent>
+        </div>
 
-        <CardFooter className="flex-col gap-3">
-          <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? "Gönderiliyor…" : "Sıfırlama bağlantısı gönder"}
-          </Button>
-          <Link
-            href="/giris"
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Girişe dön
-          </Link>
-        </CardFooter>
+        {formError && (
+          <p role="alert" className="text-subhead text-danger-text">
+            {formError}
+          </p>
+        )}
+
+        <Button type="submit" size="lg" disabled={isSubmitting} className="w-full">
+          {isSubmitting ? "Gönderiliyor..." : "Sıfırlama bağlantısı gönder"}
+        </Button>
       </form>
-    </Card>
+    </AuthCard>
   );
 }

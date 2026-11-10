@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import { getBusinessId } from "@/lib/supabase/business";
+import { authorize } from "@/lib/supabase/authorize";
 import { staffSchema, type StaffInput } from "./schema";
 
 type ActionResult = { error?: string };
@@ -14,12 +14,16 @@ function toRow(values: StaffInput) {
     title: values.title?.trim() || null,
     phone: values.phone?.trim() || null,
     email: values.email?.trim() || null,
-    commission_rate: values.commission_rate
-      ? Number(values.commission_rate.replace(",", "."))
-      : 0,
+    commission_rate: values.commission_rate ? Number(values.commission_rate.replace(",", ".")) : 0,
     is_active: values.is_active,
     note: values.note?.trim() || null,
   };
+}
+
+function revalidateAll() {
+  revalidatePath("/personel");
+  revalidatePath("/randevular");
+  revalidatePath("/takvim");
 }
 
 export async function createStaff(input: StaffInput): Promise<ActionResult> {
@@ -29,57 +33,60 @@ export async function createStaff(input: StaffInput): Promise<ActionResult> {
   }
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "personel_yonet");
+  if ("error" in auth) return { error: auth.error };
 
-  const { error } = await supabase
-    .from("staff")
-    .insert({ business_id: businessId, ...toRow(parsed.data) });
+  const { error } = await supabase.from("staff").insert({ business_id: auth.businessId, ...toRow(parsed.data) });
 
-  if (error) return { error: `Personel eklenemedi: ${error.message}` };
+  if (error) {
+    console.error("createStaff:", error);
+    return { error: "Personel eklenemedi. Tekrar deneyin." };
+  }
 
-  revalidatePath("/personel");
+  revalidateAll();
   return {};
 }
 
-export async function updateStaff(
-  id: string,
-  input: StaffInput
-): Promise<ActionResult> {
+export async function updateStaff(id: string, input: StaffInput): Promise<ActionResult> {
   const parsed = staffSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri" };
   }
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "personel_yonet");
+  if ("error" in auth) return { error: auth.error };
 
   const { error } = await supabase
     .from("staff")
     .update(toRow(parsed.data))
     .eq("id", id)
-    .eq("business_id", businessId);
+    .eq("business_id", auth.businessId);
 
-  if (error) return { error: `Personel güncellenemedi: ${error.message}` };
+  if (error) {
+    console.error("updateStaff:", error);
+    return { error: "Personel güncellenemedi. Tekrar deneyin." };
+  }
 
-  revalidatePath("/personel");
+  revalidateAll();
   return {};
 }
 
 export async function deleteStaff(id: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "personel_yonet");
+  if ("error" in auth) return { error: auth.error };
 
-  const { error } = await supabase
-    .from("staff")
-    .delete()
-    .eq("id", id)
-    .eq("business_id", businessId);
+  const { error } = await supabase.from("staff").delete().eq("id", id).eq("business_id", auth.businessId);
 
-  if (error) return { error: `Personel silinemedi: ${error.message}` };
+  if (error) {
+    console.error("deleteStaff:", error);
+    if (error.code === "23503") {
+      return { error: "Randevusu olan personel silinemez. Silmek yerine pasife alın." };
+    }
+    return { error: "Personel silinemedi. Tekrar deneyin." };
+  }
 
-  revalidatePath("/personel");
+  revalidateAll();
   return {};
 }

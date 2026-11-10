@@ -1,136 +1,134 @@
-import { Scale, TrendingDown, Banknote, Wallet, AlarmClock } from "lucide-react";
-
 import { createClient } from "@/lib/supabase/server";
-import { formatPrice } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { PageHeader } from "@/components/shared/page-header";
-import { EmptyState } from "@/components/shared/empty-state";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getAccountContext } from "@/lib/supabase/account";
+import { can } from "@/lib/permissions";
 import { requireCapability } from "@/lib/supabase/guard";
+import { getBusinessId } from "@/lib/supabase/business";
+import { fetchCustomerBalances, isOverdue } from "@/lib/balances";
+import { paymentMethodLabel } from "@/lib/constants";
 
-import { CariView, type CariRow } from "./cari-view";
+import { CariView } from "./cari-view";
+import type { CariRow, Movement } from "./cari-types";
 
 export const metadata = { title: "Cari Hesap" };
 
-const DAY = 86_400_000;
+const MOVEMENT_LIMIT = 30;
+const RELATED_LABEL: Record<string, string> = { paket: "Paket", randevu: "Randevu" };
+
+function pickOne<T>(v: T | T[] | null): T | null {
+  return Array.isArray(v) ? (v[0] ?? null) : v;
+}
 
 export default async function CariPage() {
   await requireCapability("tahsilat");
+  const { role } = await getAccountContext();
   const supabase = await createClient();
-  const now = new Date().getTime();
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return <CariView rows={[]} customers={[]} packages={[]} canPay={false} loadFailed />;
 
-  const [customersRes, packagesRes, apptRes, paymentsRes] = await Promise.all([
-    supabase.from("customers").select("id, full_name, phone").eq("is_lead", false).order("full_name"),
-    supabase.from("packages").select("customer_id, price, paid_amount, purchased_at"),
-    supabase.from("appointments").select("customer_id, price, package_id").eq("status", "completed").not("price", "is", null),
-    supabase.from("payments").select("customer_id, amount, created_at"),
+  const [customersRes, packagesRes, apptRes, paymentsRes, balances] = await Promise.all([
+    supabase.from("customers").select("id, full_name, phone").eq("business_id", businessId).eq("is_lead", false).order("full_name"),
+    supabase.from("packages").select("id, customer_id, service_name, price, paid_amount, purchased_at, created_at").eq("business_id", businessId),
+    supabase
+      .from("appointments")
+      .select("id, customer_id, price, package_id, starts_at, service:services(name)")
+      .eq("business_id", businessId)
+      .eq("status", "completed")
+      .not("price", "is", null),
+    supabase.from("payments").select("id, customer_id, amount, created_at, method, related_type").eq("business_id", businessId),
+    fetchCustomerBalances(supabase, businessId),
   ]);
 
+  const loadFailed = Boolean(customersRes.error || packagesRes.error || apptRes.error || paymentsRes.error || balances.error);
   const customers = (customersRes.data ?? []) as { id: string; full_name: string; phone: string | null }[];
 
-  const charges = new Map<string, number>();
-  const payments = new Map<string, number>();
-  const lastPayment = new Map<string, string>();
-  const overdueSet = new Set<string>();
+  // Tutarlar (bakiye, gecikme) veritabanındaki tek kaynaktan gelir (customer_balances, 0031);
+  // burada yalnızca hareket listesi kurulur.
+  const balanceByCustomer = new Map(balances.rows.map((b) => [b.customer_id, b]));
+  const movements = new Map<string, Movement[]>();
 
-  const addCharge = (id: string | null, amount: number) => {
-    if (!id || !amount) return;
-    charges.set(id, (charges.get(id) ?? 0) + amount);
+  const addMovement = (id: string | null, m: Movement) => {
+    if (!id) return;
+    const list = movements.get(id);
+    if (list) list.push(m);
+    else movements.set(id, [m]);
   };
 
-  for (const p of (packagesRes.data ?? []) as {
-    customer_id: string | null; price: number | null; paid_amount: number | null; purchased_at: string | null;
-  }[]) {
-    addCharge(p.customer_id, p.price ?? 0);
-    const debt = (p.price ?? 0) - (p.paid_amount ?? 0);
-    if (p.customer_id && debt > 0 && p.purchased_at && now - new Date(p.purchased_at).getTime() > 30 * DAY) {
-      overdueSet.add(p.customer_id);
+  const pkgs = (packagesRes.data ?? []) as {
+    id: string; customer_id: string | null; service_name: string | null; price: number | null;
+    paid_amount: number | null; purchased_at: string | null; created_at: string;
+  }[];
+  for (const p of pkgs) {
+    if (p.price) {
+      addMovement(p.customer_id, {
+        id: `pkg-${p.id}`,
+        date: p.purchased_at ?? p.created_at,
+        kind: "paket",
+        title: p.service_name ?? "Paket",
+        amount: p.price,
+        detail: null,
+      });
     }
   }
 
-  for (const a of (apptRes.data ?? []) as {
-    customer_id: string | null; price: number | null; package_id: string | null;
+  for (const a of (apptRes.data ?? []) as unknown as {
+    id: string; customer_id: string | null; price: number | null; package_id: string | null; starts_at: string;
+    service: { name: string } | { name: string }[] | null;
   }[]) {
     if (a.package_id) continue;
-    addCharge(a.customer_id, a.price ?? 0);
+    if (a.price) {
+      addMovement(a.customer_id, {
+        id: `appt-${a.id}`,
+        date: a.starts_at,
+        kind: "hizmet",
+        title: pickOne(a.service)?.name ?? "Hizmet",
+        amount: a.price,
+        detail: null,
+      });
+    }
   }
 
   for (const pay of (paymentsRes.data ?? []) as {
-    customer_id: string | null; amount: number | null; created_at: string;
+    id: string; customer_id: string | null; amount: number | null; created_at: string; method: string | null; related_type: string | null;
   }[]) {
     if (!pay.customer_id) continue;
-    payments.set(pay.customer_id, (payments.get(pay.customer_id) ?? 0) + (pay.amount ?? 0));
-    const prev = lastPayment.get(pay.customer_id);
-    if (!prev || pay.created_at > prev) lastPayment.set(pay.customer_id, pay.created_at);
+    addMovement(pay.customer_id, {
+      id: `pay-${pay.id}`,
+      date: pay.created_at,
+      kind: "odeme",
+      title: paymentMethodLabel(pay.method),
+      amount: pay.amount ?? 0,
+      detail: pay.related_type ? (RELATED_LABEL[pay.related_type] ?? null) : null,
+    });
   }
 
   const rows: CariRow[] = customers
     .map((c) => {
-      const ch = charges.get(c.id) ?? 0;
-      const pa = payments.get(c.id) ?? 0;
-      const balance = ch - pa;
+      const b = balanceByCustomer.get(c.id);
+      const list = (movements.get(c.id) ?? [])
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, MOVEMENT_LIMIT);
       return {
-        id: c.id, name: c.full_name, phone: c.phone,
-        charges: ch, payments: pa, balance,
-        lastPaymentAt: lastPayment.get(c.id) ?? null,
-        overdue: balance > 0 && overdueSet.has(c.id),
+        id: c.id,
+        name: c.full_name,
+        phone: c.phone,
+        charges: b?.charges ?? 0,
+        payments: b?.payments ?? 0,
+        balance: b?.balance ?? 0,
+        lastPaymentAt: b?.last_payment_at ?? null,
+        overdue: b ? isOverdue(b) : false,
+        movements: list,
       };
     })
     .filter((r) => r.charges !== 0 || r.payments !== 0)
     .sort((a, b) => b.balance - a.balance);
 
-  const totalCharges = rows.reduce((s, r) => s + r.charges, 0);
-  const totalPayments = rows.reduce((s, r) => s + r.payments, 0);
-  const totalReceivable = rows.reduce((s, r) => (r.balance > 0 ? s + r.balance : s), 0);
-  const overdueAmount = rows.reduce((s, r) => (r.overdue ? s + r.balance : s), 0);
-  const overdueCount = rows.filter((r) => r.overdue).length;
-  const debtorCount = rows.filter((r) => r.balance > 0).length;
-
-  const cards = [
-    { label: "Toplam Borçlandırma", value: formatPrice(totalCharges), icon: TrendingDown, bar: "border-l-primary", tone: "bg-primary/10 text-primary", accent: "" },
-    { label: "Toplam Tahsilat", value: formatPrice(totalPayments), icon: Banknote, bar: "border-l-positive", tone: "bg-positive/10 text-positive", accent: "text-positive" },
-    { label: "Toplam Alacak", value: formatPrice(totalReceivable), icon: Wallet, bar: "border-l-danger", tone: "bg-danger/10 text-danger", accent: "text-danger", sub: `${debtorCount} borçlu müşteri` },
-    { label: "Gecikmiş", value: formatPrice(overdueAmount), icon: AlarmClock, bar: "border-l-danger", tone: "bg-danger/10 text-danger", accent: "text-danger", sub: `${overdueCount} müşteri · 30 gün+` },
-  ];
-
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Cari Hesap"
-        description="Her müşterinin satış, tahsilat, alacak ve ödeme takibi tek ekranda."
-      />
-
-      {rows.length === 0 ? (
-        <EmptyState
-          icon={Scale}
-          title="Henüz cari hareket yok"
-          description="Paket sattıkça, randevu tamamlandıkça ve tahsilat girdikçe müşterilerin bakiyeleri burada otomatik hesaplanacak."
-        />
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {cards.map((c) => {
-              const Icon = c.icon;
-              return (
-                <Card key={c.label} className={cn("border-l-4", c.bar)}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">{c.label}</CardTitle>
-                    <span className={cn("flex size-9 items-center justify-center rounded-lg", c.tone)}>
-                      <Icon className="size-5" />
-                    </span>
-                  </CardHeader>
-                  <CardContent>
-                    <div className={cn("text-2xl font-bold", c.accent)}>{c.value}</div>
-                    {c.sub && <p className="mt-1 text-xs text-muted-foreground">{c.sub}</p>}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          <CariView rows={rows} />
-        </>
-      )}
-    </div>
+    <CariView
+      rows={rows}
+      customers={customers.map((c) => ({ id: c.id, full_name: c.full_name }))}
+      packages={pkgs.map((p) => ({ id: p.id, customer_id: p.customer_id, service_name: p.service_name }))}
+      canPay={can(role, "tahsilat")}
+      loadFailed={loadFailed}
+    />
   );
 }

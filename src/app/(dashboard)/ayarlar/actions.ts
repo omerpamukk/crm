@@ -3,9 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import { getBusinessId } from "@/lib/supabase/business";
-import { getAccountContext } from "@/lib/supabase/account";
-import { can } from "@/lib/permissions";
+import { authorize } from "@/lib/supabase/authorize";
 import { sendMessage } from "@/lib/messaging/send";
 import type { Channel } from "@/lib/messaging/types";
 import {
@@ -25,8 +23,6 @@ import {
 
 type ActionResult = { error?: string };
 
-const DENIED: ActionResult = { error: "Bu işlem için yetkiniz yok." };
-
 /** Hangi sağlayıcı hangi mesaj kanalını kullanıyor (test gönderimi için). */
 const CHANNEL_OF: Partial<Record<Provider, Channel>> = {
   sms: "sms",
@@ -34,26 +30,19 @@ const CHANNEL_OF: Partial<Record<Provider, Channel>> = {
   whatsapp: "whatsapp",
 };
 
-/** Ayarlar yalnızca işletme sahibine açık. */
-async function assertOwnerAccess(): Promise<boolean> {
-  const { role } = await getAccountContext();
-  return can(role, "ayarlar");
-}
-
 /** Firma kartı: ad, sektör, telefon, e-posta, adres. */
 export async function updateBusinessInfo(
   input: BusinessInfoInput
 ): Promise<ActionResult> {
-  if (!(await assertOwnerAccess())) return DENIED;
-
   const parsed = businessInfoSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri" };
   }
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "ayarlar");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const v = parsed.data;
   const { error } = await supabase
@@ -81,18 +70,15 @@ export async function updateBusinessInfo(
 export async function updateOwnerProfile(
   input: OwnerProfileInput
 ): Promise<ActionResult> {
-  if (!(await assertOwnerAccess())) return DENIED;
-
   const parsed = ownerProfileSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri" };
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "ayarlar");
+  if ("error" in auth) return { error: auth.error };
+  const user = { id: auth.userId };
 
   const { error } = await supabase
     .from("profiles")
@@ -100,7 +86,8 @@ export async function updateOwnerProfile(
       full_name: parsed.data.full_name.trim(),
       phone: parsed.data.phone?.trim() || null,
     })
-    .eq("id", user.id);
+    .eq("id", user.id)
+    .eq("business_id", auth.businessId);
 
   if (error) {
     console.error("updateOwnerProfile:", error);
@@ -118,16 +105,15 @@ export async function updateOwnerProfile(
 export async function updateWorkingHours(
   input: WorkingHoursInput
 ): Promise<ActionResult> {
-  if (!(await assertOwnerAccess())) return DENIED;
-
   const parsed = workingHoursSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri" };
   }
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "ayarlar");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const days = parsed.data.days;
 
@@ -172,16 +158,15 @@ export async function updateWorkingHours(
 export async function updateNotificationSettings(
   input: NotificationSettingsInput
 ): Promise<ActionResult> {
-  if (!(await assertOwnerAccess())) return DENIED;
-
   const parsed = notificationSettingsSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri" };
   }
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "ayarlar");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const rows = parsed.data.items.map((i) => ({
     business_id: businessId,
@@ -228,8 +213,6 @@ const REQUIRED_KEYS: Record<Provider, string[]> = {
 export async function saveIntegration(
   input: IntegrationInput
 ): Promise<ActionResult> {
-  if (!(await assertOwnerAccess())) return DENIED;
-
   const parsed = integrationSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz veri" };
@@ -251,8 +234,9 @@ export async function saveIntegration(
   }
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "ayarlar");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   // Yalnızca beklenen anahtarlar yazılır — formdan gelen fazlalık alınmaz.
   const clean: Record<string, string> = {};
@@ -285,14 +269,13 @@ export async function saveIntegration(
 export async function disconnectIntegration(
   provider: Provider
 ): Promise<ActionResult> {
-  if (!(await assertOwnerAccess())) return DENIED;
-
   const parsed = providerSchema.safeParse(provider);
   if (!parsed.success) return { error: "Geçersiz sağlayıcı." };
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "ayarlar");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const { error } = await supabase
     .from("integrations")
@@ -317,19 +300,18 @@ export async function testIntegration(
   provider: Provider,
   to: string
 ): Promise<ActionResult> {
-  if (!(await assertOwnerAccess())) return DENIED;
-
   const parsed = providerSchema.safeParse(provider);
   if (!parsed.success) return { error: "Geçersiz sağlayıcı." };
 
   const channel = CHANNEL_OF[parsed.data];
-  if (!channel) return { error: "Bu sağlayıcı test mesajı desteklemiyor." };
+  if (!channel) return { error: "Bu bağlantı için deneme mesajı gönderilemiyor." };
 
-  if (!to.trim()) return { error: "Test için bir alıcı girin." };
+  if (!to.trim()) return { error: "Deneme mesajı için bir alıcı girin." };
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "ayarlar");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const res = await sendMessage({
     businessId,
@@ -347,7 +329,7 @@ export async function testIntegration(
       .eq("provider", parsed.data);
 
     revalidatePath("/ayarlar");
-    return { error: res.error ?? "Test mesajı gönderilemedi." };
+    return { error: "Deneme mesajı gönderilemedi. Bağlantı bilgilerini ve alıcıyı kontrol edin." };
   }
 
   await supabase

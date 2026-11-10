@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import { getBusinessId } from "@/lib/supabase/business";
+import { authorize } from "@/lib/supabase/authorize";
 import type { BookingSettings } from "@/types/database";
 
 type ActionResult = { error?: string };
@@ -24,8 +24,9 @@ export async function ensureBookingSettings(): Promise<{
   error?: string;
 }> {
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "randevu_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const { data: existing } = await supabase
     .from("booking_settings")
@@ -41,7 +42,10 @@ export async function ensureBookingSettings(): Promise<{
     .select("*")
     .single();
 
-  if (error) return { error: `Ayarlar oluşturulamadı: ${error.message}` };
+  if (error) {
+    console.error("ensureBookingSettings:", error);
+    return { error: "Randevu linki hazırlanamadı. Sayfayı yenileyip tekrar deneyin." };
+  }
   return { settings: created as BookingSettings };
 }
 
@@ -51,11 +55,18 @@ export async function toggleServiceBookable(
   bookable: boolean
 ): Promise<ActionResult> {
   const supabase = await createClient();
+  const auth = await authorize(supabase, "randevu_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
   const { error } = await supabase
     .from("services")
     .update({ bookable })
-    .eq("id", serviceId);
-  if (error) return { error: `Güncellenemedi: ${error.message}` };
+    .eq("id", serviceId)
+    .eq("business_id", businessId);
+  if (error) {
+    console.error("booking-actions:", error);
+    return { error: "Güncellenemedi. Biraz sonra tekrar deneyin." };
+  }
   revalidatePath("/randevu-linki");
   return {};
 }
@@ -73,11 +84,14 @@ export async function updateBookingSettings(
   input: BookingSettingsInput
 ): Promise<ActionResult> {
   if (input.work_days.length === 0)
-    return { error: "En az bir çalışma günü seçmelisiniz." };
+    return { error: "En az bir çalışma günü seçin." };
   if (input.start_time >= input.end_time)
-    return { error: "Bitiş saati başlangıçtan sonra olmalı." };
+    return { error: "Kapanış saati açılıştan sonra olmalı." };
 
   const supabase = await createClient();
+  const auth = await authorize(supabase, "randevu_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
   const { error } = await supabase
     .from("booking_settings")
     .update({
@@ -86,8 +100,12 @@ export async function updateBookingSettings(
       start_time: input.start_time,
       end_time: input.end_time,
     })
-    .eq("id", id);
-  if (error) return { error: `Kaydedilemedi: ${error.message}` };
+    .eq("id", id)
+    .eq("business_id", businessId);
+  if (error) {
+    console.error("updateBookingSettings:", error);
+    return { error: "Çalışma saatleri kaydedilemedi. Biraz sonra tekrar deneyin." };
+  }
   revalidatePath("/randevu-linki");
   return {};
 }
@@ -98,11 +116,18 @@ export async function setBookingActive(
   isActive: boolean
 ): Promise<ActionResult> {
   const supabase = await createClient();
+  const auth = await authorize(supabase, "randevu_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
   const { error } = await supabase
     .from("booking_settings")
     .update({ is_active: isActive })
-    .eq("id", id);
-  if (error) return { error: `Güncellenemedi: ${error.message}` };
+    .eq("id", id)
+    .eq("business_id", businessId);
+  if (error) {
+    console.error("booking-actions:", error);
+    return { error: "Güncellenemedi. Biraz sonra tekrar deneyin." };
+  }
   revalidatePath("/randevu-linki");
   return {};
 }
@@ -110,11 +135,18 @@ export async function setBookingActive(
 /** Yeni token üretir (eski link çalışmaz hale gelir). */
 export async function regenerateBookingToken(id: string): Promise<ActionResult> {
   const supabase = await createClient();
+  const auth = await authorize(supabase, "randevu_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
   const { error } = await supabase
     .from("booking_settings")
     .update({ token: genToken() })
-    .eq("id", id);
-  if (error) return { error: `Yenilenemedi: ${error.message}` };
+    .eq("id", id)
+    .eq("business_id", businessId);
+  if (error) {
+    console.error("regenerateBookingToken:", error);
+    return { error: "Yeni link oluşturulamadı. Biraz sonra tekrar deneyin." };
+  }
   revalidatePath("/randevu-linki");
   return {};
 }

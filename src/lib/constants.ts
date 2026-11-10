@@ -73,6 +73,7 @@ export function customerStatusVariant(status: string | null): StatusVariant {
 /** Randevu durumları. */
 export const APPOINTMENT_STATUSES = [
   { value: "planned", label: "Planlandı" },
+  { value: "arrived", label: "Geldi" },
   { value: "completed", label: "Tamamlandı" },
   { value: "cancelled", label: "İptal edildi" },
   { value: "no_show", label: "Gelmedi" },
@@ -82,16 +83,21 @@ export function appointmentStatusLabel(status: string | null): string {
   return APPOINTMENT_STATUSES.find((s) => s.value === status)?.label ?? "—";
 }
 
+/**
+ * Randevu durum renkleri E+F diliyle aynı (takvim/çizelge blokları da bunu
+ * izler): Geldi yeşil, Gelmedi kırmızı, Planlandı mavi; Tamamlandı ve İptal
+ * nötr — biten ya da düşen randevu dikkat istemez, etiketi ayırt eder.
+ */
 export function appointmentStatusVariant(status: string | null): StatusVariant {
   switch (status) {
-    case "completed":
-      return "positive";
     case "planned":
       return "info";
-    case "cancelled":
-      return "danger";
+    case "arrived":
+      return "positive";
     case "no_show":
-      return "warning";
+      return "danger";
+    case "completed":
+    case "cancelled":
     default:
       return "secondary";
   }

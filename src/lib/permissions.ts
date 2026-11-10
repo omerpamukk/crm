@@ -26,7 +26,7 @@ export const ROLES = [
   {
     key: "specialist",
     label: "Uzman",
-    desc: "Yalnızca kendi randevularını ve kendi hakedişini görür",
+    desc: "Yalnızca kendi randevularını ve kendi hakedişini görür; müşteri ekleyebilir",
   },
 ] as const satisfies readonly { key: UserRole; label: string; desc: string }[];
 
@@ -42,7 +42,8 @@ export type Capability =
   | "raporlar" // raporlar ve yönetici paneli
   | "ayarlar" // işletme ayarları, entegrasyonlar
   | "personel_yonet" // personel ekle/düzenle/sil
-  | "musteri_yonet" // müşteri ekle/düzenle/sil
+  | "musteri_ekle" // yeni müşteri ekle (tüm roller; kullanıcı kararı 6 Kas 2026)
+  | "musteri_yonet" // müşteri düzenle/sil/durum değiştir
   | "randevu_yonet" // randevu ekle/düzenle/sil
   | "tahsilat" // ödeme alma
   | "tum_randevular"; // sadece kendi randevuları değil, hepsi
@@ -53,13 +54,14 @@ const MATRIX: Record<UserRole, Capability[]> = {
     "raporlar",
     "ayarlar",
     "personel_yonet",
+    "musteri_ekle",
     "musteri_yonet",
     "randevu_yonet",
     "tahsilat",
     "tum_randevular",
   ],
-  reception: ["musteri_yonet", "randevu_yonet", "tahsilat", "tum_randevular"],
-  specialist: [],
+  reception: ["musteri_ekle", "musteri_yonet", "randevu_yonet", "tahsilat", "tum_randevular"],
+  specialist: ["musteri_ekle"],
 };
 
 /** Bu rol verilen yeteneğe sahip mi? */

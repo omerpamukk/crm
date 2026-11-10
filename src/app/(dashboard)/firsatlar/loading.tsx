@@ -2,10 +2,13 @@ import { PageHeaderSkeleton, KpiRowSkeleton, TableSkeleton } from "@/components/
 
 export default function Loading() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8" role="status" aria-label="Yükleniyor">
       <PageHeaderSkeleton />
-      <KpiRowSkeleton count={4} />
-      <TableSkeleton rows={6} />
+      <KpiRowSkeleton count={3} />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <TableSkeleton rows={4} />
+        <TableSkeleton rows={4} />
+      </div>
     </div>
   );
 }

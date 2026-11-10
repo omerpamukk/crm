@@ -1,8 +1,5 @@
-import { Bell } from "lucide-react";
-
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessId } from "@/lib/supabase/business";
-import { PageHeader } from "@/components/shared/page-header";
 import { requireCapability } from "@/lib/supabase/guard";
 
 import { AutomationsView, type Automation } from "./automations-view";
@@ -10,43 +7,23 @@ import { AutomationsView, type Automation } from "./automations-view";
 export const metadata = { title: "Hatırlatmalar" };
 
 /**
- * Otomatik Hatırlatmalar — eski "Otomasyonlar" ve "Hatırlatıcılar"
- * sayfalarının birleşimi. Kurallar `automations` tablosunda tutulur
- * (0025_automations.sql); cron bunları okuyup `reminders` üretir.
+ * Otomatik hatırlatma kuralları. Kurallar `automations` tablosunda tutulur
+ * (0025_automations.sql); zamanlayıcı bunları okuyup mesajları üretir.
  */
 export default async function HatirlaticilarPage() {
   await requireCapability("musteri_yonet");
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
 
-  const { data, error } = await supabase
+  // Erişim kapsamını RLS de sınırlar; işletme kimliği bulunursa ayrıca süzülür.
+  let query = supabase
     .from("automations")
-    .select(
-      "id, title, active, trigger_id, trigger_param, action_id, action_param, message"
-    )
-    .eq("business_id", businessId ?? "")
+    .select("id, title, active, trigger_id, trigger_param, action_id, action_param, message")
     .order("created_at", { ascending: true });
+  if (businessId) query = query.eq("business_id", businessId);
+  const { data, error } = await query;
 
   if (error) console.error("automations:", error);
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Hatırlatmalar"
-        description="Randevu, ödeme ve doğum günü mesajlarını otomatikleştir — kural bir kez kurulur, sonrası kendiliğinden işler."
-      />
-
-      <div className="flex items-start gap-2.5 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-        <Bell className="mt-0.5 size-4 shrink-0 text-primary" />
-        <p>
-          Mesajların gerçekten gönderilebilmesi için{" "}
-          <b className="font-medium text-foreground">Ayarlar → Entegrasyonlar</b>{" "}
-          ekranından SMS, e-posta veya WhatsApp bağlantısı kurulmuş olmalı.
-          Kurallar her gün sabah çalıştırılır.
-        </p>
-      </div>
-
-      <AutomationsView items={(data ?? []) as Automation[]} />
-    </div>
-  );
+  return <AutomationsView items={(data ?? []) as Automation[]} loadFailed={Boolean(error)} />;
 }

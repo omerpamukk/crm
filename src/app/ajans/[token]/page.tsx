@@ -1,27 +1,20 @@
-import {
-  Flower2,
-  Banknote,
-  PieChart,
-  Receipt,
-  Users,
-  ListChecks,
-  Sparkles,
-  TrendingUp,
-  Lock,
-  BarChart3,
-  Megaphone,
-  type LucideIcon,
-} from "lucide-react";
+import { Lock } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { formatPrice, formatDate } from "@/lib/format";
-import { RevenueAreaChart, TrendChart } from "../../(dashboard)/raporlar/charts";
+import { formatDate, formatPrice } from "@/lib/format";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ListGroup, ListRow } from "@/components/shared/list-group";
+import { Metric, MetricStrip } from "@/components/shared/metric";
+import { formatMoney } from "@/components/shared/money";
+import { TrendChart } from "@/components/shared/trend-chart";
 
-const MONTH_NAMES = [
-  "Oca", "Şub", "Mar", "Nis", "May", "Haz",
-  "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara",
-];
-const PALETTE = ["#5B5BD6", "#16A34A", "#F59E0B", "#0EA5E9", "#E11D48", "#8B5CF6", "#64748B"];
+import { AY_KISA, AY_UZUN } from "../../(dashboard)/takvim/zaman";
+import { BarList } from "../../(dashboard)/raporlar/bar-list";
+import { ReportSection } from "../../(dashboard)/raporlar/report-section";
+
+export const metadata = { title: "Ajans paneli" };
+
+const COUNT = new Intl.NumberFormat("tr-TR");
 
 type Panel = {
   valid: boolean;
@@ -42,79 +35,8 @@ type Panel = {
   };
 };
 
-function Bars({ rows }: { rows: { name: string; value: number }[] }) {
-  const max = Math.max(...rows.map((r) => r.value), 1);
-  if (rows.length === 0)
-    return <p className="py-6 text-center text-sm text-muted-foreground">Veri yok.</p>;
-  return (
-    <div className="space-y-3">
-      {rows.map((r, i) => (
-        <div key={r.name} className="flex items-center gap-3 text-sm">
-          <span className="w-28 shrink-0 truncate text-muted-foreground">{r.name}</span>
-          <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full" style={{ width: `${(r.value / max) * 100}%`, background: PALETTE[i % PALETTE.length] }} />
-          </div>
-          <span className="w-20 shrink-0 text-right font-medium tabular-nums">{formatPrice(r.value)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Çerçeveli bölüm — başlık çerçevenin sol üst köşesine oturup çizgiyi keser (fieldset/legend). */
-function Section({
-  title,
-  icon: Icon,
-  children,
-}: {
-  title: string;
-  icon: LucideIcon;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="relative rounded-2xl border bg-card px-5 pb-5 pt-7 shadow-xs">
-      <span className="absolute -top-3 left-5 inline-flex items-center gap-1.5 bg-card px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <Icon className="size-3.5 text-primary" />
-        {title}
-      </span>
-      {children}
-    </section>
-  );
-}
-
-/** Çerçeve içi sade istatistik bloğu (kart içinde kart olmasın diye çerçevesiz). */
-function Stat({
-  label,
-  value,
-  sub,
-  icon: Icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  icon: LucideIcon;
-  tone: string;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-2">
-      <div>
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="mt-1 text-2xl font-bold tracking-tight">{value}</p>
-        {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
-      </div>
-      <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${tone}`}>
-        <Icon className="size-[18px]" />
-      </span>
-    </div>
-  );
-}
-
-export default async function AjansPanelPage({
-  params,
-}: {
-  params: Promise<{ token: string }>;
-}) {
+/** Ajansın salt okunur raporu: işletmenin seçtiği bölümler, bağlantıyla açılır. */
+export default async function AjansPanelPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const supabase = await createClient();
   const { data: raw } = await supabase.rpc("agency_panel", { p_token: token });
@@ -122,175 +44,172 @@ export default async function AjansPanelPage({
 
   if (!panel.valid || !panel.data) {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-3 bg-muted/30 p-6 text-center">
-        <span className="flex size-14 items-center justify-center rounded-2xl bg-danger/10 text-danger">
-          <Lock className="size-7" />
-        </span>
-        <h1 className="text-xl font-bold">Bağlantı geçersiz veya süresi dolmuş</h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
-          Bu ajans paneli bağlantısı artık aktif değil. Lütfen işletme ile iletişime geçin.
-        </p>
-      </div>
+      <>
+        <div className="app-wall" aria-hidden />
+        <main className="mx-auto flex min-h-svh w-full max-w-xl items-center px-4 py-10">
+          <EmptyState
+            className="w-full"
+            icon={Lock}
+            title="Bağlantı geçersiz ya da süresi dolmuş"
+            description="Bu rapor bağlantısı artık açık değil. Yeni bir bağlantı için işletmeyle iletişime geçin."
+          />
+        </main>
+      </>
     );
   }
 
   const d = panel.data;
   const sections = panel.sections ?? [];
   const has = (k: string) => sections.includes(k);
+  // reklam_kampanya: henüz çalışmayan bölüm, eski erişimlerde seçili kalmış olabilir; gösterilmez.
+  const shown = sections.filter((k) => k !== "reklam_kampanya");
   const net = d.revenue - d.expense;
-  const margin = d.revenue > 0 ? Math.round((net / d.revenue) * 100) : 0;
+  const margin = d.revenue > 0 ? Math.round((net / d.revenue) * 100) : null;
   const conversion =
-    d.customers_total + d.leads_total > 0
-      ? Math.round((d.customers_total / (d.customers_total + d.leads_total)) * 100)
-      : 0;
+    d.customers_total + d.leads_total > 0 ? Math.round((d.customers_total / (d.customers_total + d.leads_total)) * 100) : 0;
 
-  // Trend verisi (müşteri kümülatif)
-  const newInWindow = d.monthly.reduce((s, m) => s + m.yeni, 0);
-  const base = d.customers_total - newInWindow;
-  const trendData = d.monthly.map((m, i) => {
-    const cum = base + d.monthly.slice(0, i + 1).reduce((s, x) => s + x.yeni, 0);
-    const mi = Number(m.month.split("-")[1]) - 1;
-    return { label: MONTH_NAMES[mi] ?? m.month, ciro: m.ciro, musteri: cum, hizmet: m.hizmet };
+  const points = d.monthly.map((m) => {
+    const [y, mo] = m.month.split("-").map(Number);
+    return { label: AY_KISA[mo - 1] ?? m.month, hint: `${AY_UZUN[mo - 1] ?? ""} ${y}`.trim(), ciro: m.ciro, hizmet: m.hizmet, yeni: m.yeni };
   });
-  const revenueData = d.monthly.map((m) => {
-    const mi = Number(m.month.split("-")[1]) - 1;
-    return { label: MONTH_NAMES[mi] ?? m.month, value: m.ciro };
-  });
-
-  const nothingSelected = sections.length === 0;
+  const money = (n: number) => formatMoney(n);
 
   return (
-    <div className="min-h-svh bg-muted/30">
-      {/* Üst bar */}
-      <header className="border-b bg-card">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-white">
-              <Flower2 className="size-5" />
-            </span>
-            <div>
-              <p className="font-semibold leading-tight">{panel.business_name}</p>
-              <p className="text-xs text-muted-foreground">Ajans Paneli · Salt-okunur</p>
-            </div>
-          </div>
+    <>
+      <div className="app-wall" aria-hidden />
+      <main className="mx-auto w-full max-w-5xl space-y-8 px-4 py-8 md:px-6 md:py-10">
+        <header className="space-y-1">
+          <p className="eyebrow">Ajans paneli · Salt okunur</p>
+          <h1 className="page-title truncate" title={panel.business_name}>
+            {panel.business_name}
+          </h1>
           {panel.expires_at && (
-            <span className="hidden text-xs text-muted-foreground sm:block">
-              Erişim bitişi: {formatDate(panel.expires_at)}
-            </span>
+            <p className="text-subhead text-label-2">Erişim bitişi: {formatDate(panel.expires_at)}</p>
           )}
-        </div>
-      </header>
+        </header>
 
-      <main className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
-        {nothingSelected && (
-          <div className="rounded-2xl border border-dashed bg-card p-10 text-center text-sm text-muted-foreground">
-            Bu panelde gösterilecek bölüm seçilmemiş.
-          </div>
+        {shown.length === 0 && (
+          <EmptyState
+            icon={Lock}
+            title="Gösterilecek bölüm yok"
+            description="İşletme bu bağlantıya henüz bir bölüm açmamış. Bölüm açması için işletmeyle iletişime geçin."
+          />
         )}
 
-        {/* Finansal KPI'lar */}
         {(has("ciro_netkar") || has("musteri_hizmet")) && (
-          <div className="grid gap-5 lg:grid-cols-2">
+          <MetricStrip aria-label="Özet">
+            {has("ciro_netkar") && <Metric label="Ciro" value={money(d.revenue)} />}
             {has("ciro_netkar") && (
-              <Section title="Toplam Ciro & Net Kâr" icon={Banknote}>
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <Stat label="Toplam Ciro" value={formatPrice(d.revenue)} icon={Banknote} tone="bg-positive/10 text-positive" />
-                  <Stat label="Net Kâr" value={formatPrice(net)} sub={`%${margin} marj`} icon={PieChart} tone={net >= 0 ? "bg-positive/10 text-positive" : "bg-danger/10 text-danger"} />
-                </div>
-              </Section>
+              <Metric
+                label="Net kâr"
+                value={money(net)}
+                tone={net < 0 ? "danger" : "default"}
+                context={margin != null ? `%${margin} marj` : undefined}
+              />
             )}
-            {has("musteri_hizmet") && (
-              <Section title="Müşteri & Hizmet" icon={Users}>
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <Stat label="Toplam Müşteri" value={d.customers_total.toLocaleString("tr-TR")} icon={Users} tone="bg-primary/10 text-primary" />
-                  <Stat label="Satılan Hizmet" value={d.services_sold.toLocaleString("tr-TR")} icon={ListChecks} tone="bg-warning/12 text-amber-600" />
-                </div>
-              </Section>
+            {has("musteri_hizmet") && <Metric label="Müşteri" value={COUNT.format(d.customers_total)} />}
+            {has("musteri_hizmet") && <Metric label="Satılan hizmet" value={COUNT.format(d.services_sold)} />}
+          </MetricStrip>
+        )}
+
+        {has("kazanc") && (
+          <ReportSection
+            title="Kazanç"
+            detail="Aylık ciro"
+            empty={points.every((p) => p.ciro === 0) ? "Bu dönemde kazanç kaydı yok." : undefined}
+          >
+            <TrendChart
+              kind="line"
+              unit="money"
+              label="Aylık ciro"
+              seriesName="Ciro"
+              data={points.map((p) => ({ label: p.label, hint: p.hint, value: p.ciro }))}
+              height={240}
+            />
+          </ReportSection>
+        )}
+
+        {has("aylik_grafik") && (
+          <div className="grid gap-8 lg:grid-cols-2">
+            <ReportSection
+              title="Satılan hizmet"
+              detail="Aylık"
+              empty={points.every((p) => p.hizmet === 0) ? "Bu dönemde satılan hizmet yok." : undefined}
+            >
+              <TrendChart
+                kind="bar"
+                unit="number"
+                label="Aylık satılan hizmet"
+                seriesName="Hizmet"
+                data={points.map((p) => ({ label: p.label, hint: p.hint, value: p.hizmet }))}
+                height={220}
+              />
+            </ReportSection>
+            <ReportSection
+              title="Yeni müşteri"
+              detail="Aylık"
+              empty={points.every((p) => p.yeni === 0) ? "Bu dönemde yeni müşteri yok." : undefined}
+            >
+              <TrendChart
+                kind="bar"
+                unit="number"
+                label="Aylık yeni müşteri"
+                seriesName="Yeni müşteri"
+                data={points.map((p) => ({ label: p.label, hint: p.hint, value: p.yeni }))}
+                height={220}
+              />
+            </ReportSection>
+          </div>
+        )}
+
+        {(has("hizmet_karlilik") || has("kaynak_gelir")) && (
+          <div className="grid gap-8 lg:grid-cols-2">
+            {has("hizmet_karlilik") && (
+              <ReportSection
+                title="Hizmete göre ciro"
+                empty={d.service_profitability.length === 0 ? "Henüz veri yok." : undefined}
+              >
+                <BarList rows={d.service_profitability} format={money} aria-label="Hizmete göre ciro" />
+              </ReportSection>
+            )}
+            {has("kaynak_gelir") && (
+              <ReportSection title="Kaynağa göre ciro" empty={d.source_revenue.length === 0 ? "Henüz veri yok." : undefined}>
+                <BarList rows={d.source_revenue} format={money} aria-label="Kaynağa göre ciro" />
+              </ReportSection>
             )}
           </div>
         )}
 
-        {/* Kazanç istatistikleri (dönemsel gelir) */}
-        {has("kazanc") && (
-          <Section title="Kazanç İstatistikleri" icon={BarChart3}>
-            <RevenueAreaChart data={revenueData} />
-          </Section>
-        )}
-
-        {/* Aylık trend */}
-        {has("aylik_grafik") && (
-          <Section title="Aylık Ciro / Müşteri / Hizmet" icon={TrendingUp}>
-            <TrendChart data={trendData} />
-          </Section>
-        )}
-
-        <div className="grid gap-5 lg:grid-cols-2">
-          {has("hizmet_karlilik") && (
-            <Section title="Hizmet Bazlı Kârlılık" icon={PieChart}>
-              <Bars rows={d.service_profitability} />
-            </Section>
-          )}
-          {has("kaynak_gelir") && (
-            <Section title="Kaynak Bazlı Gelir" icon={BarChart3}>
-              <Bars rows={d.source_revenue} />
-            </Section>
-          )}
-        </div>
-
-        <div className="grid gap-5 lg:grid-cols-2">
-          {has("aylik_gider") && (
-            <Section title="Giderler (Son 12 Ay)" icon={Receipt}>
-              <p className="text-2xl font-bold text-danger">{formatPrice(d.expense)}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Net kâr: <span className="font-medium text-positive">{formatPrice(net)}</span>
-              </p>
-            </Section>
-          )}
-          {has("potansiyel") && (
-            <Section title="Potansiyel Müşteri & Dönüşüm" icon={Sparkles}>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border p-3 text-center">
-                  <p className="text-2xl font-bold">{d.leads_total}</p>
-                  <p className="text-xs text-muted-foreground">Aktif lead</p>
-                </div>
-                <div className="rounded-xl border p-3 text-center">
-                  <p className="text-2xl font-bold">%{conversion}</p>
-                  <p className="text-xs text-muted-foreground">Lead dönüşümü</p>
-                </div>
-              </div>
-            </Section>
-          )}
-        </div>
-
-        {has("gelir_girisi") && (
-          <Section title="Son Gelir Kayıtları" icon={Banknote}>
-            {d.recent_payments.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">Kayıt yok.</p>
-            ) : (
-              <ul className="divide-y">
-                {d.recent_payments.map((p, i) => (
-                  <li key={i} className="flex items-center justify-between py-2 text-sm">
-                    <span className="text-muted-foreground">{formatDate(p.created_at)}</span>
-                    <span className="font-medium tabular-nums text-positive">{formatPrice(p.amount)}</span>
-                  </li>
-                ))}
-              </ul>
+        {(has("aylik_gider") || has("potansiyel")) && (
+          <MetricStrip aria-label="Gider ve potansiyel müşteri">
+            {has("aylik_gider") && <Metric label="Gider" value={money(d.expense)} context="Son 12 ay" />}
+            {has("aylik_gider") && (
+              <Metric label="Net kâr" value={money(net)} tone={net < 0 ? "danger" : "default"} context="Gelir − gider" />
             )}
-          </Section>
+            {has("potansiyel") && <Metric label="Potansiyel müşteri" value={COUNT.format(d.leads_total)} context="Açık kayıt" />}
+            {has("potansiyel") && <Metric label="Dönüşüm" value={`%${conversion}`} context="Müşteriye dönen" />}
+          </MetricStrip>
         )}
 
-        {has("reklam_kampanya") && (
-          <Section title="Reklam & Kampanya Verileri" icon={Megaphone}>
-            <p className="py-4 text-center text-sm text-muted-foreground">
-              Meta reklam entegrasyonu yakında eklenecek.
-            </p>
-          </Section>
-        )}
+        {has("gelir_girisi") &&
+          (d.recent_payments.length === 0 ? (
+            <ReportSection title="Son gelirler" empty="Henüz gelir kaydı yok." />
+          ) : (
+            <ListGroup title="Son gelirler" aria-label="Son gelirler">
+              {d.recent_payments.map((p, i) => (
+                <ListRow
+                  key={`${p.created_at}-${i}`}
+                  title={formatDate(p.created_at)}
+                  trailing={<span className="font-semibold tabular-nums">{formatPrice(p.amount)}</span>}
+                />
+              ))}
+            </ListGroup>
+          ))}
 
-        <p className="pt-2 text-center text-xs text-muted-foreground">
-          Bu panel salt-okunur olarak paylaşılmıştır · {panel.business_name}
+        <p className="pt-2 text-center text-subhead text-label-2">
+          Bu rapor salt okunur olarak paylaşılmıştır · {panel.business_name}
         </p>
       </main>
-    </div>
+    </>
   );
 }

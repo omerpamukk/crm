@@ -2,51 +2,94 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* Koyu tema: <html class="dark"> veya bir alt ağaç (.dark). Vitrindeki
+   yan yana önizleme için .theme-light alt ağacı koyu varyantı kapatır. */
+@custom-variant dark (&:where(.dark, .dark *):not(:where(.theme-light, .theme-light *)));
+
+/* =============================================================
+   Tasarım dili: E+F
+   E: Apple HIG düzeni — opak içerik, Liquid Glass yalnızca kontrol
+      katmanında (kenar çubuğu, araç çubuğu, sekme çubuğu, menü, sayfa),
+      Indigo vurgu, gri monogram, sistem yazı tipi.
+   F: hareket hissi — yay, kesilebilir geçiş, sürükle-fırlat, lastik bant;
+      renkli yüzde hapları, zemindeki hafif ışık, yeşil Geldi.
+   Tokenlar burada; bileşenler yalnızca tokenları kullanır.
+   ============================================================= */
 
 @theme inline {
+  /* shadcn uyumlu anlam katmanı */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-heading: var(--font-heading);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-fill: var(--primary-fill);
+  --color-on-primary-fill: var(--on-primary-fill);
+  --color-primary-text: var(--primary-text);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Durum renkleri: düz ad metin ve dolgu içindir (AA), -dot nokta/çubuk,
+     -soft hap zemini, -text yumuşak zemin üstündeki metin. */
   --color-positive: var(--positive);
   --color-positive-foreground: var(--positive-foreground);
-  --color-warning: var(--warning);
-  --color-warning-foreground: var(--warning-foreground);
+  --color-positive-text: var(--positive-text);
+  --color-positive-dot: var(--positive-dot);
+  --color-positive-soft: var(--positive-soft);
   --color-danger: var(--danger);
   --color-danger-foreground: var(--danger-foreground);
+  --color-danger-text: var(--danger-text);
+  --color-danger-dot: var(--danger-dot);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-text: var(--warning-text);
+  --color-warning-dot: var(--warning-dot);
+  --color-warning-soft: var(--warning-soft);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
+  --color-info-text: var(--info-text);
+  --color-info-dot: var(--info-dot);
+  --color-info-soft: var(--info-soft);
+
+  /* Apple katmanı: etiket, dolgu, ayırıcı, yüzey */
+  --color-label: var(--label);
+  --color-label-2: var(--label-2);
+  --color-label-3: var(--label-3);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fill: var(--fill);
+  --color-fill-2: var(--fill-2);
+  --color-hover: var(--hover);
+  --color-press: var(--press);
+  --color-separator: var(--sep);
+  --color-separator-strong: var(--sep-strong);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -56,133 +99,265 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* =============================================================
-   Tasarım dili: Refined Product SaaS
-   (Linear'ın düzeni + Attio'nun CRM hissi + Stripe'ın veri sunumu)
-   - Yüzeyleri gölge değil 1px border ayırır; elevation yalnızca
-     yüzen katmanlarda (dropdown, modal, komut paleti, sürüklenen öğe)
-   - Mor yalnızca: primary CTA, seçili/aktif durum, focus, ikon aksanı
-   - 8px spacing sistemi; kompakt ama sıkışık olmayan product density
-   ============================================================= */
-:root {
-  /* Nötr slate skalası — çok hafif soğuk, ama "mor" değil */
-  --background: oklch(0.977 0.002 270);
-  --foreground: oklch(0.21 0.006 275);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.006 275);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.006 275);
+@theme {
+  /* Sistem yazı tipi (Apple'da SF Pro, Windows'ta Segoe UI) */
+  --font-sans: -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", "Inter", sans-serif;
+  --font-heading: -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", "Inter", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Tek vurgu rengi — menekşe/mor (referans arayüz), yalnızca aksiyonlarda */
-  --primary: oklch(0.52 0.19 291);
-  --primary-foreground: oklch(1 0 0);
+  /* Apple tipografi ölçeği (macOS/iOS metin stilleri) */
+  --text-large-title: 1.875rem;
+  --text-large-title--line-height: 2.25rem;
+  --text-large-title--font-weight: 700;
+  --text-large-title--letter-spacing: -0.01em;
+  --text-title-2: 1.375rem;
+  --text-title-2--line-height: 1.75rem;
+  --text-title-2--font-weight: 700;
+  --text-title-3: 1.25rem;
+  --text-title-3--line-height: 1.5625rem;
+  --text-title-3--font-weight: 600;
+  --text-headline: 1.0625rem;
+  --text-headline--line-height: 1.375rem;
+  --text-headline--font-weight: 600;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.25rem;
+  --text-callout: 0.875rem;
+  --text-callout--line-height: 1.1875rem;
+  --text-subhead: 0.8125rem;
+  --text-subhead--line-height: 1.125rem;
+  --text-footnote: 0.75rem;
+  --text-footnote--line-height: 1rem;
+  --text-caption: 0.6875rem;
+  --text-caption--line-height: 0.8125rem;
 
-  /* Anlam renkleri — yalnızca durum bildirir, dekorasyon değil */
-  --positive: oklch(0.6 0.11 157);
-  --positive-foreground: oklch(1 0 0);
-  --warning: oklch(0.73 0.12 78);
-  --warning-foreground: oklch(0.25 0.03 75);
-  --danger: oklch(0.58 0.17 22);
-  --danger-foreground: oklch(1 0 0);
-  --info: oklch(0.6 0.13 240);
-  --info-foreground: oklch(1 0 0);
-
-  --secondary: oklch(0.968 0.003 268);
-  --secondary-foreground: oklch(0.38 0.008 272);
-  --muted: oklch(0.971 0.002 268);
-  --muted-foreground: oklch(0.6 0.009 268);
-  --accent: oklch(0.966 0.004 280);
-  --accent-foreground: oklch(0.38 0.008 272);
-  --destructive: oklch(0.58 0.17 22);
-
-  /* Border yumuşak — yüzeyleri ayırır ama çizgi gibi durmaz */
-  --border: oklch(0.918 0.003 268);
-  --input: oklch(0.9 0.004 268);
-  --ring: oklch(0.52 0.19 291);
-
-  /* Yumuşak elevation — ferah dilde yüzeyler hafifçe kalkık durur */
-  --shadow-soft: 0 1px 2px oklch(0.21 0.006 275 / 0.04);
-  --shadow-soft-lg: 0 12px 32px -8px oklch(0.21 0.006 275 / 0.14), 0 4px 10px -4px oklch(0.21 0.006 275 / 0.07);
-
-  /* Grafik paleti — tek tondan türetilmiş, okunabilir sıra */
-  --chart-1: oklch(0.52 0.19 291);
-  --chart-2: oklch(0.64 0.14 289);
-  --chart-3: oklch(0.74 0.09 288);
-  --chart-4: oklch(0.84 0.05 288);
-  --chart-5: oklch(0.64 0.04 280);
-
-  --radius: 0.625rem; /* 10px — kartlar; buton/input 8px (radius-md) */
-
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.21 0.006 275);
-  --sidebar-primary: oklch(0.52 0.19 291);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.963 0.006 285);
-  --sidebar-accent-foreground: oklch(0.21 0.006 275);
-  --sidebar-border: oklch(0.918 0.003 268);
-  --sidebar-ring: oklch(0.52 0.19 291);
+  /* Hareket: yay eğrileri motion yayından örneklendi (src/lib/motion.ts ile aynı) */
+  --ease-out-soft: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-spring: linear(0, 0.077, 0.219, 0.379, 0.518, 0.639, 0.735, 0.805, 0.86, 0.899, 0.928, 0.95, 0.964, 0.975, 0.982, 0.988, 0.992, 0.994, 0.996, 0.997, 1);
+  --ease-spring-bounce: linear(0, 0.068, 0.214, 0.376, 0.537, 0.674, 0.782, 0.864, 0.92, 0.96, 0.985, 0.999, 1.007, 1.01, 1.01, 1.009, 1.008, 1.006, 1.004, 1.003, 1);
 }
 
+/* ---------------- Açık tema ---------------- */
+:root,
+.theme-light {
+  color-scheme: light;
+
+  /* Zemin ve yüzeyler (HIG › grouped background) */
+  --bg: #f2f2f7;
+  --surface: #ffffff;
+  --surface-2: #f7f7fa;
+  --label: #1c1c1e;
+  --label-2: #6c6c70; /* ikincil metin — beyazda 5.2:1, zeminde 4.7:1 */
+  --label-2w: #55555a; /* renkli zemin ışığı üstündeki ikincil metin */
+  --label-3: #8e8e93; /* yalnızca yer tutucu ve süs */
+  --sep: #e5e5ea;
+  --sep-strong: #d1d1d6;
+  --fill: rgba(118, 118, 128, 0.12);
+  --fill-2: rgba(118, 118, 128, 0.2);
+  --hover: rgba(118, 118, 128, 0.08);
+  --press: rgba(118, 118, 128, 0.16);
+  --sel-fill: rgba(118, 118, 128, 0.15);
+  --thumb: #ffffff;
+  --mono: #737378; /* gri monogram — beyaz harfle 4.7:1 */
+
+  /* Tek vurgu: Indigo */
+  --primary: #6155f5;
+  --primary-foreground: #ffffff;
+  --primary-fill: #6155f5; /* prominent düğme ve seçim dolgusu (beyazla 5.1:1) */
+  --on-primary-fill: #ffffff;
+  --on-primary-fill-2: rgba(255, 255, 255, 0.88);
+  --primary-text: #564ade; /* bağlantı ve vurgulu metin (6.1:1) */
+  --primary-press: #4c40d6;
+  --primary-soft: rgba(97, 85, 245, 0.12);
+  --primary-soft-2: rgba(97, 85, 245, 0.2);
+
+  /* Durum renkleri — her zaman bir simge ya da metinle birlikte */
+  --positive: #008932;
+  --positive-foreground: #ffffff;
+  --positive-text: #007a2c;
+  --positive-dot: #34c759;
+  --positive-soft: rgba(52, 199, 89, 0.16);
+  --positive-soft-2: rgba(52, 199, 89, 0.28);
+  --danger: #d0102a;
+  --danger-foreground: #ffffff;
+  --danger-text: #d0102a;
+  --danger-dot: #ff383c;
+  --danger-soft: rgba(255, 56, 60, 0.12);
+  --danger-soft-2: rgba(255, 56, 60, 0.2);
+  --warning: #c55300;
+  --warning-foreground: #ffffff;
+  --warning-text: #c55300;
+  --warning-dot: #ff8d28;
+  --warning-soft: rgba(255, 141, 40, 0.14);
+  --warning-soft-2: rgba(255, 141, 40, 0.24);
+  --info: #0068d6;
+  --info-foreground: #ffffff;
+  --info-text: #0068d6;
+  --info-dot: #0088ff;
+  --info-soft: rgba(0, 136, 255, 0.12);
+
+  /* Zemindeki hafif renkli ışık (yalnızca uygulama zemininde) */
+  --wall:
+    radial-gradient(1100px 720px at -8% -14%, rgba(97, 85, 245, 0.18), transparent 62%),
+    radial-gradient(900px 700px at 110% -8%, rgba(120, 166, 255, 0.2), transparent 60%),
+    radial-gradient(1000px 800px at 72% 118%, rgba(184, 160, 255, 0.16), transparent 60%);
+
+  /* Liquid Glass — yalnızca kontrol katmanı */
+  --glass: rgba(255, 255, 255, 0.6);
+  --glass-strong: rgba(250, 250, 252, 0.82);
+  --glass-solid: #f9f9fb;
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 55%);
+  --glass-hi: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 0 0 0.5px rgba(255, 255, 255, 0.55);
+  --glass-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.07), 0 6px 22px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05);
+  --prom-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 60%);
+  --prom-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 0 0.5px rgba(0, 0, 0, 0.1), 0 4px 14px rgba(97, 85, 245, 0.3);
+  --edge-tint: rgba(242, 242, 247, 0.62);
+
+  --shadow-soft: 0 0 0 0.5px rgba(0, 0, 0, 0.03);
+  --shadow-soft-lg: 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 10px 30px rgba(0, 0, 0, 0.12);
+  --shadow-pop: 0 0 0 0.5px rgba(0, 0, 0, 0.1), 0 10px 30px rgba(0, 0, 0, 0.14);
+  --shadow-thumb: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  --focus: rgba(97, 85, 245, 0.55);
+
+  /* Ölçüler */
+  --radius: 0.875rem; /* 14px — içerik grupları */
+  --radius-ctl: 9px; /* metin alanı, küçük denetim */
+  --sidebar-w: 248px;
+  --toolbar-h: 60px;
+  --dur-spring: 420ms; /* CSS yayının süresi (görsel ~0.3 sn) */
+  --toast-bottom: 24px;
+
+  /* shadcn eşlemesi — eski sayfalar yeni dile otomatik geçer */
+  --background: var(--bg);
+  --foreground: var(--label);
+  --card: var(--surface);
+  --card-foreground: var(--label);
+  --popover: var(--surface);
+  --popover-foreground: var(--label);
+  --secondary: var(--fill);
+  --secondary-foreground: var(--label);
+  --muted: rgba(118, 118, 128, 0.08);
+  --muted-foreground: var(--label-2);
+  --accent: var(--fill);
+  --accent-foreground: var(--label);
+  --destructive: var(--danger);
+  --border: var(--sep);
+  --input: var(--sep-strong);
+  --ring: var(--primary);
+
+  --chart-1: #6155f5;
+  --chart-2: #8c84f8;
+  --chart-3: #b4aefb;
+  --chart-4: #d8d5fd;
+  --chart-5: #8e8e93;
+
+  --sidebar: var(--glass-strong);
+  --sidebar-foreground: var(--label);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--sel-fill);
+  --sidebar-accent-foreground: var(--label);
+  --sidebar-border: var(--sep-strong);
+  --sidebar-ring: var(--primary);
+}
+
+/* ---------------- Koyu tema ---------------- */
 .dark {
-  --background: oklch(0.17 0.008 255);
-  --foreground: oklch(0.96 0.003 250);
-  --card: oklch(0.21 0.009 255);
-  --card-foreground: oklch(0.96 0.003 250);
-  --popover: oklch(0.23 0.009 255);
-  --popover-foreground: oklch(0.96 0.003 250);
+  color-scheme: dark;
 
-  --primary: oklch(0.67 0.16 291);
-  --primary-foreground: oklch(0.15 0.01 255);
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --surface-2: #232325;
+  --label: #ffffff;
+  --label-2: #aeaeb2;
+  --label-2w: #b4b4b9;
+  --label-3: #8e8e93;
+  --sep: #38383a;
+  --sep-strong: #48484a;
+  --fill: rgba(118, 118, 128, 0.24);
+  --fill-2: rgba(118, 118, 128, 0.32);
+  --hover: rgba(120, 120, 128, 0.16);
+  --press: rgba(120, 120, 128, 0.28);
+  --sel-fill: rgba(255, 255, 255, 0.12);
+  --thumb: #636366;
+  --mono: #636366;
 
-  --positive: oklch(0.7 0.14 155);
-  --positive-foreground: oklch(0.15 0.01 255);
-  --warning: oklch(0.78 0.13 75);
-  --warning-foreground: oklch(0.2 0.02 75);
-  --danger: oklch(0.68 0.18 20);
-  --danger-foreground: oklch(0.15 0.01 255);
-  --info: oklch(0.7 0.12 240);
-  --info-foreground: oklch(0.15 0.01 255);
+  --primary: #7c84ff; /* metin ve süs (5.4:1) */
+  --primary-foreground: #0b0a24;
+  --primary-fill: #564ade; /* düğme dolgusu (beyazla 6.1:1) */
+  --on-primary-fill: #ffffff;
+  --primary-text: #a7aaff;
+  --primary-press: #4a3fcf;
+  --primary-soft: rgba(109, 124, 255, 0.18);
+  --primary-soft-2: rgba(109, 124, 255, 0.28);
 
-  --secondary: oklch(0.27 0.01 255);
-  --secondary-foreground: oklch(0.96 0.003 250);
-  --muted: oklch(0.26 0.009 255);
-  --muted-foreground: oklch(0.68 0.01 255);
-  --accent: oklch(0.27 0.01 255);
-  --accent-foreground: oklch(0.96 0.003 250);
-  --destructive: oklch(0.68 0.18 20);
+  --positive: #30d158;
+  --positive-foreground: #04210c;
+  --positive-text: #4ad968;
+  --positive-dot: #30d158;
+  --positive-soft: rgba(48, 209, 88, 0.2);
+  --positive-soft-2: rgba(48, 209, 88, 0.32);
+  --danger: #ff6165;
+  --danger-foreground: #2a0306;
+  --danger-text: #ff6165;
+  --danger-dot: #ff4245;
+  --danger-soft: rgba(255, 66, 69, 0.18);
+  --danger-soft-2: rgba(255, 66, 69, 0.28);
+  --warning: #ffa056;
+  --warning-foreground: #2a1400;
+  --warning-text: #ffa056;
+  --warning-dot: #ff9230;
+  --warning-soft: rgba(255, 146, 48, 0.18);
+  --warning-soft-2: rgba(255, 146, 48, 0.28);
+  --info: #5cb8ff;
+  --info-foreground: #001a33;
+  --info-text: #5cb8ff;
+  --info-dot: #0091ff;
+  --info-soft: rgba(0, 145, 255, 0.2);
 
-  --border: oklch(0.31 0.01 255);
-  --input: oklch(0.35 0.01 255);
-  --ring: oklch(0.67 0.16 291);
+  --wall:
+    radial-gradient(1100px 720px at -8% -14%, rgba(97, 85, 245, 0.3), transparent 62%),
+    radial-gradient(900px 700px at 110% -8%, rgba(36, 86, 196, 0.3), transparent 60%),
+    radial-gradient(1000px 800px at 72% 118%, rgba(112, 72, 214, 0.22), transparent 60%);
 
-  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.3);
-  --shadow-soft-lg: 0 8px 24px -6px oklch(0 0 0 / 0.5), 0 2px 6px -2px oklch(0 0 0 / 0.35);
+  --glass: rgba(44, 44, 48, 0.55);
+  --glass-strong: rgba(32, 32, 36, 0.78);
+  --glass-solid: #1c1c1e;
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 50%);
+  --glass-hi: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.7), 0 8px 26px rgba(0, 0, 0, 0.5);
+  --prom-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 0 0 0.5px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.4);
+  --edge-tint: rgba(0, 0, 0, 0.6);
 
-  --chart-1: oklch(0.67 0.16 291);
-  --chart-2: oklch(0.73 0.12 289);
-  --chart-3: oklch(0.79 0.09 288);
-  --chart-4: oklch(0.85 0.05 288);
-  --chart-5: oklch(0.68 0.04 280);
+  --shadow-soft: 0 0 0 0.5px rgba(255, 255, 255, 0.04);
+  --shadow-soft-lg: 0 0 0 0.5px rgba(255, 255, 255, 0.1), 0 10px 30px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 0 0 0.5px rgba(255, 255, 255, 0.12), 0 10px 30px rgba(0, 0, 0, 0.6);
+  --shadow-thumb: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --focus: rgba(167, 170, 255, 0.6);
 
-  --sidebar: oklch(0.19 0.008 255);
-  --sidebar-foreground: oklch(0.96 0.003 250);
-  --sidebar-primary: oklch(0.67 0.16 291);
-  --sidebar-primary-foreground: oklch(0.15 0.01 255);
-  --sidebar-accent: oklch(0.26 0.009 255);
-  --sidebar-accent-foreground: oklch(0.96 0.003 250);
-  --sidebar-border: oklch(0.3 0.01 255);
-  --sidebar-ring: oklch(0.67 0.16 291);
+  --muted: rgba(118, 118, 128, 0.16);
+
+  --chart-1: #7c84ff;
+  --chart-2: #5e56e0;
+  --chart-3: #9da3ff;
+  --chart-4: #3f3a8f;
+  --chart-5: #8e8e93;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   h1,
   h2,
@@ -199,6 +374,285 @@
   [data-slot="table-cell"] {
     font-variant-numeric: tabular-nums;
   }
+  /* Görünür odak — kendi odak stili olmayan her etkileşimli öğede */
+  :where(a, button, summary, [role="button"], [role="tab"], [role="radio"], [role="menuitem"], [tabindex]):focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 1px;
+  }
+}
+
+/* ---------------- Kontrol katmanı: Liquid Glass ----------------
+   Yalnızca kenar çubuğu, araç çubuğu öğeleri, sekme çubuğu, açılır menü,
+   alt sayfa ve bildirimde. İçerik (liste, tablo, kart) her zaman opak. */
+@layer components {
+  .glass,
+  .glass-strong {
+    background: var(--glass-sheen), var(--glass);
+    -webkit-backdrop-filter: blur(16px) saturate(190%);
+    backdrop-filter: blur(16px) saturate(190%);
+    box-shadow: var(--glass-hi), var(--glass-shadow);
+  }
+  .glass-strong {
+    background: var(--glass-sheen), var(--glass-strong);
+    -webkit-backdrop-filter: blur(30px) saturate(190%);
+    backdrop-filter: blur(30px) saturate(190%);
+  }
+
+  /* Uygulama zemini: opak gri + hafif renkli ışık (sabit, kaymaz) */
+  .app-wall {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--wall), var(--bg);
+  }
+
+  /* Araç çubuğu kenar efekti: içerik altından geçerken belirir */
+  .toolbar-edge::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 -26px 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(to bottom, var(--edge-tint) 0%, var(--edge-tint) 45%, transparent 100%);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 50%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 50%, transparent 100%);
+    transition: opacity 200ms var(--ease-out-soft);
+  }
+  .toolbar-edge[data-scrolled="true"]::before {
+    opacity: 1;
+  }
+  /* Telefonda yüzen sekme çubuğunun altındaki kenar efekti */
+  .tabbar-edge {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 104px;
+    pointer-events: none;
+    background: linear-gradient(to top, var(--edge-tint) 0%, var(--edge-tint) 30%, transparent 100%);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    -webkit-mask-image: linear-gradient(to top, #000 0%, #000 45%, transparent 100%);
+    mask-image: linear-gradient(to top, #000 0%, #000 45%, transparent 100%);
+  }
+
+  /* Basınca anında tepki: basılı küçülme hemen, bırakınca yayla geri */
+  .pressable {
+    transition:
+      transform var(--dur-spring, 420ms) var(--ease-spring),
+      background-color 150ms var(--ease-out-soft),
+      color 150ms var(--ease-out-soft),
+      box-shadow 150ms var(--ease-out-soft),
+      filter 150ms var(--ease-out-soft);
+  }
+  .pressable:active:not(:disabled):not([aria-disabled="true"]) {
+    transform: scale(0.96);
+    transition-duration: 80ms;
+  }
+
+  /* Açılır öğe: tetikleyicisinden büyür, aynı yoldan söner */
+  .pop-anim {
+    transform-origin: var(--radix-popper-transform-origin, center);
+  }
+  .pop-anim[data-state="open"] {
+    animation: ef-pop-in var(--dur-spring, 420ms) var(--ease-spring) both;
+  }
+  .pop-anim[data-state="closed"] {
+    animation: ef-pop-out 170ms var(--ease-out-soft) both;
+  }
+
+  /* Panelin alt eylem şeridi (FormSheet footer): masaüstünde panelin dibine
+     yapışır; telefonda içeriğin altında durur, uzun içerikte alta yapışır */
+  .sheet-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-top: auto;
+    padding: 12px 16px 16px;
+    background: var(--background);
+    box-shadow: 0 -1px 0 var(--sep);
+  }
+  [data-side="bottom"] .sheet-footer {
+    --sheet-pb: max(20px, env(safe-area-inset-bottom));
+    bottom: calc(-1 * var(--sheet-pb));
+    margin: 0 -12px calc(-1 * var(--sheet-pb));
+    padding: 12px 16px var(--sheet-pb);
+    background: var(--glass-strong);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  /* Gruplanmış liste satırı ayırıcısı: metnin başladığı yerden */
+  .inset-rows > * + * {
+    position: relative;
+  }
+  .inset-rows > * + *::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: var(--row-inset, 16px);
+    height: 1px;
+    background: var(--sep);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Kabuk: yüzen kenar çubuğu.
+     <768 gizli (sekme çubuğu) · 768–1279 düğmeyle üstte açılır · ≥1280 sabit, gizlenebilir */
+  .shell-sidebar {
+    position: fixed;
+    top: 8px;
+    bottom: 8px;
+    left: 8px;
+    z-index: 45;
+    width: var(--sidebar-w);
+    transform: translateX(calc(-100% - 16px));
+    visibility: hidden;
+    transition:
+      transform var(--dur-spring) var(--ease-spring),
+      visibility 0s linear var(--dur-spring);
+  }
+  [data-sb-open="true"] .shell-sidebar {
+    transform: none;
+    visibility: visible;
+    transition:
+      transform var(--dur-spring) var(--ease-spring),
+      visibility 0s;
+  }
+  .shell-main {
+    transition: margin-left var(--dur-spring) var(--ease-spring);
+  }
+  @media (min-width: 1280px) {
+    .shell-sidebar {
+      transform: none;
+      visibility: visible;
+      transition:
+        transform var(--dur-spring) var(--ease-spring),
+        visibility 0s;
+    }
+    [data-sb-hidden="true"] .shell-sidebar {
+      transform: translateX(calc(-100% - 16px));
+      visibility: hidden;
+      transition:
+        transform var(--dur-spring) var(--ease-spring),
+        visibility 0s linear var(--dur-spring);
+    }
+    .shell-main {
+      margin-left: calc(var(--sidebar-w) + 16px);
+    }
+    [data-sb-hidden="true"] .shell-main {
+      margin-left: 0;
+    }
+  }
+
+  /* KPI şeridi: hücreler arası ince ayırıcı; sütun sayısı genişliğe göre */
+  .metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metric-strip:is([data-count="1"], [data-count="3"]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .metric-strip > .metric-cell::before,
+  .metric-strip > .metric-cell::after {
+    content: "";
+    position: absolute;
+    display: none;
+    background: var(--sep);
+    pointer-events: none;
+  }
+  .metric-strip > .metric-cell::before {
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 1px;
+  }
+  .metric-strip > .metric-cell::after {
+    top: 0;
+    left: 14px;
+    right: 14px;
+    height: 1px;
+  }
+  .metric-strip:is([data-count="2"], [data-count="4"]) > .metric-cell:nth-child(even)::before,
+  .metric-strip[data-count="4"] > .metric-cell:nth-child(n + 3)::after,
+  .metric-strip[data-count="3"] > .metric-cell:nth-child(n + 2)::after {
+    display: block;
+  }
+  @media (min-width: 640px) {
+    .metric-strip[data-count="3"] {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .metric-strip[data-count="3"] > .metric-cell:nth-child(n + 2)::after {
+      display: none;
+    }
+    .metric-strip[data-count="3"] > .metric-cell:nth-child(n + 2)::before {
+      display: block;
+    }
+  }
+  @media (min-width: 768px) {
+    .metric-strip > .metric-cell::before {
+      top: 16px;
+      bottom: 16px;
+    }
+    .metric-strip > .metric-cell::after {
+      left: 20px;
+      right: 20px;
+    }
+  }
+  @media (min-width: 1024px) {
+    .metric-strip[data-count="4"] {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .metric-strip[data-count="4"] > .metric-cell:nth-child(n + 2)::before {
+      display: block;
+    }
+    .metric-strip[data-count="4"] > .metric-cell::after {
+      display: none !important;
+    }
+  }
+
+  /* Veri tablosu satırı (DataTable): zebra, yuvarlak uçlar, açık satır Indigo */
+  .dt-row > td {
+    transition: background-color 120ms var(--ease-out-soft);
+  }
+  .dt-row > td:first-child {
+    border-radius: 9px 0 0 9px;
+  }
+  .dt-row > td:last-child {
+    border-radius: 0 9px 9px 0;
+  }
+  .dt-row.dt-zebra > td {
+    background: var(--surface-2);
+  }
+  .dt-row:hover > td {
+    background: var(--hover);
+  }
+  .dt-row[data-active] > td {
+    background: var(--primary-fill);
+    color: var(--on-primary-fill);
+  }
+  .dt-row:focus-visible > td {
+    box-shadow: inset 0 2px 0 var(--focus), inset 0 -2px 0 var(--focus);
+  }
+  .dt-row:focus-visible > td:first-child {
+    box-shadow: inset 2px 2px 0 var(--focus), inset 0 -2px 0 var(--focus);
+  }
+  .dt-row:focus-visible > td:last-child {
+    box-shadow: inset -2px 2px 0 var(--focus), inset 0 -2px 0 var(--focus);
+  }
+
+  /* Geldi düğmesi dolgusu: basılan noktadan yayılır */
+  .geldi-fill {
+    clip-path: circle(0 at var(--px, 50%) var(--py, 50%));
+    transition: clip-path 440ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  [data-arrived="true"] > .geldi-fill {
+    clip-path: circle(150% at var(--px, 50%) var(--py, 50%));
+  }
 }
 
 @layer utilities {
@@ -208,74 +662,111 @@
   .shadow-soft-lg {
     box-shadow: var(--shadow-soft-lg);
   }
-
-  /* --- Ferah & Modern SaaS dilinin yardımcıları --- */
-
-  /* Bölüm başlığı: küçük, soluk, harf aralığı açık */
-  .section-label {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--muted-foreground);
+  .shadow-pop {
+    box-shadow: var(--shadow-pop);
   }
 
-  /* Sayfa başlığı — 26px/600, iri ama abartısız */
+  /* --- Hazır sınıflar (eski sayfalarla uyumlu, yeni dile uyarlandı) --- */
+
+  /* İçerik genişliği */
+  .page-shell {
+    width: 100%;
+    max-width: 87.5rem;
+    margin-inline: auto;
+  }
+
+  /* Büyük sayfa başlığı — telefonda 34px, masaüstünde 30px */
   .page-title {
-    font-size: 1.625rem;
-    font-weight: 600;
-    letter-spacing: -0.021em;
-    line-height: 1.25;
+    font-size: 2.125rem;
+    line-height: 2.5625rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    /* Başlık tek satır; sığmazsa kısalır (iki satıra kırılmaz) */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  @media (min-width: 768px) {
+    .page-title {
+      font-size: var(--text-large-title);
+      line-height: var(--text-large-title--line-height);
+    }
   }
 
-  /* Bölüm başlığı — kart/panel üstü (16px/600) */
+  /* Üst satır etiketi: tarih, "SIRADAKİ" gibi */
+  .eyebrow {
+    font-size: 0.8125rem;
+    line-height: 1.125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--label-2w);
+  }
+
+  /* Bölüm etiketi: küçük, soluk */
+  .section-label {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--label-2);
+  }
+
+  /* Bölüm başlığı — grup üstü (17px/600) */
   .section-title {
-    font-size: 1rem;
+    font-size: var(--text-headline);
+    line-height: var(--text-headline--line-height);
     font-weight: 600;
-    letter-spacing: -0.012em;
-    line-height: 1.3;
+    letter-spacing: -0.005em;
   }
 
-  /* Metrik değeri: büyük, sıkı, hizalı rakamlar */
+  /* Metrik değeri */
   .metric-value {
-    font-size: 1.625rem;
+    font-size: 1.375rem;
+    line-height: 1.75rem;
     font-weight: 600;
-    letter-spacing: -0.024em;
+    letter-spacing: -0.01em;
     font-variant-numeric: tabular-nums;
-    line-height: 1.15;
+    white-space: nowrap;
+  }
+  @media (min-width: 768px) {
+    .metric-value {
+      font-size: 1.75rem;
+      line-height: 2.125rem;
+    }
   }
 
-  /* Durum noktası — renkli ikon kutucuğunun yerini alır */
+  /* Durum noktası */
   .status-dot {
     display: inline-block;
-    width: 0.375rem;
-    height: 0.375rem;
+    width: 0.5rem;
+    height: 0.5rem;
     border-radius: 9999px;
     flex-shrink: 0;
   }
 
-  /* Satır listesi: kart yerine ayraçla bölünmüş sıralar */
+  /* Satır listesi: ayraçla bölünmüş sıralar */
   .row-list > * + * {
     border-top: 1px solid var(--border);
   }
 
-  /* Yüzey: ferah dilin temel bloğu — beyaz, yumuşak köşe, hafif kalkık */
-  /* Kart yüzeyi — 1px border + çok hafif ambient gölge */
+  /* İçerik yüzeyi: opak, kenarsız, yuvarlak */
   .surface {
     background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
     box-shadow: var(--shadow-soft);
   }
-
-  /* İkinci seviye yüzey — kart içinde gömülü alanlar (gölgesiz) */
+  /* Köşe yalnızca rounded-* verilmediyse (yardımcı sınıf ezebilsin) */
+  .surface:not([class*="rounded-"]) {
+    border-radius: var(--radius);
+  }
+  /* İkinci seviye alan (yüzey içinde gömülü) */
   .surface-flat {
-    background: var(--muted);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    background: var(--fill);
+    border-radius: var(--radius-ctl);
   }
 
-  /* KPI/bölüm ikon kutucuğu — 32px, soft lavender */
+  /* Eski ikon kutucuğu — artık renksiz, nötr */
   .icon-chip {
     display: inline-flex;
     align-items: center;
@@ -283,29 +774,19 @@
     width: 2rem;
     height: 2rem;
     flex-shrink: 0;
-    border-radius: var(--radius-md);
-    background: color-mix(in oklch, var(--primary) 9%, transparent);
-    color: var(--primary);
-  }
-
-  /* İçerik genişliği — çok geniş ekranda satırlar okunabilir kalsın */
-  .page-shell {
-    width: 100%;
-    max-width: 90rem;
-    margin-inline: auto;
+    border-radius: var(--radius-ctl);
+    background: var(--fill);
+    color: var(--label-2);
   }
 
   /* Yükleniyor iskeleti */
   .skeleton {
-    background: linear-gradient(
-      90deg,
-      var(--muted) 25%,
-      color-mix(in oklch, var(--muted), var(--card) 60%) 37%,
-      var(--muted) 63%
-    );
+    background: linear-gradient(90deg, var(--fill) 25%, var(--hover) 37%, var(--fill) 63%);
     background-size: 400% 100%;
     animation: skeleton-shimmer 1.4s ease infinite;
-    border-radius: var(--radius-md);
+  }
+  .skeleton:not([class*="rounded-"]) {
+    border-radius: var(--radius-ctl);
   }
 
   /* Odak halkası — klavye kullanıcıları için tutarlı */
@@ -313,7 +794,54 @@
     outline: none;
   }
   .focus-ring:focus-visible {
-    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+    outline: 3px solid var(--focus);
+    outline-offset: 1px;
+  }
+
+  /* Opak yüzeyin kendisi tıklanabilirse: zemini koruyarak hafif koyulaşır */
+  .hover-tint {
+    transition: background-image 150ms var(--ease-out-soft);
+  }
+  .hover-tint:hover {
+    background-image: linear-gradient(var(--hover), var(--hover));
+  }
+  .hover-tint:active {
+    background-image: linear-gradient(var(--press), var(--press));
+  }
+
+  /* Renkli zemin üstündeki ikincil metin */
+  .text-label-2w {
+    color: var(--label-2w);
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Bileşen içi geçersiz kılmalar — yardımcı sınıflardan sonra gelmeli */
+  @media (max-width: 767px) {
+    .shell-sidebar {
+      display: none;
+    }
+  }
+  .dt-row[data-active] :is(.text-label, .text-label-2, .text-label-3, .text-danger-text, .text-positive-text, .text-warning-text, .text-primary-text, .text-info-text) {
+    color: var(--on-primary-fill-2);
+  }
+  .dt-row[data-active] .bg-fill {
+    background: rgba(255, 255, 255, 0.3);
+  }
+  .dt-row[data-active] :is(.bg-primary, .bg-warning-dot, .bg-label-3) {
+    background: var(--on-primary-fill);
+  }
+  .dt-row[data-active] [data-avatar] {
+    background: rgba(255, 255, 255, 0.24);
+  }
+  .dt-row[data-active] [data-slot="badge"] {
+    border-color: rgba(255, 255, 255, 0.5);
+    color: var(--on-primary-fill);
   }
 }
 
@@ -325,15 +853,103 @@
     background-position: 0 50%;
   }
 }
+@keyframes ef-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ef-pop-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+@keyframes ef-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ef-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
 
-/* Hareket hassasiyeti olan kullanıcılar için tüm animasyonları kıs */
+/* Telefonda bildirim sekme çubuğunun üstünde durur */
+@media (max-width: 767px) {
+  :root {
+    --toast-bottom: 96px;
+  }
+}
+
+/* Şeffaflık azaltılmışsa cam opak olur; kontrast artırılmışsa kenar belirginleşir */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-strong,
+  [data-side="bottom"] .sheet-footer {
+    background: var(--glass-solid) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .toolbar-edge::before,
+  .tabbar-edge {
+    background: var(--bg) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+  }
+}
+@media (prefers-contrast: more) {
+  .glass,
+  .glass-strong {
+    background: var(--glass-solid);
+    box-shadow: 0 0 0 1px var(--label-2), var(--glass-shadow);
+  }
+}
+
+/* Hareket azaltılmışsa: kayma ve ölçek yok, kısa yumuşak geçiş var */
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-spring: 160ms;
+    --ease-spring: ease-out;
+    --ease-spring-bounce: ease-out;
+  }
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .pressable:active:not(:disabled) {
+    transform: none;
+  }
+  .pop-anim[data-state="open"] {
+    animation: ef-fade-in 160ms ease-out both !important;
+  }
+  .pop-anim[data-state="closed"] {
+    animation: ef-fade-out 140ms ease-out both !important;
+  }
+  .skeleton {
+    animation: none !important;
+  }
+  .geldi-fill {
+    transition-duration: 160ms;
   }
 }

@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { REMINDABLE_STATUSES } from "@/lib/appointment-status";
+
 /**
  * Otomasyon kurallarını tarayıp `reminders` satırı üretir.
  *
@@ -116,7 +118,7 @@ async function planRule(
         .from("appointments")
         .select("id, starts_at, customer_id, customers(full_name)")
         .eq("business_id", rule.business_id)
-        .eq("status", "planned")
+        .in("status", [...REMINDABLE_STATUSES]) // gelmiş/tamamlanmış randevuya mesaj gitmez
         .gte("starts_at", now.toISOString())
         .lte("starts_at", windowEnd.toISOString());
 

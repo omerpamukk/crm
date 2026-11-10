@@ -60,6 +60,23 @@ export interface CustomerSummary {
   last_visit_at: string | null;
 }
 
+/** customer_balances view (0031) — müşteri borcunun tek kaynağı. */
+export interface CustomerBalance {
+  business_id: string;
+  customer_id: string;
+  full_name: string;
+  phone: string | null;
+  /** Satış toplamı: paketler + pakete bağlı olmayan tamamlanmış hizmetler. */
+  charges: number;
+  /** Müşterinin yaptığı tüm ödemeler. */
+  payments: number;
+  /** charges - payments; > 0 ise borçlu. */
+  balance: number;
+  /** 30 günden eski satışlardan, ödemeler en eskiden düşüldükten sonra kalan. */
+  overdue_amount: number;
+  last_payment_at: string | null;
+}
+
 export interface Profile {
   id: string;
   created_at: string;
@@ -164,6 +181,13 @@ export interface Appointment {
   price: number | null;
   staff_member_id: string | null;
   booked_online?: boolean;
+  /** Müşterinin geldiği an (Geldi durumu, 0028); geri alınınca null. */
+  arrived_at?: string | null;
+  /**
+   * starts_at doğru (ofsetli) yazıldı mı (0029). Eski panel kayıtları UTC-naif
+   * olduğundan false başlar; 0030 düzeltmesi true yapar. Yeni kod hep true yazar.
+   */
+  tz_normalized?: boolean;
 }
 
 export interface Payment {

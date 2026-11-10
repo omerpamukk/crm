@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import { getBusinessId } from "@/lib/supabase/business";
+import { authorize } from "@/lib/supabase/authorize";
 import { logBusinessAction } from "@/lib/supabase/business-audit";
 import {
   productSchema,
@@ -37,8 +37,9 @@ export async function createProduct(input: ProductInput): Promise<ActionResult> 
   }
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "tahsilat");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const startQty = num(parsed.data.stock_qty);
 
@@ -50,18 +51,25 @@ export async function createProduct(input: ProductInput): Promise<ActionResult> 
 
   if (error) {
     console.error("createProduct:", error);
-    return { error: "Ürün eklenemedi." };
+    if (error.code === "23505") return { error: "Bu kod başka bir üründe kullanılıyor. Farklı bir kod girin." };
+    return { error: "Ürün eklenemedi. Tekrar deneyin." };
   }
 
   // Açılış stoğu varsa hareket olarak yaz (trigger miktarı günceller).
   if (startQty > 0 && created) {
-    await supabase.from("stock_movements").insert({
+    const { error: movError } = await supabase.from("stock_movements").insert({
       business_id: businessId,
       product_id: (created as { id: string }).id,
       kind: "in",
       qty: startQty,
       note: "Açılış stoğu",
+      created_by: auth.userId,
     });
+    if (movError) {
+      console.error("createProduct/movement:", movError);
+      revalidatePath("/stok");
+      return { error: "Ürün eklendi ama açılış stoğu yazılamadı. Ürünün satırından stok girişi yapın." };
+    }
   }
 
   revalidatePath("/stok");
@@ -78,8 +86,9 @@ export async function updateProduct(
   }
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "tahsilat");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const { error } = await supabase
     .from("products")
@@ -89,7 +98,8 @@ export async function updateProduct(
 
   if (error) {
     console.error("updateProduct:", error);
-    return { error: "Ürün güncellenemedi." };
+    if (error.code === "23505") return { error: "Bu kod başka bir üründe kullanılıyor. Farklı bir kod girin." };
+    return { error: "Ürün güncellenemedi. Tekrar deneyin." };
   }
 
   revalidatePath("/stok");
@@ -98,13 +108,15 @@ export async function updateProduct(
 
 export async function deleteProduct(id: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "tahsilat");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const { data: before } = await supabase
     .from("products")
     .select("name")
     .eq("id", id)
+    .eq("business_id", businessId)
     .maybeSingle();
 
   const { error } = await supabase
@@ -115,7 +127,7 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
 
   if (error) {
     console.error("deleteProduct:", error);
-    return { error: "Ürün silinemedi." };
+    return { error: "Ürün silinemedi. Tekrar deneyin." };
   }
 
   await logBusinessAction(supabase, {
@@ -138,25 +150,40 @@ export async function addMovement(input: MovementInput): Promise<ActionResult> {
   }
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "tahsilat");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId, userId } = auth;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Ürün bu işletmeye ait mi? Çıkış eldeki stoktan fazla olamaz.
+  const { data: product } = await supabase
+    .from("products")
+    .select("stock_qty")
+    .eq("id", parsed.data.product_id)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!product) return { error: "Ürün bulunamadı. Listeyi yenileyip tekrar deneyin." };
+
+  const qty = num(parsed.data.qty);
+  if (qty <= 0) return { error: "Miktar sıfırdan büyük olmalı." };
+  if (
+    (parsed.data.kind === "out" || parsed.data.kind === "consume") &&
+    qty > Number((product as { stock_qty: number }).stock_qty)
+  ) {
+    return { error: "Çıkış miktarı eldeki stoktan fazla olamaz." };
+  }
 
   const { error } = await supabase.from("stock_movements").insert({
     business_id: businessId,
     product_id: parsed.data.product_id,
     kind: parsed.data.kind,
-    qty: num(parsed.data.qty),
+    qty,
     note: parsed.data.note?.trim() || null,
-    created_by: user?.id ?? null,
+    created_by: userId,
   });
 
   if (error) {
     console.error("addMovement:", error);
-    return { error: "Stok hareketi kaydedilemedi." };
+    return { error: "Stok hareketi kaydedilemedi. Tekrar deneyin." };
   }
 
   revalidatePath("/stok");

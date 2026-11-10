@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import { getBusinessId } from "@/lib/supabase/business";
+import { authorize } from "@/lib/supabase/authorize";
 import { logBusinessAction } from "@/lib/supabase/business-audit";
 import { paymentSchema, NONE, type PaymentInput } from "./schema";
 
@@ -17,14 +17,31 @@ export async function createPayment(input: PaymentInput): Promise<ActionResult> 
   const values = parsed.data;
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const auth = await authorize(supabase, "tahsilat");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const hasPackage = !!values.package_id && values.package_id !== NONE;
+
+  // Müşteri ve paket bu işletmeye ait olmalı (tetikleyici paketi yalnızca id ile günceller).
+  const { data: cust } = await supabase
+    .from("customers")
+    .select("id")
+    .eq("id", values.customer_id)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!cust) return { error: "Müşteri bulunamadı. Listeyi yenileyip tekrar seçin." };
+
+  if (hasPackage) {
+    const { data: pkg } = await supabase
+      .from("packages")
+      .select("id")
+      .eq("id", values.package_id as string)
+      .eq("customer_id", values.customer_id)
+      .eq("business_id", businessId)
+      .maybeSingle();
+    if (!pkg) return { error: "Bu müşteriye ait paket bulunamadı. Paketi yeniden seçin." };
+  }
 
   const { error } = await supabase.from("payments").insert({
     business_id: businessId,
@@ -34,7 +51,7 @@ export async function createPayment(input: PaymentInput): Promise<ActionResult> 
     related_type: hasPackage ? "paket" : null,
     related_id: hasPackage ? values.package_id : null,
     note: values.note?.trim() || null,
-    created_by: user?.id ?? null,
+    created_by: auth.userId,
   });
 
   if (error) {
@@ -55,5 +72,7 @@ export async function createPayment(input: PaymentInput): Promise<ActionResult> 
   revalidatePath("/tahsilat");
   revalidatePath("/paketler");
   revalidatePath("/panel");
+  revalidatePath("/cari");
+  revalidatePath("/musteriler");
   return {};
 }

@@ -1,10 +1,13 @@
 import { CalendarX2 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { AuthCard, AuthFrame } from "@/app/(auth)/auth-shell";
 
 import { BookingFlow, type BookingConfig } from "./booking-flow";
+import { todayKey } from "./booking-time";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Online randevu" };
 
 export default async function PublicBookingPage({
   params,
@@ -18,17 +21,15 @@ export default async function PublicBookingPage({
 
   if (!config.valid) {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-3 bg-muted/30 p-6 text-center">
-        <span className="flex size-14 items-center justify-center rounded-2xl bg-danger/10 text-danger">
-          <CalendarX2 className="size-7" />
-        </span>
-        <h1 className="text-xl font-bold">Randevu bağlantısı geçersiz</h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
-          Bu randevu linki artık aktif değil. Lütfen işletme ile iletişime geçin.
-        </p>
-      </div>
+      <AuthFrame>
+        <AuthCard
+          icon={CalendarX2}
+          title="Randevu bağlantısı geçersiz"
+          description="Bu randevu bağlantısı artık çalışmıyor. İşletmeyi arayıp güncel bağlantıyı isteyebilirsiniz."
+        />
+      </AuthFrame>
     );
   }
 
-  return <BookingFlow token={token} config={config} />;
+  return <BookingFlow token={token} config={config} today={todayKey()} />;
 }

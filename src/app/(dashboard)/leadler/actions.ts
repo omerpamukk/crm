@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import { getBusinessId } from "@/lib/supabase/business";
+import { authorize } from "@/lib/supabase/authorize";
 import { logInteraction } from "@/lib/supabase/interactions";
 
 type ActionResult = { error?: string };
@@ -16,14 +16,19 @@ export async function moveLeadToStage(
   toStageName: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "musteri_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const { error } = await supabase
     .from("customers")
     .update({ pipeline_stage_id: stageId })
-    .eq("id", customerId);
-  if (error) return { error: `Taşınamadı: ${error.message}` };
+    .eq("id", customerId)
+    .eq("business_id", businessId);
+  if (error) {
+    console.error("moveLeadToStage:", error);
+    return { error: "Lead taşınamadı. Biraz sonra tekrar deneyin." };
+  }
 
   const {
     data: { user },
@@ -42,8 +47,9 @@ export async function moveLeadToStage(
 
 export async function createStage(name: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "musteri_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const { data: maxRow } = await supabase
     .from("pipeline_stages")
@@ -56,11 +62,14 @@ export async function createStage(name: string): Promise<ActionResult> {
 
   const { error } = await supabase.from("pipeline_stages").insert({
     business_id: businessId,
-    name: name.trim() || "Yeni Sütun",
+    name: name.trim() || "Yeni aşama",
     color: "#64748B",
     position: nextPos,
   });
-  if (error) return { error: `Sütun eklenemedi: ${error.message}` };
+  if (error) {
+    console.error("createStage:", error);
+    return { error: "Aşama eklenemedi. Biraz sonra tekrar deneyin." };
+  }
 
   revalidatePath("/leadler");
   return {};
@@ -70,10 +79,11 @@ export async function renameStage(
   id: string,
   name: string
 ): Promise<ActionResult> {
-  if (!name.trim()) return { error: "Sütun adı boş olamaz." };
+  if (!name.trim()) return { error: "Aşama adı boş olamaz." };
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "musteri_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const { error } = await supabase
     .from("pipeline_stages")
@@ -93,8 +103,9 @@ export async function updateStageColor(
   color: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "musteri_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const { error } = await supabase
     .from("pipeline_stages")
@@ -103,20 +114,21 @@ export async function updateStageColor(
     .eq("business_id", businessId);
   if (error) {
     console.error("updateStageColor:", error);
-    return { error: "Renk güncellenemedi." };
+    return { error: "Renk değiştirilemedi." };
   }
   revalidatePath("/leadler");
   return {};
 }
 
-/** Sütunu siler; içindeki kartlar reassignToId sütununa taşınır. */
+/** Aşamayı siler; içindeki lead'ler reassignToId sütununa taşınır. */
 export async function deleteStage(
   id: string,
   reassignToId: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "musteri_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   if (reassignToId) {
     const { error: moveErr } = await supabase
@@ -126,7 +138,7 @@ export async function deleteStage(
       .eq("business_id", businessId);
     if (moveErr) {
       console.error("deleteStage/move:", moveErr);
-      return { error: "Kartlar taşınamadı." };
+      return { error: "Lead'ler taşınamadı." };
     }
   }
 
@@ -137,7 +149,7 @@ export async function deleteStage(
     .eq("business_id", businessId);
   if (error) {
     console.error("deleteStage:", error);
-    return { error: "Sütun silinemedi." };
+    return { error: "Aşama silinemedi." };
   }
 
   revalidatePath("/leadler");
@@ -146,8 +158,9 @@ export async function deleteStage(
 
 export async function reorderStages(orderedIds: string[]): Promise<ActionResult> {
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "musteri_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   // Döngüde await yerine tek turda paralel güncelleme (N+1 kaldırıldı).
   const results = await Promise.all(
@@ -174,14 +187,19 @@ export async function convertLeadToCustomer(
   customerId: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "musteri_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const { error } = await supabase
     .from("customers")
     .update({ is_lead: false, pipeline_stage_id: null, status: "active" })
-    .eq("id", customerId);
-  if (error) return { error: `Dönüştürülemedi: ${error.message}` };
+    .eq("id", customerId)
+    .eq("business_id", businessId);
+  if (error) {
+    console.error("convertLeadToCustomer:", error);
+    return { error: "Müşteriye çevrilemedi. Biraz sonra tekrar deneyin." };
+  }
 
   const {
     data: { user },

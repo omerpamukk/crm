@@ -1,14 +1,13 @@
-import { CalendarPlus, CheckCircle2, XCircle, Percent } from "lucide-react";
-
 import { createClient } from "@/lib/supabase/server";
 import type { Service } from "@/types/database";
-import { PageHeader } from "@/components/shared/page-header";
-import { StatCard } from "@/components/shared/stat-card";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { requireCapability } from "@/lib/supabase/guard";
+import { PageHeader } from "@/components/shared/page-header";
+import { ErrorState } from "@/components/shared/error-state";
+import { Button } from "@/components/ui/button";
+import { trMidnight, trParts } from "../panel/dates";
 
 import { ensureBookingSettings } from "./booking-actions";
-import { BookingLinkView } from "./booking-link-view";
+import { BookingLinkView, type BookingStats } from "./booking-link-view";
 
 export const metadata = { title: "Randevu Linki" };
 
@@ -20,22 +19,26 @@ export default async function RandevuLinkiPage() {
 
   if (error || !settings) {
     return (
-      <div className="space-y-6">
-        <PageHeader title="Randevu Linki" description="Online randevu linki yönetimi." />
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            {error ?? "Ayarlar yüklenemedi."}
-          </CardContent>
-        </Card>
+      <div className="space-y-8">
+        <PageHeader title="Randevu Linki" />
+        <ErrorState
+          title="Randevu Linki yüklenemedi"
+          description={error ?? "Link ayarları açılamadı. Sayfayı yenileyip tekrar deneyin."}
+          action={
+            <Button asChild variant="secondary">
+              <a href="/randevu-linki">Tekrar dene</a>
+            </Button>
+          }
+        />
       </div>
     );
   }
 
   const supabase = await createClient();
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const { y, m } = trParts(new Date());
+  const startOfMonth = trMidnight(y, m, 1);
 
-  const [servicesRes, onlineApptsRes] = await Promise.all([
+  const [servicesRes, onlineRes] = await Promise.all([
     supabase.from("services").select("*").order("name"),
     supabase
       .from("appointments")
@@ -44,68 +47,26 @@ export default async function RandevuLinkiPage() {
       .gte("starts_at", startOfMonth.toISOString()),
   ]);
 
+  const loadFailed = Boolean(servicesRes.error || onlineRes.error);
+  if (loadFailed) console.error("randevu-linki:", servicesRes.error ?? onlineRes.error);
+
   const services = (servicesRes.data ?? []) as Service[];
-  const online = (onlineApptsRes.data ?? []) as { status: string | null }[];
+  const online = (onlineRes.data ?? []) as { status: string | null }[];
 
   const total = online.length;
+  // Onaylanan: bekleyen, gelen (geldi) ve tamamlanan randevular
   const approved = online.filter(
-    (a) => a.status === "completed" || a.status === "planned"
+    (a) => !a.status || a.status === "planned" || a.status === "arrived" || a.status === "completed"
   ).length;
   const cancelled = online.filter((a) => a.status === "cancelled").length;
-  const conversion = total > 0 ? Math.round((approved / total) * 100) : 0;
-
-  const kpis = [
-    {
-      label: "Bu Ay Gelen",
-      value: total.toLocaleString("tr-TR"),
-      icon: CalendarPlus,
-      tone: "bg-primary/10 text-primary",
-      bar: "border-l-primary",
-    },
-    {
-      label: "Onaylanan",
-      value: approved.toLocaleString("tr-TR"),
-      icon: CheckCircle2,
-      tone: "bg-positive/10 text-positive",
-      bar: "border-l-positive",
-    },
-    {
-      label: "İptal",
-      value: cancelled.toLocaleString("tr-TR"),
-      icon: XCircle,
-      tone: "bg-danger/10 text-danger",
-      bar: "border-l-danger",
-    },
-    {
-      label: "Dönüşüm",
-      value: `%${conversion}`,
-      icon: Percent,
-      tone: "bg-warning/12 text-amber-600",
-      bar: "border-l-amber-500",
-    },
-  ];
+  const stats: BookingStats = {
+    total,
+    approved,
+    cancelled,
+    rate: total > 0 ? Math.round((approved / total) * 100) : 0,
+  };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Randevu Linki"
-        description="Müşterilerinin tek bir linkten kendi randevusunu almasını sağla. Linki paylaş, hizmetleri ve çalışma saatlerini buradan yönet."
-      />
-
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {kpis.map((kpi) => {
-          return (
-            <StatCard
-              key={kpi.label}
-              label={kpi.label}
-              value={kpi.value}
-              icon={kpi.icon}
-            />
-          );
-        })}
-      </div>
-
-      <BookingLinkView settings={settings} services={services} />
-    </div>
+    <BookingLinkView settings={settings} services={services} stats={stats} loadFailed={loadFailed} />
   );
 }

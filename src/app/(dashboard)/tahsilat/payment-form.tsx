@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
@@ -50,7 +50,6 @@ export function PaymentForm({
     register,
     handleSubmit,
     control,
-    watch,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<PaymentInput>({
@@ -64,7 +63,7 @@ export function PaymentForm({
     },
   });
 
-  const selectedCustomer = watch("customer_id");
+  const selectedCustomer = useWatch({ control, name: "customer_id" });
   const customerPackages = packages.filter(
     (p) => p.customer_id === selectedCustomer
   );
@@ -76,7 +75,7 @@ export function PaymentForm({
       setFormError(result.error);
       return;
     }
-    toast.success("Ödeme kaydedildi");
+    toast.success("Ödeme alındı");
     onSuccess();
   }
 
@@ -150,7 +149,7 @@ export function PaymentForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="package_id">Pakete bağla (opsiyonel)</Label>
+        <Label htmlFor="package_id">Pakete bağla (isteğe bağlı)</Label>
         <Controller
           control={control}
           name="package_id"
@@ -164,7 +163,7 @@ export function PaymentForm({
                 <SelectValue placeholder="Paket seçin" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>— Bağlama —</SelectItem>
+                <SelectItem value={NONE}>Pakete bağlama</SelectItem>
                 {customerPackages.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.service_name ?? "Paket"}
@@ -189,11 +188,11 @@ export function PaymentForm({
       {formError && <p className="text-sm text-danger">{formError}</p>}
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          İptal
+        <Button type="button" variant="secondary" onClick={onCancel}>
+          Vazgeç
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Kaydediliyor..." : "Ödeme al"}
+          {isSubmitting ? "Kaydediliyor" : "Ödeme al"}
         </Button>
       </div>
     </form>

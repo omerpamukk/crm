@@ -11,14 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { AuthCard } from "../auth-shell";
 
 const schema = z
   .object({
@@ -75,101 +68,85 @@ export default function YeniSifrePage() {
   }
 
   if (checking) {
-    return (
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Bağlantı doğrulanıyor…</CardTitle>
-        </CardHeader>
-      </Card>
-    );
+    return <AuthCard title="Bağlantı doğrulanıyor…" />;
   }
 
   if (!hasSession) {
     return (
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Bağlantı geçersiz</CardTitle>
-          <CardDescription>
-            Sıfırlama bağlantısının süresi dolmuş veya daha önce kullanılmış.
-            Yeni bir bağlantı isteyebilirsin.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter>
-          <Button asChild className="w-full">
+      <AuthCard
+        title="Bağlantı geçersiz"
+        description="Sıfırlama bağlantısının süresi dolmuş ya da daha önce kullanılmış. Yeni bir bağlantı isteyebilirsiniz."
+        footer={
+          <Button size="lg" asChild className="w-full">
             <Link href="/sifremi-unuttum">Yeni bağlantı iste</Link>
           </Button>
-        </CardFooter>
-      </Card>
+        }
+      />
     );
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Yeni şifre belirle</CardTitle>
-        <CardDescription>
-          {/* Hangi hesabın şifresinin değiştiği açıkça görünsün: başkasının
-              ürettiği bir bağlantıyla gelen kullanıcı bunu fark edebilmeli. */}
-          {email ? (
-            <>
-              <span className="font-medium text-foreground">{email}</span> hesabı için en az
-              8 karakterli bir şifre seç.
-            </>
-          ) : (
-            "En az 8 karakterli bir şifre seç."
-          )}
-        </CardDescription>
-      </CardHeader>
-
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Yeni şifre</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              aria-invalid={!!errors.password}
-              aria-describedby={errors.password ? "password-error" : undefined}
-              {...register("password")}
-            />
-            {errors.password && (
-              <p id="password-error" role="alert" className="text-sm text-danger">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="confirm">Yeni şifre (tekrar)</Label>
-            <Input
-              id="confirm"
-              type="password"
-              autoComplete="new-password"
-              aria-invalid={!!errors.confirm}
-              aria-describedby={errors.confirm ? "confirm-error" : undefined}
-              {...register("confirm")}
-            />
-            {errors.confirm && (
-              <p id="confirm-error" role="alert" className="text-sm text-danger">
-                {errors.confirm.message}
-              </p>
-            )}
-          </div>
-
-          {formError && (
-            <p role="alert" className="text-sm text-danger">
-              {formError}
+    <AuthCard
+      title="Yeni şifre belirle"
+      description={
+        // Hangi hesabın şifresinin değiştiği açıkça görünsün: başkasının
+        // ürettiği bir bağlantıyla gelen kullanıcı bunu fark edebilmeli.
+        email ? (
+          <>
+            <span className="font-medium break-all text-label">{email}</span> hesabı için en az 8 karakterli bir şifre seçin.
+          </>
+        ) : (
+          "En az 8 karakterli bir şifre seçin."
+        )
+      }
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <div className="space-y-2">
+          <Label htmlFor="password">Yeni şifre</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="new-password"
+            className="h-11 md:h-9"
+            aria-invalid={!!errors.password}
+            aria-describedby={errors.password ? "password-error" : undefined}
+            {...register("password")}
+          />
+          {errors.password && (
+            <p id="password-error" role="alert" className="text-subhead text-danger-text">
+              {errors.password.message}
             </p>
           )}
-        </CardContent>
+        </div>
 
-        <CardFooter>
-          <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? "Kaydediliyor…" : "Şifreyi güncelle"}
-          </Button>
-        </CardFooter>
+        <div className="space-y-2">
+          <Label htmlFor="confirm">Yeni şifre (tekrar)</Label>
+          <Input
+            id="confirm"
+            type="password"
+            autoComplete="new-password"
+            className="h-11 md:h-9"
+            aria-invalid={!!errors.confirm}
+            aria-describedby={errors.confirm ? "confirm-error" : undefined}
+            {...register("confirm")}
+          />
+          {errors.confirm && (
+            <p id="confirm-error" role="alert" className="text-subhead text-danger-text">
+              {errors.confirm.message}
+            </p>
+          )}
+        </div>
+
+        {formError && (
+          <p role="alert" className="text-subhead text-danger-text">
+            {formError}
+          </p>
+        )}
+
+        <Button type="submit" size="lg" disabled={isSubmitting} className="w-full">
+          {isSubmitting ? "Kaydediliyor..." : "Şifreyi güncelle"}
+        </Button>
       </form>
-    </Card>
+    </AuthCard>
   );
 }

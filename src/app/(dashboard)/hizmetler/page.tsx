@@ -1,80 +1,32 @@
-import { Scissors } from "lucide-react";
-
 import { createClient } from "@/lib/supabase/server";
-import { formatPrice } from "@/lib/format";
-import type { Service } from "@/types/database";
-import { PageHeader } from "@/components/shared/page-header";
-import { EmptyState } from "@/components/shared/empty-state";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { getAccountContext } from "@/lib/supabase/account";
+import { getBusinessId } from "@/lib/supabase/business";
 import { requireCapability } from "@/lib/supabase/guard";
+import { can } from "@/lib/permissions";
+import type { Service } from "@/types/database";
 
-import { NewServiceButton } from "./new-service-button";
-import { ServiceRowActions } from "./service-row-actions";
+import { ServicesView } from "./services-view";
 
 export const metadata = { title: "Hizmetler" };
 
 export default async function HizmetlerPage() {
   await requireCapability("randevu_yonet");
+  const { role } = await getAccountContext();
   const supabase = await createClient();
-  const { data } = await supabase
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return <ServicesView services={[]} canManage={false} loadFailed />;
+
+  const { data, error } = await supabase
     .from("services")
     .select("*")
-    .order("created_at", { ascending: false });
-  const services = (data ?? []) as Service[];
+    .eq("business_id", businessId)
+    .order("name");
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Hizmetler"
-        description="Sunduğun hizmetleri, sürelerini ve fiyatlarını yönet."
-      >
-        <NewServiceButton />
-      </PageHeader>
-
-      {services.length === 0 ? (
-        <EmptyState
-          icon={Scissors}
-          title="Henüz hizmet yok"
-          description="Sunduğun hizmetleri ekle; randevu oluştururken bu listeden seçebileceksin."
-          action={<NewServiceButton />}
-        />
-      ) : (
-        <div className="overflow-hidden rounded-lg border bg-card shadow-soft">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/40 hover:bg-muted/40">
-                <TableHead>Hizmet</TableHead>
-                <TableHead>Kategori</TableHead>
-                <TableHead>Süre</TableHead>
-                <TableHead>Fiyat</TableHead>
-                <TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {services.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell className="font-medium">{s.name}</TableCell>
-                  <TableCell>{s.category ?? "—"}</TableCell>
-                  <TableCell>
-                    {s.duration_min ? `${s.duration_min} dk` : "—"}
-                  </TableCell>
-                  <TableCell>{formatPrice(s.price)}</TableCell>
-                  <TableCell>
-                    <ServiceRowActions service={s} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-    </div>
+    <ServicesView
+      services={(data ?? []) as Service[]}
+      canManage={can(role, "randevu_yonet")}
+      loadFailed={Boolean(error)}
+    />
   );
 }

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import { getBusinessId } from "@/lib/supabase/business";
+import { authorize } from "@/lib/supabase/authorize";
 import {
   automationSchema,
   MESSAGE_ACTIONS,
@@ -44,8 +44,9 @@ export async function saveAutomation(
   if (shapeError) return { error: shapeError };
 
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "musteri_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const row = {
     business_id: businessId,
@@ -82,8 +83,9 @@ export async function toggleAutomation(
   active: boolean
 ): Promise<ActionResult> {
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "musteri_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const { error } = await supabase
     .from("automations")
@@ -102,8 +104,9 @@ export async function toggleAutomation(
 
 export async function deleteAutomation(id: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const businessId = await getBusinessId(supabase);
-  if (!businessId) return { error: "Oturum bulunamadı." };
+  const auth = await authorize(supabase, "musteri_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
 
   const { error } = await supabase
     .from("automations")
