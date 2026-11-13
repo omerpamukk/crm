@@ -9,6 +9,7 @@ import { getAdminNotifications } from "@/lib/supabase/notifications";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeToggle } from "@/components/layout/account-menu";
 
 import { exitViewAs } from "./view-as-actions";
 import { AdminUserMenu } from "./admin-logout";
@@ -77,6 +78,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 Yeni Firma
               </Link>
             )}
+            <ThemeToggle className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" />
             <AdminNotifications items={notifications.items} count={notifications.count} />
             <AdminUserMenu email={user.email ?? ""} />
           </div>
