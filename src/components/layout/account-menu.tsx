@@ -37,6 +37,32 @@ export function useThemeChoice() {
   return { value: value ?? "system", setTheme }
 }
 
+/**
+ * Üst bardaki tek dokunuşluk Açık/Koyu geçişi. Ekranda o an görünen temanın
+ * tersine geçer; "Sistem" seçimi kullanıcı menüsünde durmaya devam eder.
+ */
+export function ThemeToggle({ className }: { className?: string }) {
+  const { resolvedTheme, setTheme } = useTheme()
+  const mounted = React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  )
+  const dark = mounted && resolvedTheme === "dark"
+  const label = dark ? "Açık temaya geç" : "Koyu temaya geç"
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(dark ? "light" : "dark")}
+      aria-label={label}
+      title={label}
+      className={className}
+    >
+      {dark ? <Sun aria-hidden className="size-[18px]" /> : <Moon aria-hidden className="size-[18px]" />}
+    </button>
+  )
+}
+
 /** Çıkış: sunucuda firma oturumunu ve çerezleri temizler. */
 export function useSignOut() {
   const [pending, setPending] = React.useState(false)

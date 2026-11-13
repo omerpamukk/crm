@@ -8,6 +8,7 @@ import type { UserRole } from "@/types/database"
 import { NAV_ITEMS } from "@/lib/nav"
 import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/sonner"
+import { ThemeToggle } from "./account-menu"
 import { CommandPalette } from "./command-palette"
 import { MobileMenu } from "./mobile-menu"
 import { Notifications, type AppNotification } from "./notifications"
@@ -290,8 +291,9 @@ function Toolbar({
         {title}
       </span>
 
-      {/* Sağ: bildirimler · arama · sayfa eylemleri */}
+      {/* Sağ: tema · bildirimler · arama · sayfa eylemleri */}
       <div className="flex shrink-0 items-center gap-2.5">
+        <ThemeToggle className="glass pressable hidden size-9 md:grid shrink-0 place-items-center rounded-full text-label hover:brightness-[1.04]" />
         <div className="hidden md:block">
           <Notifications notifications={notifications} />
         </div>
