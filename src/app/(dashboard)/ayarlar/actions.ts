@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { authorize } from "@/lib/supabase/authorize";
 import { sendMessage } from "@/lib/messaging/send";
+import { cleanModules } from "@/lib/modules";
 import type { Channel } from "@/lib/messaging/types";
 import {
   businessInfoSchema,
@@ -339,5 +340,30 @@ export async function testIntegration(
     .eq("provider", parsed.data);
 
   revalidatePath("/ayarlar");
+  return {};
+}
+
+/** Açık modüller (0036). Yalnızca bilinen anahtarlar kaydedilir. */
+export async function updateModules(modules: string[]): Promise<ActionResult> {
+  if (!Array.isArray(modules) || modules.some((m) => typeof m !== "string")) {
+    return { error: "Geçersiz veri" };
+  }
+
+  const supabase = await createClient();
+  const auth = await authorize(supabase, "ayarlar");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
+
+  const { error } = await supabase
+    .from("businesses")
+    .update({ enabled_modules: cleanModules(modules), updated_at: new Date().toISOString() })
+    .eq("id", businessId);
+
+  if (error) {
+    console.error("updateModules:", error);
+    return { error: "Modüller kaydedilemedi." };
+  }
+
+  revalidatePath("/", "layout");
   return {};
 }

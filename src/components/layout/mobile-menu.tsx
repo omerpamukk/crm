@@ -21,6 +21,7 @@ export function MobileMenu({
   open,
   onOpenChange,
   role,
+  modules,
   businessName,
   displayName,
   roleLabel,
@@ -30,6 +31,7 @@ export function MobileMenu({
   open: boolean
   onOpenChange: (open: boolean) => void
   role: UserRole
+  modules: string[] | null
   businessName: string
   displayName: string
   roleLabel: string
@@ -37,7 +39,7 @@ export function MobileMenu({
   counts: Record<string, number>
 }) {
   const pathname = usePathname()
-  const sections = navSectionsForRole(role)
+  const sections = navSectionsForRole(role, modules)
   const { pending, signOut } = useSignOut()
   const close = () => onOpenChange(false)
 

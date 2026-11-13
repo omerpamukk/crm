@@ -25,6 +25,8 @@ export type AppShellProps = {
   displayName: string
   roleLabel: string
   role: UserRole
+  /** Açık modüller (src/lib/modules.ts); null = hepsi açık. */
+  modules: string[] | null
   badges: Record<string, number>
   counts: Record<string, number>
   notifications: AppNotification[]
@@ -59,6 +61,7 @@ function Shell({
   displayName,
   roleLabel,
   role,
+  modules,
   badges,
   counts,
   notifications,
@@ -147,6 +150,7 @@ function Shell({
         displayName={displayName}
         roleLabel={roleLabel}
         role={role}
+        modules={modules}
         badges={badges}
         counts={counts}
         initialCollapsed={initialCollapsedGroups}
@@ -186,6 +190,7 @@ function Shell({
 
       <TabBar
         role={role}
+        modules={modules}
         menuOpen={menuOpen}
         onOpenMenu={() => setMenuOpen(true)}
         onOpenSearch={() => setPaletteOpen(true)}
@@ -194,13 +199,14 @@ function Shell({
         open={menuOpen}
         onOpenChange={setMenuOpen}
         role={role}
+        modules={modules}
         businessName={businessName}
         displayName={displayName}
         roleLabel={roleLabel}
         badges={badges}
         counts={counts}
       />
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} role={role} />
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} role={role} modules={modules} />
       <Toaster />
     </div>
   )

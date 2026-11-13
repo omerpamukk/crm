@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Cake, CircleCheck, Clock3, PackageX, TrendingUp, UserPlus } from "lucide-react";
+import { type Rhythm } from "@/lib/customer-rhythm";
+import { fetchRhythm, isWinnable } from "@/lib/rhythm-query";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAccountContext } from "@/lib/supabase/account";
@@ -15,7 +17,6 @@ import { Money, formatMoney } from "@/components/shared/money";
 import { StatusBadge } from "@/components/shared/status";
 
 import {
-  DAY,
   MONTH_SHORT,
   PERIODS,
   TZ,
@@ -97,7 +98,6 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const startOfToday = trMidnight(y, m, d);
   const endOfToday = trMidnight(y, m, d + 1);
   const sixMonthsAgo = trMidnight(y, m - 5, 1);
-  const ninetyDaysAgo = new Date(now.getTime() - 90 * DAY);
   const P = resolvePeriod(period, now);
   const payFrom = new Date(Math.min(sixMonthsAgo.getTime(), P.prevStart.getTime(), trMidnight(y, m, d - 13).getTime()));
 
@@ -146,9 +146,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
     canCustomers ? customerCount(P.start, P.upToNow) : none,
     canCustomers ? customerCount(P.prevStart, P.prevEnd) : none,
     canCustomers ? supabase.from("customers").select("id, birthday").eq("is_lead", false).not("birthday", "is", null) : none,
-    canCustomers
-      ? supabase.from("customers").select("*", { count: "exact", head: true }).eq("is_lead", false).not("last_visit_at", "is", null).lte("last_visit_at", ninetyDaysAgo.toISOString())
-      : none,
+    canCustomers && businessId ? fetchRhythm(supabase, businessId, now) : Promise.resolve({ map: new Map<string, Rhythm>(), error: false }),
     canCustomers ? supabase.from("customers").select("id, full_name, created_at").eq("is_lead", false).order("created_at", { ascending: false }).limit(5) : none,
     canCreate || canFinance ? supabase.from("customers").select("id, full_name, is_lead").order("full_name") : none,
     canCreate ? supabase.from("services").select("id, name, price").order("name") : none,
@@ -227,11 +225,11 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
     const left = daysUntilBirthday(c.birthday, now);
     return left !== null && left <= 7;
   }).length;
-  const inactive = inactiveRes.count ?? 0;
+  const inactive = [...inactiveRes.map.values()].filter(isWinnable).length;
   const oppTotal = endingCount + inactive + birthdayWeek;
   const opportunities = [
     { label: "Paketi bitmek üzere", hint: "Yenileme teklifi sunun", count: endingCount, icon: <PackageX aria-hidden className="size-5 text-label-2" /> },
-    { label: "90+ gündür gelmeyen", hint: "Geri kazanım mesajı gönderin", count: inactive, icon: <Clock3 aria-hidden className="size-5 text-label-2" /> },
+    { label: "Geri kazanılabilir", hint: "Kendi düzenine göre gecikti", count: inactive, icon: <Clock3 aria-hidden className="size-5 text-label-2" /> },
     { label: "Bu hafta doğum günü", hint: "Tebrik edin, hediye seans önerin", count: birthdayWeek, icon: <Cake aria-hidden className="size-5 text-label-2" /> },
   ];
 

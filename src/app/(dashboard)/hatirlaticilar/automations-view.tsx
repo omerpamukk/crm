@@ -29,6 +29,7 @@ import { deleteAutomation, toggleAutomation } from "./actions";
 import { RuleForm, type RuleSeed } from "./rule-form";
 import { TEMPLATES, ruleSentence, trigDef } from "./rule-meta";
 import type { ActionId, TriggerId } from "./schema";
+import { isRuleSupported } from "@/lib/automations/supported";
 
 /** DB satırı (0025_automations.sql) — alan adları tabloyla birebir. */
 export type Automation = {
@@ -40,6 +41,7 @@ export type Automation = {
   action_id: ActionId;
   action_param: string | null;
   message: string | null;
+  wa_template?: string | null;
 };
 
 type Scope = "hepsi" | "acik" | "kapali";
@@ -117,7 +119,7 @@ export function AutomationsView({ items, loadFailed }: { items: Automation[]; lo
         <Link href="/ayarlar" className="focus-ring rounded font-semibold whitespace-nowrap text-primary-text hover:underline">
           Ayarlar → Entegrasyonlar
         </Link>{" "}
-        bölümünden kurabilirsiniz. Kurallar her sabah çalışır.
+        bölümünden kurabilirsiniz. Mesajlar 09:00–21:00 arasında gönderilir.
       </p>
     </div>
   );
@@ -169,13 +171,18 @@ export function AutomationsView({ items, loadFailed }: { items: Automation[]; lo
           <ListGroup aria-label="Kurallar" inset={56}>
             {shown.map((a) => {
               const Icon = trigDef(a.trigger_id).icon;
-              const on = isActive(a);
+              const supported = isRuleSupported(a);
+              const on = supported && isActive(a);
               return (
                 <ListRow
                   key={a.id}
                   leading={<Icon aria-hidden className="size-5 text-label-2" />}
                   title={a.title}
-                  subtitle={ruleSentence(a)}
+                  subtitle={
+                    supported
+                      ? ruleSentence(a)
+                      : `${ruleSentence(a)} Bu kural henüz çalışmıyor; düzenleyip çalışan bir tetikleyici seçin.`
+                  }
                   trailing={
                     <span className="flex items-center">
                       <Button
@@ -189,6 +196,7 @@ export function AutomationsView({ items, loadFailed }: { items: Automation[]; lo
                       </Button>
                       <Switch
                         checked={on}
+                        disabled={!supported}
                         onCheckedChange={(v) => toggle(a, v)}
                         label={`${a.title} kuralı ${on ? "açık" : "kapalı"}`}
                       />
@@ -214,6 +222,7 @@ export function AutomationsView({ items, loadFailed }: { items: Automation[]; lo
         action_id: editing.action_id,
         action_param: editing.action_param ?? "",
         message: editing.message ?? "",
+        wa_template: editing.wa_template ?? "",
       }
     : undefined;
 
@@ -251,6 +260,7 @@ export function AutomationsView({ items, loadFailed }: { items: Automation[]; lo
                         action_id: t.action_id,
                         action_param: t.action_param ?? "",
                         message: t.message ?? "",
+                        wa_template: t.wa_template ?? "",
                       },
                     })
                   }

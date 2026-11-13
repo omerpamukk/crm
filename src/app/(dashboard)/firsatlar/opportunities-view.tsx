@@ -45,7 +45,7 @@ export type OppCategory = {
 };
 
 const PREVIEW = 5;
-const SUMMARY_KEYS = ["paket", "gelmeyen", "dogumgunu"] as const;
+const SUMMARY_KEYS = ["paket", "gerikazan", "dogumgunu"] as const;
 
 function waHref(phone: string, text: string): string {
   const d = phone.replace(/\D/g, "");
@@ -88,7 +88,7 @@ export function OpportunitiesView({
   const header = (
     <PageHeader
       title="Gelir Fırsatları"
-      description="Paketi biten, uzun süredir gelmeyen ve doğum günü yaklaşan müşteriler. Birine ulaşmak için mesaj yazın ya da randevu verin."
+      description="Paketi biten, kendi düzenine göre geciken ve doğum günü yaklaşan müşteriler. Birine ulaşmak için mesaj yazın ya da randevu verin."
     />
   );
 

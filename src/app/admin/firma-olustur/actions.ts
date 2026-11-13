@@ -72,7 +72,8 @@ export async function provisionBusiness(input: ProvisionInput): Promise<Result> 
   // 4) Firma
   const { data: biz, error: bErr } = await admin
     .from("businesses")
-    .insert({ name: businessName, sector: input.sector || null })
+    // Yeni firma sade başlar: paket, online randevu, stok, görevler kapalı (0036).
+    .insert({ name: businessName, sector: input.sector || null, enabled_modules: [] })
     .select("id")
     .single();
   if (bErr || !biz) {

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 
 import { getAccountContext } from "@/lib/supabase/account";
 import { createClient } from "@/lib/supabase/server";
+import { getBusinessId } from "@/lib/supabase/business";
 import { AppShell } from "@/components/layout/app-shell";
 import type { AppNotification } from "@/components/layout/notifications";
 import { SIDEBAR_GROUPS_COOKIE, SIDEBAR_HIDDEN_COOKIE } from "@/components/layout/shell-cookies";
@@ -24,7 +25,8 @@ export default async function DashboardLayout({
 
   // Menü rozetleri tek RPC ile gelir (0022_search_perf.sql).
   const supabase = await createClient();
-  const [{ data: badgeData, error: badgeError }, notifRes] = await Promise.all([
+  const businessId = await getBusinessId(supabase);
+  const [{ data: badgeData, error: badgeError }, notifRes, bizRes] = await Promise.all([
     supabase.rpc("sidebar_badges"),
     // Kalıcı bildirimler (0023). Okunmamışlar; tablo yoksa sessizce boş.
     supabase
@@ -33,7 +35,12 @@ export default async function DashboardLayout({
       .is("read_at", null)
       .order("created_at", { ascending: false })
       .limit(20),
+    // Açık modüller (0036). Sütun yoksa ya da okunamazsa hepsi açık sayılır.
+    businessId
+      ? supabase.from("businesses").select("enabled_modules").eq("id", businessId).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
+  const modules = (bizRes.data as { enabled_modules: string[] | null } | null)?.enabled_modules ?? null;
 
   if (badgeError) console.error("sidebar_badges:", badgeError);
 
@@ -87,6 +94,7 @@ export default async function DashboardLayout({
       displayName={displayName}
       roleLabel={roleLabel}
       role={role}
+      modules={modules}
       badges={badges}
       counts={counts}
       notifications={notifications}

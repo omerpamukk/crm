@@ -5,6 +5,7 @@ import { getAccountContext } from "@/lib/supabase/account";
 import { can } from "@/lib/permissions";
 import { getBusinessId } from "@/lib/supabase/business";
 import { fetchCustomerBalances } from "@/lib/balances";
+import { fetchRhythm } from "@/lib/rhythm-query";
 import type { Customer, Package, Payment, Interaction } from "@/types/database";
 
 import { Customer360View, type ApptItem } from "./customer-360-view";
@@ -44,7 +45,7 @@ export default async function CustomerDetailPage({
 
   if (!customer) notFound();
 
-  const [apptRes, pkgRes, payRes, intRes, servicesRes, staffRes, assigneeRes, balanceRes] = await Promise.all([
+  const [apptRes, pkgRes, payRes, intRes, servicesRes, staffRes, assigneeRes, balanceRes, rhythmRes] = await Promise.all([
     supabase
       .from("appointments")
       .select("id, starts_at, status, price, package_id, arrived_at, service:services(name, duration_min, price), staff_member:staff(full_name)")
@@ -59,6 +60,7 @@ export default async function CustomerDetailPage({
       ? supabase.from("staff").select("full_name").eq("id", (customer as Customer).assigned_to as string).maybeSingle()
       : Promise.resolve({ data: null }),
     fetchCustomerBalances(supabase, businessId, { customerId: id }),
+    (customer as Customer).is_lead ? Promise.resolve(null) : fetchRhythm(supabase, businessId),
   ]);
 
   const loadFailed = [apptRes, pkgRes, payRes, intRes].some((r) => r.error);
@@ -77,6 +79,7 @@ export default async function CustomerDetailPage({
       canArrive={abilities.book}
       loadFailed={loadFailed || balanceRes.error}
       balance={balanceRes.rows[0]?.balance ?? 0}
+      rhythm={rhythmRes?.map.get(id) ?? null}
     />
   );
 }

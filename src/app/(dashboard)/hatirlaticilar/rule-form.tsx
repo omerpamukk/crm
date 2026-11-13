@@ -21,8 +21,8 @@ import { Switch } from "@/components/ui/switch";
 import { FormActions } from "@/components/shared/form-sheet";
 
 import { saveAutomation } from "./actions";
-import { ACTIONS, TRIGGERS, actDef, ruleSentence, trigDef } from "./rule-meta";
-import { ruleFormSchema, type AutomationInput, type RuleFormInput } from "./schema";
+import { ACTION_OPTIONS, TRIGGER_OPTIONS, actDef, ruleSentence, trigDef } from "./rule-meta";
+import { ruleFormSchema, WHATSAPP_ACTIONS, type AutomationInput, type RuleFormInput } from "./schema";
 
 export type RuleSeed = Partial<RuleFormInput> & { id?: string };
 
@@ -54,17 +54,24 @@ export function RuleForm({
     defaultValues: {
       title: seed?.title ?? "",
       active: seed?.active ?? true,
-      trigger_id: seed?.trigger_id ?? TRIGGERS[0].id,
-      trigger_param: seed?.trigger_param ?? (seed?.trigger_id ? "" : TRIGGERS[0].param?.def ?? ""),
-      action_id: seed?.action_id ?? ACTIONS[0].id,
+      trigger_id: seed?.trigger_id ?? TRIGGER_OPTIONS[0].id,
+      trigger_param: seed?.trigger_param ?? (seed?.trigger_id ? "" : TRIGGER_OPTIONS[0].param?.def ?? ""),
+      action_id: seed?.action_id ?? ACTION_OPTIONS[0].id,
       action_param: seed?.action_param ?? "",
       message: seed?.message ?? "",
+      wa_template: seed?.wa_template ?? "",
     },
   });
 
   const w = useWatch({ control });
-  const tDef = trigDef(w.trigger_id ?? TRIGGERS[0].id);
-  const aDef = actDef(w.action_id ?? ACTIONS[0].id);
+  const tDef = trigDef(w.trigger_id ?? TRIGGER_OPTIONS[0].id);
+  const aDef = actDef(w.action_id ?? ACTION_OPTIONS[0].id);
+  const triggerChoices = TRIGGER_OPTIONS.some((t) => t.id === seed?.trigger_id) || !seed?.trigger_id
+    ? TRIGGER_OPTIONS
+    : [...TRIGGER_OPTIONS, trigDef(seed.trigger_id)];
+  const actionChoices = ACTION_OPTIONS.some((a) => a.id === seed?.action_id) || !seed?.action_id
+    ? ACTION_OPTIONS
+    : [...ACTION_OPTIONS, actDef(seed.action_id)];
   const sentence = ruleSentence({
     trigger_id: tDef.id,
     trigger_param: tDef.param ? w.trigger_param : null,
@@ -86,6 +93,7 @@ export function RuleForm({
       action_id: v.action_id,
       action_param: a.param ? v.action_param.trim() || null : null,
       message: a.message ? v.message.trim() || null : null,
+      wa_template: WHATSAPP_ACTIONS.includes(v.action_id) ? v.wa_template.trim() || null : null,
     };
     const res = await saveAutomation(input);
     if (res.error) {
@@ -132,7 +140,7 @@ export function RuleForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {TRIGGERS.map((t) => (
+                {triggerChoices.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.label}
                   </SelectItem>
@@ -179,7 +187,7 @@ export function RuleForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {ACTIONS.map((a) => (
+                {actionChoices.map((a) => (
                   <SelectItem key={a.id} value={a.id}>
                     {a.label}
                   </SelectItem>
@@ -201,9 +209,30 @@ export function RuleForm({
             )}
           </div>
         )}
+        {WHATSAPP_ACTIONS.includes(aDef.id) && (
+          <div className="space-y-2 pt-1">
+            <Label htmlFor="wa_template">WhatsApp şablon adı</Label>
+            <Input
+              id="wa_template"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="randevu_hatirlatma"
+              aria-invalid={!!errors.wa_template}
+              {...register("wa_template")}
+            />
+            {errors.wa_template ? (
+              <p className="text-subhead text-danger-text">{errors.wa_template.message}</p>
+            ) : (
+              <p className="text-subhead text-label-2">
+                İşletmenin başlattığı WhatsApp mesajları yalnızca Meta&apos;da onaylanmış şablonla gider. Şablonu
+                Meta Business&apos;ta oluşturup onaylatın, adını buraya yazın. Şablondaki {"{{1}}"} müşterinin adıyla dolar.
+              </p>
+            )}
+          </div>
+        )}
         {aDef.message && (
           <div className="space-y-2 pt-1">
-            <Label htmlFor="message">Mesaj</Label>
+            <Label htmlFor="message">{WHATSAPP_ACTIONS.includes(aDef.id) ? "Şablon metni (önizleme)" : "Mesaj"}</Label>
             <Textarea
               id="message"
               rows={4}

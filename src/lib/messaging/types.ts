@@ -7,6 +7,17 @@ export interface SendRequest {
   body: string;
   /** Yalnızca e-posta için. */
   subject?: string;
+  /**
+   * Yalnızca WhatsApp için: Meta onaylı şablon. Verilirse `body` yerine
+   * şablon gönderilir; `params` şablon gövdesindeki {{1}}, {{2}}… değerleridir.
+   */
+  template?: WhatsAppTemplate;
+}
+
+export interface WhatsAppTemplate {
+  name: string;
+  language: string;
+  params: string[];
 }
 
 export interface SendResult {

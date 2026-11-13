@@ -13,6 +13,7 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { customerCreateSchema, type CustomerCreateInput } from "./schema";
@@ -61,6 +62,7 @@ export function CustomerCreateForm({
       source: NONE,
       tags: [],
       note: "",
+      marketing_consent: false,
     },
   });
 
@@ -84,6 +86,7 @@ export function CustomerCreateForm({
       source: !v.source || v.source === NONE ? undefined : v.source,
       tags: v.tags,
       note: v.note,
+      marketing_consent: v.marketing_consent,
     });
     if (res.error) {
       setFormError(res.error);
@@ -207,6 +210,28 @@ export function CustomerCreateForm({
           </div>
         </div>
       </Disclosure>
+
+      <Controller
+        control={control}
+        name="marketing_consent"
+        render={({ field }) => (
+          <div className="flex items-start justify-between gap-4 rounded-xl bg-fill px-4 py-3">
+            <div className="min-w-0">
+              <Label htmlFor="cf-marketing">Kampanya mesajı izni</Label>
+              <p id="cf-marketing-hint" className="mt-1 text-subhead text-label-2">
+                Müşteri doğum günü, indirim ve geri kazanım mesajlarını SMS ya da WhatsApp ile almayı kabul etti.
+              </p>
+            </div>
+            <Switch
+              id="cf-marketing"
+              checked={Boolean(field.value)}
+              onCheckedChange={field.onChange}
+              label="Kampanya mesajı izni"
+              aria-describedby="cf-marketing-hint"
+            />
+          </div>
+        )}
+      />
 
       {formError && (
         <p role="alert" className="text-subhead text-danger-text">

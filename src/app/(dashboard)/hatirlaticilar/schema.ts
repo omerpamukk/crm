@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+import { isSupportedAction, isSupportedTrigger } from "@/lib/automations/supported";
+
+export const UNSUPPORTED_TRIGGER = "Bu tetikleyici henüz çalışmıyor. Listeden başka bir tetikleyici seçin.";
+export const UNSUPPORTED_ACTION = "Bu aksiyon henüz çalışmıyor. Mesaj gönderen bir aksiyon seçin.";
+
 /**
  * Otomatik hatırlatma kuralları (0025_automations.sql).
  *
@@ -42,9 +47,18 @@ export const automationSchema = z.object({
   action_id: z.enum(ACTION_IDS),
   action_param: z.string().max(80).nullable(),
   message: z.string().max(600, "Mesaj en fazla 600 karakter olabilir").nullable(),
+  wa_template: z.string().max(100).nullable().optional(),
 });
 
 export type AutomationInput = z.infer<typeof automationSchema>;
+
+/** WhatsApp'tan giden aksiyonlar — Meta onaylı şablon adı ister. */
+export const WHATSAPP_ACTIONS: ActionId[] = ["wa", "indirim"];
+
+/** Meta şablon adı: küçük harf, rakam, alt çizgi. */
+export const TEMPLATE_NAME = /^[a-z0-9_]+$/;
+export const TEMPLATE_REQUIRED = "WhatsApp mesajı için Meta'da onaylı şablonun adını yazın.";
+export const TEMPLATE_FORMAT = "Şablon adı yalnızca küçük harf, rakam ve alt çizgi içerir (ör. randevu_hatirlatma).";
 
 /** Mesaj gerektiren aksiyonlar — boş mesajla kaydedilmemeli. */
 export const MESSAGE_ACTIONS: ActionId[] = ["wa", "sms", "eposta", "indirim"];
@@ -67,8 +81,20 @@ export const ruleFormSchema = z
     action_id: z.enum(ACTION_IDS),
     action_param: z.string().max(80, "Etiket çok uzun"),
     message: z.string().max(600, "Mesaj en fazla 600 karakter olabilir"),
+    wa_template: z.string().max(100, "Şablon adı çok uzun"),
   })
   .superRefine((v, ctx) => {
+    if (WHATSAPP_ACTIONS.includes(v.action_id)) {
+      const name = v.wa_template.trim();
+      if (!name) ctx.addIssue({ code: "custom", path: ["wa_template"], message: TEMPLATE_REQUIRED });
+      else if (!TEMPLATE_NAME.test(name)) ctx.addIssue({ code: "custom", path: ["wa_template"], message: TEMPLATE_FORMAT });
+    }
+    if (!isSupportedTrigger(v.trigger_id)) {
+      ctx.addIssue({ code: "custom", path: ["trigger_id"], message: UNSUPPORTED_TRIGGER });
+    }
+    if (!isSupportedAction(v.action_id)) {
+      ctx.addIssue({ code: "custom", path: ["action_id"], message: UNSUPPORTED_ACTION });
+    }
     if (PARAM_TRIGGERS.includes(v.trigger_id) && !/^[1-9]\d*$/.test(v.trigger_param.trim())) {
       ctx.addIssue({ code: "custom", path: ["trigger_param"], message: "0'dan büyük bir sayı yazın" });
     }

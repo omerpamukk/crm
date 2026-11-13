@@ -2,33 +2,28 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/messaging/send";
-import { planAutomations } from "@/lib/automations/plan";
+import { firstName, isQuietHour, planAutomations } from "@/lib/automations/plan";
 
 /**
  * Zamanlanmış hatırlatma gönderimi.
  *
- * Vercel Cron tarafından çağrılır (vercel.json). Vadesi gelmiş
- * `reminders` kayıtlarını alır, gönderir ve sonucu işler.
+ * Saatte bir çağrılır: Supabase pg_cron (0034_saatlik_cron.sql) ya da Vercel
+ * Pro'da vercel.json. Vercel Hobby günde yalnızca bir cron'a izin verdiği
+ * için vercel.json'daki günlük tur yedek olarak kalır.
  *
- * ⚠️ Hobby planı günde YALNIZCA BİR cron çalıştırmaya izin veriyor;
- * bu yüzden günlük tek tur (05:00 UTC = 08:00 TR). Daha sık gönderim
- * gerekirse Pro plana geçilmeli — o zaman vercel.json'daki ifade
- * 15 dakikalık aralığa çekilebilir.
+ * Önce kurallardan hatırlatma planlanır, sonra vadesi gelen kuyruk
+ * gönderilir. İşletme saatiyle 09:00–21:00 dışında hiçbir şey gönderilmez;
+ * bekleyen kayıtlar sabah ilk turda gider.
  *
- * Günde tek tur çalıştığı için bu uç nokta elle de tetiklenebilir:
+ * Elle tetiklemek için:
  *   curl -H "Authorization: Bearer $CRON_SECRET" <alan-adı>/api/cron/reminders
  *
  * Güvenlik: CRON_SECRET tanımlıysa Authorization başlığı doğrulanır.
- * Vercel Cron bu başlığı otomatik ekler.
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/**
- * Tek turda işlenecek en fazla kayıt. Günde tek tur çalıştığımız için
- * günün tamamını kapsayacak kadar geniş; maxDuration 60sn'ye sığması
- * gözetilerek sınırlı tutuldu.
- */
+/** Tek turda işlenecek en fazla kayıt; maxDuration 60 sn'ye sığacak kadar. */
 const BATCH = 200;
 
 export async function GET(request: NextRequest) {
@@ -40,15 +35,17 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const admin = createAdminClient();
+  const now = new Date();
+  if (isQuietHour(now)) {
+    return NextResponse.json({ quiet: true, planned: 0, processed: 0, sent: 0, failed: 0 });
+  }
 
-  // Önce otomasyon kurallarını tara ve vadesi gelenleri kuyruğa yaz
-  // (0025_automations.sql), sonra kuyruğu gönder.
-  const { planned } = await planAutomations(admin);
+  const admin = createAdminClient();
+  const { planned } = await planAutomations(admin, now);
 
   const { data, error } = await admin
     .from("reminders")
-    .select("id, business_id, customer_id, channel, body, kind")
+    .select("id, business_id, customer_id, channel, body, kind, automation_id, automations(wa_template, wa_template_lang)")
     .eq("status", "pending")
     .lte("scheduled_at", new Date().toISOString())
     .order("scheduled_at")
@@ -66,6 +63,11 @@ export async function GET(request: NextRequest) {
     channel: "sms" | "email" | "whatsapp";
     body: string | null;
     kind: string;
+    automation_id: string | null;
+    automations:
+      | { wa_template: string | null; wa_template_lang: string | null }
+      | { wa_template: string | null; wa_template_lang: string | null }[]
+      | null;
   };
 
   const rows = (data ?? []) as Row[];
@@ -75,15 +77,23 @@ export async function GET(request: NextRequest) {
   for (const r of rows) {
     // Alıcı adresini müşteriden al
     let to: string | null = null;
+    let name = "";
     if (r.customer_id) {
       const { data: c } = await admin
         .from("customers")
-        .select("phone, email")
+        .select("phone, email, full_name")
         .eq("id", r.customer_id)
         .maybeSingle();
-      const cust = c as { phone: string | null; email: string | null } | null;
+      const cust = c as { phone: string | null; email: string | null; full_name: string | null } | null;
       to = r.channel === "email" ? cust?.email ?? null : cust?.phone ?? null;
+      name = cust?.full_name ?? "";
     }
+
+    const rule = Array.isArray(r.automations) ? r.automations[0] : r.automations;
+    const template =
+      r.channel === "whatsapp" && rule?.wa_template
+        ? { name: rule.wa_template, language: rule.wa_template_lang || "tr", params: name ? [firstName(name)] : [] }
+        : undefined;
 
     if (!to || !r.body) {
       await admin
@@ -101,6 +111,7 @@ export async function GET(request: NextRequest) {
       body: r.body,
       subject: "Hatırlatma",
       customerId: r.customer_id,
+      template,
     });
 
     await admin

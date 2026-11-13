@@ -16,6 +16,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { isRuleSupported, isSupportedAction, isSupportedTrigger } from "@/lib/automations/supported";
+
 import type { ActionId, TriggerId } from "./schema";
 
 /** Kural sayfasının sade metinleri ve simgeleri. Kimlikler schema.ts ile birebir aynı. */
@@ -55,6 +57,10 @@ export const ACTIONS: {
   { id: "gorev", label: "Ekibe görev oluştur", icon: ListTodo },
   { id: "etiket_ekle", label: "Müşteriye etiket ekle", icon: Tag, param: { label: "Eklenecek etiket", def: "Takip" } },
 ];
+
+/** Kural formunda seçilebilenler: yalnızca planlayıcının çalıştırdıkları. */
+export const TRIGGER_OPTIONS = TRIGGERS.filter((t) => isSupportedTrigger(t.id));
+export const ACTION_OPTIONS = ACTIONS.filter((a) => isSupportedAction(a.id));
 
 export const trigDef = (id: string) => TRIGGERS.find((t) => t.id === id) ?? TRIGGERS[0];
 export const actDef = (id: string) => ACTIONS.find((a) => a.id === id) ?? ACTIONS[0];
@@ -116,13 +122,16 @@ export type Template = {
   action_id: ActionId;
   action_param: string | null;
   message: string | null;
+  /** Önerilen Meta şablon adı (WhatsApp aksiyonlarında). */
+  wa_template?: string;
 };
 
-export const TEMPLATES: Template[] = [
-  { title: "Randevu hatırlatma", trigger_id: "randevu_oncesi", trigger_param: 24, action_id: "wa", action_param: null, message: "Merhaba {ad}, yarınki randevunuzu hatırlatmak isteriz." },
-  { title: "Randevu sonrası teşekkür", trigger_id: "randevu_tamamlandi", trigger_param: null, action_id: "wa", action_param: null, message: "Teşekkürler {ad}. Deneyiminizi bizimle paylaşır mısınız?" },
-  { title: "Gelmeyen müşteri takibi", trigger_id: "noshow", trigger_param: null, action_id: "wa", action_param: null, message: "Merhaba {ad}, kaçırdığınız randevu için yeni bir tarih ayarlayalım mı?" },
-  { title: "Doğum günü hediyesi", trigger_id: "dogum_gunu", trigger_param: null, action_id: "indirim", action_param: null, message: "İyi ki doğdunuz {ad}. Size özel bir indirim hediyemiz var." },
-  { title: "Yeni lead karşılama", trigger_id: "yeni_lead", trigger_param: null, action_id: "wa", action_param: null, message: "Merhaba {ad}, ilginiz için teşekkürler. Size nasıl yardımcı olabiliriz?" },
+const ALL_TEMPLATES: Template[] = [
+  { title: "Randevu hatırlatma", trigger_id: "randevu_oncesi", trigger_param: 24, action_id: "wa", action_param: null, message: "Merhaba {ad}, yarınki randevunuzu hatırlatmak isteriz.", wa_template: "randevu_hatirlatma" },
+  { title: "Paket yenileme", trigger_id: "paket_bitiyor", trigger_param: 1, action_id: "wa", action_param: null, message: "Merhaba {ad}, paketinizde son seansınız kaldı. Yenilemek isterseniz size yer ayıralım.", wa_template: "paket_yenileme" },
+  { title: "Ödeme hatırlatma", trigger_id: "odeme_gecikti", trigger_param: 7, action_id: "sms", action_param: null, message: "Merhaba {ad}, bekleyen ödemenizi hatırlatmak isteriz." },
+  { title: "Doğum günü hediyesi", trigger_id: "dogum_gunu", trigger_param: null, action_id: "indirim", action_param: null, message: "İyi ki doğdunuz {ad}. Size özel bir indirim hediyemiz var.", wa_template: "dogum_gunu" },
   { title: "Geri kazanım", trigger_id: "pasif_musteri", trigger_param: 60, action_id: "sms", action_param: null, message: "Sizi özledik {ad}. Dönüşünüze özel bir fırsatımız var." },
 ];
+
+export const TEMPLATES: Template[] = ALL_TEMPLATES.filter(isRuleSupported);

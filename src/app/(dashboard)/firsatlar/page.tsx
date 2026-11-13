@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { can } from "@/lib/permissions";
 import { getBusinessId } from "@/lib/supabase/business";
 import { fetchDebtors } from "@/lib/balances";
+import { SEGMENTS, type Rhythm } from "@/lib/customer-rhythm";
+import { fetchRhythm, isWinnable } from "@/lib/rhythm-query";
 import { requireCapability } from "@/lib/supabase/guard";
 import { DAY, daysUntilBirthday } from "../panel/dates";
 import type { PackageOption, ServiceOption, StaffOption } from "../musteriler/customer-types";
@@ -16,7 +18,7 @@ const LIST_LIMIT = 200;
 type One<T> = T | T[] | null;
 const pickOne = <T,>(v: One<T>): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
 
-type Cust = { id: string; full_name: string; phone: string | null; last_visit_at: string | null };
+type Cust = { id: string; full_name: string; phone: string | null };
 type PkgRow = {
   id: string;
   customer_id: string | null;
@@ -40,20 +42,10 @@ export default async function FirsatlarPage() {
   const businessId = await getBusinessId(supabase);
   const debtors = abilities.pay && businessId ? await fetchDebtors(supabase, businessId) : { rows: [], error: false };
   const now = new Date();
-  const ninetyDaysAgo = new Date(now.getTime() - 90 * DAY).toISOString();
-  const twentyEightDaysAgo = new Date(now.getTime() - 28 * DAY).toISOString();
 
-  const [inactiveRes, pkgRes, birthdayRes, noShowRes, periodicRes, leadRes, servicesRes, staffRes] =
+  const [rhythm, pkgRes, birthdayRes, noShowRes, leadRes, servicesRes, staffRes] =
     await Promise.all([
-      // Genel Bakış'taki sayıyla aynı ölçü: 90 gündür gelmeyen müşteriler
-      supabase
-        .from("customers")
-        .select("id, full_name, phone, last_visit_at", { count: "exact" })
-        .eq("is_lead", false)
-        .not("last_visit_at", "is", null)
-        .lte("last_visit_at", ninetyDaysAgo)
-        .order("last_visit_at", { ascending: true })
-        .limit(LIST_LIMIT),
+      businessId ? fetchRhythm(supabase, businessId, now) : Promise.resolve({ map: new Map<string, Rhythm>(), error: true }),
       supabase
         .from("packages")
         .select("id, customer_id, service_name, remaining_sessions, price, paid_amount, purchased_at, customer:customers(full_name, phone)"),
@@ -70,15 +62,6 @@ export default async function FirsatlarPage() {
         .limit(LIST_LIMIT),
       supabase
         .from("customers")
-        .select("id, full_name, phone, last_visit_at")
-        .eq("is_lead", false)
-        .not("last_visit_at", "is", null)
-        .lte("last_visit_at", twentyEightDaysAgo)
-        .gt("last_visit_at", ninetyDaysAgo)
-        .order("last_visit_at", { ascending: true })
-        .limit(LIST_LIMIT),
-      supabase
-        .from("customers")
         .select("id, full_name, phone, created_at")
         .eq("is_lead", true)
         .order("created_at", { ascending: true })
@@ -89,8 +72,18 @@ export default async function FirsatlarPage() {
         : null,
     ]);
 
-  const loadFailed = Boolean(inactiveRes.error || pkgRes.error || birthdayRes.error);
-  if (loadFailed) console.error("firsatlar:", inactiveRes.error ?? pkgRes.error ?? birthdayRes.error);
+  // Geri kazanılabilir: kendi düzenine göre gecikmiş müşteriler (0035, src/lib/customer-rhythm.ts).
+  // En taze gecikme önce: geri dönme ihtimali en yüksek olanlar.
+  const winnable = [...rhythm.map.entries()]
+    .filter(([, r]) => isWinnable(r))
+    .sort(([, a], [, b]) => a.overdueDays - b.overdueDays);
+  const winnableIds = winnable.slice(0, LIST_LIMIT).map(([id]) => id);
+  const winnableCustRes = winnableIds.length
+    ? await supabase.from("customers").select("id, full_name, phone").in("id", winnableIds)
+    : { data: [], error: null };
+
+  const loadFailed = Boolean(rhythm.error || winnableCustRes.error || pkgRes.error || birthdayRes.error);
+  if (loadFailed) console.error("firsatlar:", winnableCustRes.error ?? pkgRes.error ?? birthdayRes.error);
 
   const daysSince = (iso: string | null) =>
     iso ? Math.max(Math.floor((now.getTime() - new Date(iso).getTime()) / DAY), 0) : 0;
@@ -133,16 +126,24 @@ export default async function FirsatlarPage() {
       };
     });
 
-  // 2) 90+ gündür gelmeyen
-  const inactive: OppItem[] = ((inactiveRes.data ?? []) as Cust[]).map((c) => ({
-    key: `inactive-${c.id}`,
-    customerId: c.id,
-    name: c.full_name,
-    phone: c.phone,
-    subtitle: `${daysSince(c.last_visit_at)} gündür gelmiyor`,
-    amount: null,
-    message: `Merhaba ${c.full_name}, sizi özledik. Size özel bir fırsatımız var, tekrar bekleriz.`,
-  }));
+  // 2) Geri kazanılabilir
+  const custById = new Map(
+    ((winnableCustRes.data ?? []) as { id: string; full_name: string; phone: string | null }[]).map((c) => [c.id, c])
+  );
+  const winback: OppItem[] = winnable.slice(0, LIST_LIMIT).flatMap(([id, r]) => {
+    const c = custById.get(id);
+    if (!c) return [];
+    const service = serviceByCustomer.get(id);
+    return [{
+      key: `winback-${id}`,
+      customerId: id,
+      name: c.full_name,
+      phone: c.phone,
+      subtitle: `${SEGMENTS[r.segment].label} · ${r.overdueDays} gün gecikti${service ? ` · ${service}` : ""}`,
+      amount: null,
+      message: `Merhaba ${c.full_name}, sizi özledik. Size uygun bir randevu ayarlayalım mı?`,
+    }];
+  });
 
   // 3) Bu hafta doğum günü (7 gün içinde; Genel Bakış ile aynı ölçü)
   const birthday: OppItem[] = ((birthdayRes.data ?? []) as (Cust & { birthday: string })[])
@@ -187,17 +188,6 @@ export default async function FirsatlarPage() {
       message: `Merhaba ${l.full_name}, görüşmemizin ardından size uygun bir randevu ayarlayalım mı?`,
     }));
 
-  // 6) Bakım zamanı gelenler (28-89 gün önce gelmiş)
-  const periodic: OppItem[] = ((periodicRes.data ?? []) as Cust[]).map((c) => ({
-    key: `periodic-${c.id}`,
-    customerId: c.id,
-    name: c.full_name,
-    phone: c.phone,
-    subtitle: `${serviceByCustomer.get(c.id) ?? "Son ziyaret"} · ${Math.floor(daysSince(c.last_visit_at) / 7)} hafta önce`,
-    amount: null,
-    message: `Merhaba ${c.full_name}, yeni bir randevu zamanı geldi. Randevunuzu birlikte ayarlayalım mı?`,
-  }));
-
   // 7) Açık borcu olanlar
   // Tek kaynak: customer_balances (0031; src/lib/balances.ts) — diğer ekranlarla aynı borç.
   const debt: OppItem[] = debtors.rows.map((d) => ({
@@ -212,11 +202,10 @@ export default async function FirsatlarPage() {
 
   const categories: OppCategory[] = [
     { key: "paket", title: "Paketi bitmek üzere", hint: "Yenileme teklifi sunun", count: ending.length, items: ending, link: abilities.pay ? { href: "/paketler", label: "Paketler" } : null },
-    { key: "gelmeyen", title: "90+ gündür gelmeyen", hint: "Geri kazanım mesajı gönderin", count: inactiveRes.count ?? inactive.length, items: inactive, link: { href: "/musteriler", label: "Müşteriler" } },
+    { key: "gerikazan", title: "Geri kazanılabilir", hint: "Kendi düzenine göre gecikti; geri dönme ihtimali yüksek", count: winnable.length, items: winback, link: { href: "/musteriler", label: "Müşteriler" } },
     { key: "dogumgunu", title: "Bu hafta doğum günü", hint: "Tebrik edin, hediye seans önerin", count: birthday.length, items: birthday, link: { href: "/musteriler", label: "Müşteriler" } },
     { key: "iptal", title: "Randevuya gelmeyenler", hint: "Yeni bir tarih önerin", count: noShow.length, items: noShow, link: { href: "/randevular", label: "Randevular" } },
     { key: "lead", title: "Randevu almayan lead'ler", hint: "Görüştünüz ama randevu oluşmadı", count: noBooking.length, items: noBooking, link: { href: "/leadler", label: "Lead'ler" } },
-    { key: "bakim", title: "Bakım zamanı gelenler", hint: "Yeni randevu önerin", count: periodic.length, items: periodic, link: { href: "/randevular", label: "Randevular" } },
     { key: "borc", title: "Açık borcu olanlar", hint: "Nazik bir hatırlatma gönderin", count: debt.length, items: debt, link: abilities.pay ? { href: "/cari", label: "Cari Hesap" } : null },
   ];
   // Borç yalnızca tahsilat yetkisi olana gösterilir (Genel Bakış'taki gibi)

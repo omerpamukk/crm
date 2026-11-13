@@ -76,7 +76,7 @@ export default async function AyarlarPage() {
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
 
-  const [bizRes, subRes, profileRes, logRes, notifRes, integRes] = await Promise.all([
+  const [bizRes, subRes, profileRes, logRes, notifRes, integRes, modRes] = await Promise.all([
     supabase
       .from("businesses")
       .select("id, name, sector, phone, email, address, logo_url, working_hours")
@@ -109,6 +109,8 @@ export default async function AyarlarPage() {
       .from("integrations")
       .select("provider, status, account_label, last_error, connected_at")
       .eq("business_id", businessId ?? ""),
+    // Açık modüller (0036). Ayrı sorgu: sütun yoksa yalnızca bu bölüm etkilenir.
+    supabase.from("businesses").select("enabled_modules").eq("id", businessId ?? "").maybeSingle(),
   ]);
 
   if (bizRes.error) console.error("ayarlar:", bizRes.error);
@@ -138,6 +140,10 @@ export default async function AyarlarPage() {
     auditLog: (logRes.data ?? []) as SettingsData["auditLog"],
     notifications: readNotifs(notifRes.data),
     integrations: (integRes.data ?? []) as SettingsData["integrations"],
+    modules: modRes.error
+      ? null
+      : ((modRes.data as { enabled_modules: string[] | null } | null)?.enabled_modules ?? null),
+    modulesReady: !modRes.error,
   };
 
   return <SettingsView data={data} loadFailed={Boolean(bizRes.error) || !biz} />;

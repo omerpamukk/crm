@@ -4,10 +4,18 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { authorize } from "@/lib/supabase/authorize";
+import { isRuleSupported, isSupportedAction, isSupportedTrigger } from "@/lib/automations/supported";
+
 import {
   automationSchema,
   MESSAGE_ACTIONS,
   PARAM_TRIGGERS,
+  TEMPLATE_FORMAT,
+  TEMPLATE_NAME,
+  TEMPLATE_REQUIRED,
+  UNSUPPORTED_ACTION,
+  UNSUPPORTED_TRIGGER,
+  WHATSAPP_ACTIONS,
   type AutomationInput,
 } from "./schema";
 
@@ -19,6 +27,13 @@ type ActionResult = { error?: string };
  * kuralları doğrulamaz — onlar burada.
  */
 function validateShape(v: AutomationInput): string | null {
+  if (!isSupportedTrigger(v.trigger_id)) return UNSUPPORTED_TRIGGER;
+  if (!isSupportedAction(v.action_id)) return UNSUPPORTED_ACTION;
+  if (WHATSAPP_ACTIONS.includes(v.action_id)) {
+    const name = v.wa_template?.trim() ?? "";
+    if (!name) return TEMPLATE_REQUIRED;
+    if (!TEMPLATE_NAME.test(name)) return TEMPLATE_FORMAT;
+  }
   if (MESSAGE_ACTIONS.includes(v.action_id) && !v.message?.trim()) {
     return "Bu aksiyon için mesaj metni gerekli.";
   }
@@ -57,6 +72,7 @@ export async function saveAutomation(
     action_id: v.action_id,
     action_param: v.action_param?.trim() || null,
     message: v.message?.trim() || null,
+    wa_template: WHATSAPP_ACTIONS.includes(v.action_id) ? v.wa_template?.trim() || null : null,
     updated_at: new Date().toISOString(),
   };
 
@@ -86,6 +102,18 @@ export async function toggleAutomation(
   const auth = await authorize(supabase, "musteri_yonet");
   if ("error" in auth) return { error: auth.error };
   const { businessId } = auth;
+
+  if (active) {
+    const { data: rule } = await supabase
+      .from("automations")
+      .select("trigger_id, action_id")
+      .eq("id", id)
+      .eq("business_id", businessId)
+      .maybeSingle();
+    if (rule && !isRuleSupported(rule as { trigger_id: string; action_id: string })) {
+      return { error: "Bu kural henüz çalışmıyor. Açmak için tetikleyicisini ya da aksiyonunu değiştirin." };
+    }
+  }
 
   const { error } = await supabase
     .from("automations")

@@ -82,17 +82,19 @@ const TAB_CLS =
  */
 export function TabBar({
   role,
+  modules,
   menuOpen,
   onOpenMenu,
   onOpenSearch,
 }: {
   role: UserRole
+  modules: string[] | null
   menuOpen: boolean
   onOpenMenu: () => void
   onOpenSearch: () => void
 }) {
   const pathname = usePathname()
-  const tabs = mobileTabsForRole(role)
+  const tabs = mobileTabsForRole(role, modules)
   const activeHref = tabs.find((t) => isActivePath(pathname, t.href))?.href
   const menuActive = menuOpen || !activeHref
 

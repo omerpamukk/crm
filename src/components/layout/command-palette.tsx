@@ -47,19 +47,21 @@ export function CommandPalette({
   open,
   onOpenChange,
   role,
+  modules = null,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   role?: UserRole;
+  modules?: string[] | null;
 }) {
   return (
     <AnimatePresence>
-      {open && <Palette onClose={() => onOpenChange(false)} role={role} />}
+      {open && <Palette onClose={() => onOpenChange(false)} role={role} modules={modules} />}
     </AnimatePresence>
   );
 }
 
-function Palette({ onClose, role }: { onClose: () => void; role?: UserRole }) {
+function Palette({ onClose, role, modules }: { onClose: () => void; role?: UserRole; modules: string[] | null }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<CustomerHit[]>([]);
@@ -67,7 +69,7 @@ function Palette({ onClose, role }: { onClose: () => void; role?: UserRole }) {
 
   const navItems: Item[] = useMemo(
     () =>
-      (role ? navSectionsForRole(role) : NAV_SECTIONS).flatMap((s) =>
+      (role ? navSectionsForRole(role, modules) : NAV_SECTIONS).flatMap((s) =>
         s.items.map((i) => ({
           id: i.href,
           label: i.label,
@@ -76,7 +78,7 @@ function Palette({ onClose, role }: { onClose: () => void; role?: UserRole }) {
           group: "Sayfalar",
         }))
       ),
-    [role]
+    [role, modules]
   );
   const quickActions = useMemo(
     () =>

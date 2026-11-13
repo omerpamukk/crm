@@ -144,6 +144,10 @@ export interface Customer {
   is_lead: boolean;
   assigned_to: string | null;
   pipeline_stage_id: string | null;
+  /** SMS/WhatsApp ticari ileti izni (0032); izin yoksa null. */
+  marketing_sms_at?: string | null;
+  /** E-posta ticari ileti izni (0032); izin yoksa null. */
+  marketing_email_at?: string | null;
 }
 
 export interface Interaction {

@@ -13,6 +13,8 @@ export const customerSchema = z.object({
   tags: z.string().optional(), // virgülle ayrılmış; DB'de text[] olarak saklanır
   birthday: z.string().optional(), // yyyy-mm-dd
   note: z.string().optional(),
+  /** SMS ve WhatsApp ile kampanya mesajı izni (İYS). */
+  marketing_consent: z.boolean().optional(),
 });
 
 export type CustomerInput = z.infer<typeof customerSchema>;
@@ -36,6 +38,7 @@ export const customerCreateSchema = z.object({
   source: z.string().optional(),
   tags: z.array(z.string()),
   note: z.string().optional(),
+  marketing_consent: z.boolean().optional(),
 });
 
 export type CustomerCreateInput = z.infer<typeof customerCreateSchema>;

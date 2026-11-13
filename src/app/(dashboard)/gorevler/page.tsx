@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getBusinessId } from "@/lib/supabase/business";
 import { getAccountContext } from "@/lib/supabase/account";
 import { can } from "@/lib/permissions";
+import { requireModule } from "@/lib/supabase/guard";
 
 import { TasksView } from "./tasks-view";
 import {
@@ -14,6 +15,7 @@ import {
 export const metadata = { title: "Görevler" };
 
 export default async function GorevlerPage() {
+  await requireModule("gorevler");
   const { role } = await getAccountContext();
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
