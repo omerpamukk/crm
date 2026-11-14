@@ -6,6 +6,7 @@ import {
   debtOverdueSince,
   fillTemplate,
   hasConsent,
+  isFirstVisit,
   isQuietHour,
   planAutomations,
   planRule,
@@ -63,8 +64,8 @@ describe("pazarlama izni", () => {
 
 describe("desteklenen kurallar", () => {
   it("olay anında çalışan tetikleyiciler ve mesaj dışı aksiyonlar desteklenmez", () => {
-    expect(isRuleSupported(rule("randevu_tamamlandi"))).toBe(false);
     expect(isRuleSupported(rule("yeni_lead"))).toBe(false);
+    expect(isRuleSupported(rule("noshow"))).toBe(false);
     expect(isRuleSupported(rule("randevu_oncesi", "gorev"))).toBe(false);
     expect(isRuleSupported(rule("randevu_oncesi", "wa"))).toBe(true);
   });
@@ -301,5 +302,18 @@ describe("çalışan kural ölçütü", () => {
   it("e-postalı kampanya kuralı çalışmaz, e-postalı randevu hatırlatması çalışır", () => {
     expect(isRuleSupported(rule("dogum_gunu", "eposta"))).toBe(false);
     expect(isRuleSupported(rule("randevu_oncesi", "eposta"))).toBe(true);
+  });
+});
+
+describe("yorum isteme", () => {
+  it("yalnızca ilk ziyaret", () => {
+    expect(isFirstVisit(["2026-11-14"], "2026-11-14")).toBe(true);
+    expect(isFirstVisit(["2026-11-14", "2026-11-14"], "2026-11-14")).toBe(true);
+    expect(isFirstVisit(["2026-10-01", "2026-11-14"], "2026-11-14")).toBe(false);
+    expect(isFirstVisit([], "2026-11-14")).toBe(false);
+  });
+
+  it("yorum kuralı desteklenir", () => {
+    expect(isRuleSupported(rule("randevu_tamamlandi", "sms"))).toBe(true);
   });
 });

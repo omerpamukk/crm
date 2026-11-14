@@ -31,7 +31,7 @@ export const TRIGGERS: {
   param?: ParamDef;
 }[] = [
   { id: "randevu_oncesi", label: "Randevudan önce", icon: Clock, param: { label: "Kaç saat önce?", unit: "saat", def: "24" } },
-  { id: "randevu_tamamlandi", label: "Randevu tamamlandığında", icon: CalendarCheck },
+  { id: "randevu_tamamlandi", label: "İlk ziyaretten sonra (yorum isteme)", icon: CalendarCheck },
   { id: "noshow", label: "Müşteri randevuya gelmediğinde", icon: CalendarX2 },
   { id: "yeni_lead", label: "Yeni lead eklendiğinde", icon: UserPlus },
   { id: "yeni_musteri", label: "Yeni müşteri eklendiğinde", icon: UserPlus },
@@ -129,6 +129,7 @@ export type Template = {
 const ALL_TEMPLATES: Template[] = [
   { title: "Randevu hatırlatma", trigger_id: "randevu_oncesi", trigger_param: 24, action_id: "wa", action_param: null, message: "Merhaba {ad}, yaklaşan randevunuzu hatırlatmak isteriz.", wa_template: "randevu_hatirlatma" },
   { title: "Paket yenileme", trigger_id: "paket_bitiyor", trigger_param: 1, action_id: "wa", action_param: null, message: "Merhaba {ad}, paketinizde son seansınız kaldı. Yenilemek isterseniz size yer ayıralım.", wa_template: "paket_yenileme" },
+  { title: "Yorum isteme", trigger_id: "randevu_tamamlandi", trigger_param: null, action_id: "sms", action_param: null, message: "Merhaba {ad}, bugünkü ziyaretiniz nasıldı? 1 dakikanızı ayırıp puan verir misiniz: {link}" },
   { title: "Ödeme hatırlatma", trigger_id: "odeme_gecikti", trigger_param: 7, action_id: "sms", action_param: null, message: "Merhaba {ad}, bekleyen ödemenizi hatırlatmak isteriz." },
   { title: "Doğum günü hediyesi", trigger_id: "dogum_gunu", trigger_param: null, action_id: "indirim", action_param: null, message: "İyi ki doğdunuz {ad}. Size özel bir indirim hediyemiz var.", wa_template: "dogum_gunu" },
   { title: "Geri kazanım", trigger_id: "pasif_musteri", trigger_param: 60, action_id: "sms", action_param: null, message: "Sizi özledik {ad}. Dönüşünüze özel bir fırsatımız var." },

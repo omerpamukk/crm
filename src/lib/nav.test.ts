@@ -28,7 +28,7 @@ describe("menü", () => {
 
   it("demo sayfalar menüde yok", () => {
     const hrefs = hrefsFor("owner");
-    for (const href of ["/mesajlar", "/yorumlar"]) {
+    for (const href of ["/mesajlar"]) {
       expect(hrefs).not.toContain(href);
     }
   });
@@ -70,7 +70,7 @@ describe("gruplu menü", () => {
     const items = navSectionsForRole("owner", ["kampanyalar", "v2"]).flatMap((s) => s.items);
     const p = items.find((i) => i.label === "Pazarlama");
     expect(p?.href).toBe("/kampanyalar");
-    expect(p?.tabs).toHaveLength(1);
+    expect(p?.tabs?.map((t) => t.href)).toEqual(["/kampanyalar", "/yorumlar"]);
   });
 
   it("sekme sayfasında öğe etkin görünür", () => {
