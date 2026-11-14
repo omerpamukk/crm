@@ -63,7 +63,7 @@ export interface NavSection {
  *
  * Yedi ana başlık; aynı işin sayfaları tek başlık altında sekme olur
  * (Takvim + liste, Satışlar + Cari Hesap, Fırsatlar + Kampanyalar +
- * Hatırlatmalar, Raporlar + Giderler, Hizmetler + Personel + Randevu
+ * Hatırlatmalar, Raporlar + Doluluk + Giderler, Hizmetler + Personel + Randevu
  * Linki). İkinci bölüm, işletmenin açtığı ek modüllerdir.
  *
  * Menüde OLMAYAN ama çalışan sayfalar: /mesajlar, /yorumlar — dış
@@ -115,6 +115,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: BarChart3,
         tabs: [
           { href: "/raporlar", label: "Raporlar", cap: "raporlar" },
+          { href: "/doluluk", label: "Doluluk", cap: "raporlar" },
           { href: "/giderler", label: "Giderler", cap: "finans" },
         ],
       },
