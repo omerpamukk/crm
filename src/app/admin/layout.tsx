@@ -42,7 +42,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-svh">
       <div aria-hidden className="app-wall" />
-      <header className="glass sticky top-0 z-30">
+      <header className="glass sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 md:h-16">
           <div className="flex min-w-0 items-center gap-5">
             <Link href="/admin" className="focus-ring flex min-w-0 items-center gap-2.5 rounded-lg">

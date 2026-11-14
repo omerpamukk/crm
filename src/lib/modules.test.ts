@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { navSectionsForRole } from "./nav";
+import { navPagesForRole } from "./nav";
 import {
   MODULE_OF_PATH,
   VERSION_MARK,
@@ -14,7 +14,7 @@ import {
 } from "./modules";
 
 const hrefs = (modules: string[] | null) =>
-  navSectionsForRole("owner", modules).flatMap((s) => s.items.map((i) => i.href));
+  navPagesForRole("owner", modules).map((p) => p.href);
 
 describe("modüller", () => {
   it("eski işletmede (null) her şey açık", () => {

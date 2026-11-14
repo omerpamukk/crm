@@ -4,11 +4,10 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "motion/react"
 
-import { mobileTabsForRole, MOBILE_TAB_HREFS } from "@/lib/nav"
+import { mobileTabsForRole, MOBILE_TAB_HREFS, isItemActive } from "@/lib/nav"
 import type { UserRole } from "@/types/database"
 import { cn } from "@/lib/utils"
 import { spring } from "@/lib/motion"
-import { isActivePath } from "./sidebar"
 
 /* Sekme çubuğu simgeleri: dolu (HIG › Tab bars "Prefer filled symbols") */
 function GridIcon() {
@@ -95,7 +94,7 @@ export function TabBar({
 }) {
   const pathname = usePathname()
   const tabs = mobileTabsForRole(role, modules)
-  const activeHref = tabs.find((t) => isActivePath(pathname, t.href))?.href
+  const activeHref = tabs.find((t) => isItemActive(pathname, t))?.href
   const menuActive = menuOpen || !activeHref
 
   return (
