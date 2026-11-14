@@ -26,15 +26,23 @@ export async function requireCapability(cap: Capability) {
  * kullanıcı modülü açabileceği Ayarlar bölümüne yönlenir.
  */
 export async function requireModule(key: ModuleKey) {
+  const enabled = await getEnabledModules();
+  if (!isModuleEnabled(enabled, key)) redirect("/ayarlar?bolum=moduller");
+}
+
+/**
+ * İşletmenin modül listesi (null = hepsi açık). Okunamazsa null döner:
+ * modül yüzünden sayfa kırılmaz.
+ */
+export async function getEnabledModules(): Promise<string[] | null> {
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
-  if (!businessId) return;
+  if (!businessId) return null;
   const { data, error } = await supabase
     .from("businesses")
     .select("enabled_modules")
     .eq("id", businessId)
     .maybeSingle();
-  if (error) return;
-  const enabled = (data as { enabled_modules: string[] | null } | null)?.enabled_modules ?? null;
-  if (!isModuleEnabled(enabled, key)) redirect("/ayarlar?bolum=moduller");
+  if (error) return null;
+  return (data as { enabled_modules: string[] | null } | null)?.enabled_modules ?? null;
 }

@@ -19,6 +19,7 @@ import {
   Link2,
   Bell,
   ListTodo,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 
@@ -56,7 +57,7 @@ export interface NavSection {
  * Dashboard sol menüsü — katlanabilir bölümler halinde.
  *
  * Menüde OLMAYAN ama çalışan sayfalar (Kasım 2026, kullanıcı kararı):
- * /mesajlar, /eposta-sms, /yorumlar — dış entegrasyon bekleyen, örnek
+ * /mesajlar, /yorumlar — dış entegrasyon bekleyen, örnek
  * veriyle çalışan demo sayfalar. İlgili bağlantı (WhatsApp/SMS/Google)
  * kurulunca buraya geri eklenir.
  *
@@ -93,6 +94,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/leadler", label: "Lead'ler", icon: Columns3, cap: "musteri_yonet" },
       { href: "/firsatlar", label: "Gelir Fırsatları", icon: Sparkles, cap: "musteri_yonet" },
+      { href: "/kampanyalar", label: "Kampanyalar", icon: Megaphone, cap: "musteri_yonet" },
       { href: "/randevu-linki", label: "Randevu Linki", icon: Link2, cap: "randevu_yonet" },
       { href: "/hatirlaticilar", label: "Hatırlatmalar", icon: Bell, cap: "musteri_yonet" },
     ],

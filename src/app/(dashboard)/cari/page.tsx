@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAccountContext } from "@/lib/supabase/account";
 import { can } from "@/lib/permissions";
-import { requireCapability } from "@/lib/supabase/guard";
+import { requireCapability, requireModule } from "@/lib/supabase/guard";
 import { getBusinessId } from "@/lib/supabase/business";
 import { fetchCustomerBalances, isOverdue } from "@/lib/balances";
 import { paymentMethodLabel } from "@/lib/constants";
@@ -20,6 +20,7 @@ function pickOne<T>(v: T | T[] | null): T | null {
 
 export default async function CariPage() {
   await requireCapability("tahsilat");
+  await requireModule("cari");
   const { role } = await getAccountContext();
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);

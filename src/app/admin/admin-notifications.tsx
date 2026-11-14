@@ -22,7 +22,7 @@ export function AdminNotifications({ items, count }: { items: NotifItem[]; count
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="relative flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label="Bildirimler">
+        <button className="focus-ring hover-tint relative grid size-9 place-items-center rounded-full text-label-2" aria-label="Bildirimler">
           <Bell className="size-5" />
           {count > 0 && (
             <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-4 text-white">

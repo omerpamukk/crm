@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertPerm } from "@/lib/supabase/admin-context";
 import { logAdminAction } from "@/lib/supabase/audit";
-import { MODULE_KEYS } from "@/lib/modules";
+import { cleanModules, presetForSector } from "@/lib/modules";
 
 export interface ProvisionInput {
   businessName: string;
@@ -14,6 +14,8 @@ export interface ProvisionInput {
   email: string;
   password?: string;
   plan: string;
+  /** Açık modüller; verilmezse sektörün hazır seti. */
+  modules?: string[];
 }
 
 type Result = { ok: boolean; error?: string; credentials?: { email: string; password: string } };
@@ -73,8 +75,12 @@ export async function provisionBusiness(input: ProvisionInput): Promise<Result> 
   // 4) Firma
   const { data: biz, error: bErr } = await admin
     .from("businesses")
-    // Yeni firma bütün modüller açık başlar (0036); kullanmadığını Ayarlar → Modüller'den kapatır.
-    .insert({ name: businessName, sector: input.sector || null, enabled_modules: MODULE_KEYS })
+    // Yeni firma yalnızca seçilen modüllerle başlar (0036); seçim yoksa sektörün seti.
+    .insert({
+      name: businessName,
+      sector: input.sector || null,
+      enabled_modules: cleanModules(Array.isArray(input.modules) ? input.modules : presetForSector(input.sector)),
+    })
     .select("id")
     .single();
   if (bErr || !biz) {

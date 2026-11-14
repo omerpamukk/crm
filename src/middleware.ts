@@ -13,7 +13,7 @@ const PROTECTED_PREFIXES = [
   "/randevu-linki",
   "/mesajlar",
   "/hatirlaticilar",
-  "/eposta-sms",
+  "/kampanyalar",
   "/stok",
   "/yorumlar",
   "/gorevler",

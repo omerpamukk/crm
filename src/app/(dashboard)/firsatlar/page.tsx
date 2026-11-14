@@ -4,7 +4,8 @@ import { getBusinessId } from "@/lib/supabase/business";
 import { fetchDebtors } from "@/lib/balances";
 import { SEGMENTS, type Rhythm } from "@/lib/customer-rhythm";
 import { fetchRhythm, isWinnable } from "@/lib/rhythm-query";
-import { requireCapability } from "@/lib/supabase/guard";
+import { getEnabledModules, requireCapability, requireModule } from "@/lib/supabase/guard";
+import { isModuleEnabled } from "@/lib/modules";
 import { DAY, daysUntilBirthday } from "../panel/dates";
 import type { PackageOption, ServiceOption, StaffOption } from "../musteriler/customer-types";
 
@@ -37,6 +38,9 @@ type ApptRow = {
 
 export default async function FirsatlarPage() {
   const { role } = await requireCapability("musteri_yonet");
+  await requireModule("firsatlar");
+  const modules = await getEnabledModules();
+  const on = (k: Parameters<typeof isModuleEnabled>[1]) => isModuleEnabled(modules, k);
   const abilities = { book: can(role, "randevu_yonet"), pay: can(role, "tahsilat") };
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
@@ -201,15 +205,22 @@ export default async function FirsatlarPage() {
   }));
 
   const categories: OppCategory[] = [
-    { key: "paket", title: "Paketi bitmek üzere", hint: "Yenileme teklifi sunun", count: ending.length, items: ending, link: abilities.pay ? { href: "/paketler", label: "Paketler" } : null },
+    { key: "paket", title: "Paketi bitmek üzere", hint: "Yenileme teklifi sunun", count: ending.length, items: ending, link: abilities.pay && on("paketler") ? { href: "/paketler", label: "Paketler" } : null },
     { key: "gerikazan", title: "Geri kazanılabilir", hint: "Kendi düzenine göre gecikti; geri dönme ihtimali yüksek", count: winnable.length, items: winback, link: { href: "/musteriler", label: "Müşteriler" } },
     { key: "dogumgunu", title: "Bu hafta doğum günü", hint: "Tebrik edin, hediye seans önerin", count: birthday.length, items: birthday, link: { href: "/musteriler", label: "Müşteriler" } },
     { key: "iptal", title: "Randevuya gelmeyenler", hint: "Yeni bir tarih önerin", count: noShow.length, items: noShow, link: { href: "/randevular", label: "Randevular" } },
     { key: "lead", title: "Randevu almayan lead'ler", hint: "Görüştünüz ama randevu oluşmadı", count: noBooking.length, items: noBooking, link: { href: "/leadler", label: "Lead'ler" } },
-    { key: "borc", title: "Açık borcu olanlar", hint: "Nazik bir hatırlatma gönderin", count: debt.length, items: debt, link: abilities.pay ? { href: "/cari", label: "Cari Hesap" } : null },
+    { key: "borc", title: "Açık borcu olanlar", hint: "Nazik bir hatırlatma gönderin", count: debt.length, items: debt, link: abilities.pay && on("cari") ? { href: "/cari", label: "Cari Hesap" } : null },
   ];
   // Borç yalnızca tahsilat yetkisi olana gösterilir (Genel Bakış'taki gibi)
-  const shown = categories.filter((c) => c.key !== "borc" || abilities.pay);
+  // Lead kategorisi Lead'ler modülü kapalıysa görünmez; paket kategorisi de
+  // Paketler kapalıyken (ve paketi olan yoksa) anlamsız.
+  const shown = categories.filter(
+    (c) =>
+      (c.key !== "borc" || abilities.pay) &&
+      (c.key !== "lead" || on("leadler")) &&
+      (c.key !== "paket" || on("paketler") || c.count > 0)
+  );
 
   const services = ((servicesRes?.data ?? []) as ServiceOption[]) ?? [];
   const staff = ((staffRes?.data ?? []) as StaffOption[]) ?? [];

@@ -28,25 +28,25 @@ export function AdminUserMenu({ email }: { email: string }) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-2 rounded-full border bg-card py-1 pl-1 pr-2.5 text-left transition-colors hover:bg-muted aria-expanded:bg-muted"
+          aria-label="Hesap" className="focus-ring hover-tint flex items-center gap-1.5 rounded-full p-1 text-left sm:pr-2.5"
         >
-          <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-primary to-violet-500 text-[10px] font-bold text-white">
+          <span className="grid size-7 place-items-center rounded-full bg-[var(--mono)] text-[10px] font-bold text-white">
             {initials}
           </span>
-          <span className="hidden max-w-40 truncate text-xs font-medium text-muted-foreground sm:block">{email}</span>
-          <ChevronDown className="size-3.5 text-muted-foreground" />
+          <span className="hidden max-w-40 truncate text-footnote font-medium text-label-2 sm:block">{email}</span>
+          <ChevronDown className="hidden size-3.5 text-label-2 sm:block" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuLabel className="flex items-center gap-2.5 py-2">
-          <span className="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-violet-500 text-xs font-bold text-white">
+          <span className="grid size-9 place-items-center rounded-full bg-[var(--mono)] text-xs font-bold text-white">
             {initials}
           </span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold">{email}</span>
             <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
               <ShieldCheck className="size-3 text-primary" />
-              Süper-Admin
+              Ajans yöneticisi
             </span>
           </span>
         </DropdownMenuLabel>

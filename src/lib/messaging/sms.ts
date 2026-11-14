@@ -44,6 +44,35 @@ export const netgsmProvider: Provider = {
   },
 };
 
+/**
+ * Toplu gönderim: tek istekte birden çok, kişiye özel metin (Netgsm n:n).
+ * Numaralar önceden normalize edilmiş olmalı. Sonuç tüm parça için tektir.
+ */
+export async function sendNetgsmBatch(
+  messages: { no: string; msg: string }[],
+  creds: Credentials
+): Promise<SendResult> {
+  const { usercode, password, msgheader } = creds;
+  if (!usercode || !password || !msgheader) {
+    return { ok: false, error: "SMS sağlayıcı bilgileri eksik." };
+  }
+  if (messages.length === 0) return { ok: true };
+  try {
+    const res = await fetch("https://api.netgsm.com.tr/sms/rest/v2/send", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${usercode}:${password}`).toString("base64")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ msgheader, encoding: "TR", messages }),
+    });
+    return parseNetgsmResponse(await res.text());
+  } catch (error) {
+    console.error("netgsm batch:", error);
+    return { ok: false, error: "SMS gönderilemedi." };
+  }
+}
+
 /** Netgsm REST v2 yanıtı: { code: "00", jobid: "…" } başarılı; diğer kodlar hata. */
 export function parseNetgsmResponse(text: string): SendResult {
   try {

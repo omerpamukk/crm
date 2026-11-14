@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { NAV_SECTIONS, navSectionsForRole } from "@/lib/nav";
+import { isModuleEnabled } from "@/lib/modules";
 import { can } from "@/lib/permissions";
 import type { UserRole } from "@/types/database";
 import { spring } from "@/lib/motion";
@@ -83,13 +84,13 @@ function Palette({ onClose, role, modules }: { onClose: () => void; role?: UserR
   const quickActions = useMemo(
     () =>
       QUICK_ACTIONS.filter((a) => {
-        if (!role) return true;
+        if (!role) return a.id !== "qa-lead" || isModuleEnabled(modules, "leadler");
         if (a.id === "qa-payment") return can(role, "tahsilat");
         if (a.id === "qa-appt") return can(role, "randevu_yonet");
         if (a.id === "qa-customer") return can(role, "musteri_ekle");
-        return can(role, "musteri_yonet");
+        return can(role, "musteri_yonet") && isModuleEnabled(modules, "leadler");
       }),
-    [role]
+    [role, modules]
   );
 
   // ESC ile kapat + palet açıkken arka planın kaymasını engelle.

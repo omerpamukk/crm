@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2, CheckCircle2, PauseCircle, Banknote, Plus } from "lucide-react";
+import { Building2, Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext, can } from "@/lib/supabase/admin-context";
@@ -7,7 +7,8 @@ import { formatDate, formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { SubscriptionStatus } from "@/types/database";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Metric, MetricStrip } from "@/components/shared/metric";
+import { EmptyState } from "@/components/shared/empty-state";
 
 import { AdminFirmList, type FirmRow } from "./admin-firm-list";
 
@@ -82,44 +83,34 @@ export default async function AdminHomePage() {
     };
   });
 
-  const summary = [
-    { label: "Toplam Firma", value: String(businesses.length), icon: Building2, tone: "bg-primary/10 text-primary", bar: "border-l-primary" },
-    { label: "Aktif Abonelik", value: String(activeCount), icon: CheckCircle2, tone: "bg-positive/10 text-positive", bar: "border-l-positive" },
-    { label: "Askıda / İptal", value: String(suspendedCount), icon: PauseCircle, tone: "bg-warning/12 text-amber-600", bar: "border-l-warning" },
-    { label: "Aylık Gelir (MRR)", value: formatPrice(mrr), icon: Banknote, tone: "bg-positive/10 text-positive", bar: "border-l-positive" },
-  ];
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Firmalar</h1>
-          <p className="text-sm text-muted-foreground">Tüm işletmeleri görüntüle, yönet ve yeni firma oluştur.</p>
-        </div>
-        {canCreate && (
-          <Link href="/admin/firma-olustur" className={cn(buttonVariants())}>
-            <Plus className="size-4" />
-            Yeni Firma
-          </Link>
-        )}
+      <div>
+        <h1 className="page-title">Firmalar</h1>
+        <p className="text-subhead text-label-2">Tüm işletmeleri gör, yönet{canCreate ? ", yenisini aç" : ""}.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {summary.map((s) => {
-          const Icon = s.icon;
-          return (
-            <Card key={s.label} className={cn("border-l-4", s.bar)}>
-              <CardContent className="flex items-center justify-between p-4">
-                <div><p className="text-sm text-muted-foreground">{s.label}</p><p className="mt-1 text-2xl font-bold tabular-nums">{s.value}</p></div>
-                <span className={cn("flex size-10 items-center justify-center rounded-lg", s.tone)}><Icon className="size-5" /></span>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <MetricStrip aria-label="Firma özeti">
+        <Metric label="Toplam firma" value={String(businesses.length)} />
+        <Metric label="Aktif abonelik" value={String(activeCount)} />
+        <Metric label="Askıda / iptal" value={String(suspendedCount)} tone={suspendedCount > 0 ? "danger" : "default"} />
+        <Metric label="Aylık gelir" value={formatPrice(mrr)} context="aktif aboneliklerden" />
+      </MetricStrip>
 
       {businesses.length === 0 ? (
-        <Card><CardContent className="py-16 text-center text-sm text-muted-foreground">Henüz firma yok. “Yeni Firma” ile ilk işletmeyi oluştur.</CardContent></Card>
+        <EmptyState
+          icon={Building2}
+          title="Henüz firma yok"
+          description={canCreate ? "İlk işletmeyi açınca burada listelenir." : "Firma açıldığında burada listelenir."}
+          action={
+            canCreate ? (
+              <Link href="/admin/firma-olustur" className={cn(buttonVariants())}>
+                <Plus />
+                Yeni firma
+              </Link>
+            ) : undefined
+          }
+        />
       ) : (
         <AdminFirmList rows={rows} />
       )}
