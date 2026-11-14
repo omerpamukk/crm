@@ -129,7 +129,7 @@ export function PanelShell({
           }
           secondary={
             canCollect ? (
-              <ToolbarAction icon={Banknote} label="Ödeme al" mobile="icon" onClick={() => actions.openPayment()} />
+              <ToolbarAction icon={Banknote} label="Ödeme al" mobile="label" onClick={() => actions.openPayment()} />
             ) : undefined
           }
           primary={

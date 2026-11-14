@@ -31,10 +31,10 @@ const SHORT_DATE = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "sh
 export const fmtShortDate = (iso: string): string => SHORT_DATE.format(new Date(iso));
 
 export const PERIODS = [
-  { key: "bugun", label: "Bugün", comp: "dünle aynı saate göre" },
+  { key: "bugun", label: "Bugün", comp: "düne göre" },
   { key: "hafta", label: "Bu Hafta", comp: "geçen haftaya göre" },
-  { key: "ay", label: "Bu Ay", comp: "geçen ay aynı döneme göre" },
-  { key: "yil", label: "Bu Yıl", comp: "geçen yıl aynı döneme göre" },
+  { key: "ay", label: "Bu Ay", comp: "geçen aya göre" },
+  { key: "yil", label: "Bu Yıl", comp: "geçen yıla göre" },
 ] as const;
 export type PeriodKey = (typeof PERIODS)[number]["key"];
 

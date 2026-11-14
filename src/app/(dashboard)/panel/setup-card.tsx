@@ -1,31 +1,28 @@
-import { CircleCheck, Circle } from "lucide-react";
+import { Circle } from "lucide-react";
 
 import { ListGroup, ListRow } from "@/components/shared/list-group";
 import type { SetupStep } from "@/lib/setup/checklist";
 
 /**
  * İlk kurulum kartı: yalnızca işletme sahibine, adımlar bitene kadar.
- * Her satır ilgili sayfaya gider; biten adım tikli ve soluk görünür.
+ * Yalnızca kalan adımlar listelenir (bitenler ekranda yer kaplamasın);
+ * her satır ilgili sayfaya gider.
  */
 export function SetupCard({ steps }: { steps: SetupStep[] }) {
-  const done = steps.filter((s) => s.done).length;
-  if (done === steps.length) return null;
-  const next = steps.find((s) => !s.done);
+  const pending = steps.filter((s) => !s.done);
+  if (pending.length === 0) return null;
+  const done = steps.length - pending.length;
   return (
     <ListGroup title="Kurulum" detail={`${done}/${steps.length} tamamlandı`} inset={52}>
-      {steps.map((s) => (
+      {pending.map((s, i) => (
         <ListRow
           key={s.key}
           href={s.href}
           leading={
-            s.done ? (
-              <CircleCheck aria-label="Tamamlandı" className="size-[22px] text-positive-text" />
-            ) : (
-              <Circle aria-label="Yapılacak" className={s.key === next?.key ? "size-[22px] text-primary-text" : "size-[22px] text-label-3"} />
-            )
+            <Circle aria-label="Yapılacak" className={i === 0 ? "size-[22px] text-primary-text" : "size-[22px] text-label-3"} />
           }
-          title={<span className={s.done ? "text-label-2" : undefined}>{s.title}</span>}
-          subtitle={s.done ? "Tamam" : s.hint}
+          title={s.title}
+          subtitle={s.hint}
         />
       ))}
     </ListGroup>

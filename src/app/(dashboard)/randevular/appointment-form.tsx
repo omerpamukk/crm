@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Disclosure } from "@/components/ui/disclosure";
 import {
   Select,
   SelectContent,
@@ -95,6 +96,7 @@ export function AppointmentForm({
     handleSubmit,
     control,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<AppointmentInput>({
     resolver: zodResolver(appointmentSchema),
@@ -110,6 +112,17 @@ export function AppointmentForm({
       note: appointment?.note ?? "",
     },
   });
+
+  useEffect(() => {
+    if (isEdit || presetStartsAt || getValues("starts_at")) return;
+    const half = 30 * 60 * 1000;
+    const next = new Date(Math.ceil(Date.now() / half) * half).toISOString();
+    setValue("starts_at", toDateTimeLocal(next));
+  }, [isEdit, presetStartsAt, getValues, setValue]);
+
+  const [moreOpen, setMoreOpen] = useState(
+    () => Boolean(appointment && (appointment.note || appointment.price != null))
+  );
 
   const selectedCustomer = useWatch({ control, name: "customer_id" });
   const selectedService = useWatch({ control, name: "service_id" });
@@ -378,19 +391,7 @@ export function AppointmentForm({
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="price">Ücret (₺)</Label>
-          <Input
-            id="price"
-            inputMode="decimal"
-            placeholder="Hizmetin ücreti otomatik gelir"
-            {...register("price")}
-          />
-          {errors.price && (
-            <p role="alert" className="text-[0.875rem] text-danger-text">{errors.price.message}</p>
-          )}
-        </div>
+      {customerPackages.length > 0 && (
         <div className="space-y-2">
           <Label htmlFor="package_id">Pakete bağla</Label>
           <Controller
@@ -420,12 +421,26 @@ export function AppointmentForm({
             Tamamlandığında seçili paketten 1 seans düşülür.
           </p>
         </div>
-      </div>
+      )}
 
-      <div className="space-y-2">
-        <Label htmlFor="note">Not</Label>
-        <Textarea id="note" rows={3} {...register("note")} />
-      </div>
+      <Disclosure title="Ücret ve not" open={moreOpen || Boolean(errors.price)} onOpenChange={setMoreOpen} contentClassName="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="price">Ücret (₺)</Label>
+          <Input
+            id="price"
+            inputMode="decimal"
+            placeholder="Hizmetin ücreti otomatik gelir"
+            {...register("price")}
+          />
+          {errors.price && (
+            <p role="alert" className="text-[0.875rem] text-danger-text">{errors.price.message}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="note">Not</Label>
+          <Textarea id="note" rows={3} {...register("note")} />
+        </div>
+      </Disclosure>
 
       {formError && <p role="alert" className="text-[0.875rem] text-danger-text">{formError}</p>}
 

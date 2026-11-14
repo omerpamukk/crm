@@ -16,7 +16,7 @@ type Common = {
    * Telefonda (<768px): "icon" → 44px cam daire; "hidden" → gizli.
    * Birincil eylem her zaman simge olarak görünür.
    */
-  mobile?: "icon" | "hidden"
+  mobile?: "icon" | "label" | "hidden"
   /** Simgenin köşesindeki sayı (ör. etkin filtre sayısı). */
   badge?: number
   className?: string
@@ -42,13 +42,13 @@ export const ToolbarAction = React.forwardRef<HTMLButtonElement & HTMLAnchorElem
       prominent
         ? "bg-[image:var(--prom-sheen)] bg-primary-fill text-on-primary-fill shadow-[var(--prom-shadow)] hover:bg-[color:var(--primary-press)]"
         : "glass text-label hover:brightness-[1.04] aria-expanded:text-primary-text",
-      mobileMode === "icon" ? "max-md:size-11 max-md:px-0" : "max-md:hidden",
+      mobileMode === "icon" ? "max-md:size-11 max-md:px-0" : mobileMode === "label" ? "max-md:h-11 max-md:px-4" : "max-md:hidden",
       className
     )
     const inner = (
       <>
-        <Icon aria-hidden className="size-4 shrink-0 max-md:size-[22px]" />
-        <span className="max-md:sr-only">{label}</span>
+        <Icon aria-hidden className={cn("size-4 shrink-0", mobileMode !== "label" && "max-md:size-[22px]")} />
+        <span className={mobileMode === "label" ? undefined : "max-md:sr-only"}>{label}</span>
         {badge ? (
           <span
             aria-hidden

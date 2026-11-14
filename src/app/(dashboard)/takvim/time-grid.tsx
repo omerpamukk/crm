@@ -324,7 +324,8 @@ function Column({
             const density = h < 28 ? "tiny" : h < 44 ? "compact" : "regular";
             // Ölçülmeden önce (sunucu çıktısı) tam metin; ölçünce darlığa göre kısalır
             const px = width ? (width * slot.span) / slot.cols - 4 : Infinity;
-            const narrow = px < 84;
+            const narrow = px < 128;
+            const roomy = px >= 150;
             const sliver = px < 34;
             return (
               <AppointmentBlock
@@ -338,7 +339,7 @@ function Column({
                       ? timeSpan(a).split("–")[0]
                       : [timeSpan(a), a.service_name].filter(Boolean).join(" · ")
                 }
-                aside={narrow ? undefined : (initialsFor?.(a) ?? undefined)}
+                aside={roomy ? (initialsFor?.(a) ?? undefined) : undefined}
                 density={density}
                 selected={selectedId === a.id}
                 aria-label={blockLabel(a)}

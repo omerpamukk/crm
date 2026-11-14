@@ -99,7 +99,7 @@ export function PageHeader({
             {title}
           </h1>
           {description && (
-            <p className="col-start-2 mt-0.5 max-w-2xl text-[0.9375rem] text-label-2w">{description}</p>
+            <p className="col-start-2 mt-0.5 hidden max-w-2xl text-[0.9375rem] text-label-2w md:block">{description}</p>
           )}
         </div>
         {(context || children) && (
