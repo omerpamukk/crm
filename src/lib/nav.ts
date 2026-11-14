@@ -18,7 +18,7 @@ import {
   Grid3x3,
   Scissors,
   UserCog,
-  Receipt,
+  ReceiptTurkishLira,
   type LucideIcon,
 } from "lucide-react";
 
@@ -140,7 +140,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/hizmetler", label: "Hizmetler", icon: Scissors, cap: "randevu_yonet" },
       { href: "/personel", label: "Personel", icon: UserCog, cap: "personel_yonet" },
       { href: "/stok", label: "Stok", icon: Boxes, cap: "tahsilat" },
-      { href: "/giderler", label: "Giderler", icon: Receipt, cap: "finans" },
+      { href: "/giderler", label: "Giderler", icon: ReceiptTurkishLira, cap: "finans" },
     ],
   },
 ];

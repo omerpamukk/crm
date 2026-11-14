@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ListFilter, MoreHorizontal, Pencil, Plus, Receipt, Search, Trash2 } from "lucide-react";
+import { ListFilter, MoreHorizontal, Pencil, Plus, ReceiptTurkishLira, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { EXPENSE_CATEGORIES, expenseCategoryLabel, paymentMethodLabel } from "@/lib/constants";
@@ -218,7 +218,7 @@ export function ExpensesView({
     ) : (
       <EmptyState
         variant="inline"
-        icon={Receipt}
+        icon={ReceiptTurkishLira}
         title="Bu dönemde gider yok"
         description="Başka bir dönem seçebilir ya da bu döneme yeni bir gider ekleyebilirsiniz."
         action={
@@ -303,7 +303,7 @@ export function ExpensesView({
         />
       ) : totalCount === 0 ? (
         <EmptyState
-          icon={Receipt}
+          icon={ReceiptTurkishLira}
           title="Henüz gider yok"
           description="Kira, maaş, malzeme gibi giderlerinizi ekleyin; net kârınız otomatik hesaplansın."
           action={
