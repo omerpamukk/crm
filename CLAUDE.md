@@ -138,9 +138,17 @@ Tokenlar `src/app/globals.css`, hareket `src/lib/motion.ts`.
   FilterBar → DataTable. Sayfa ritmi `space-y-8`, grid `gap-4`/`gap-5`.
 - **Kabuk.** ≥1280 yüzen cam kenar çubuğu (gizlenebilir, tercih çerezde);
   768–1279 kenar çubuğu düğmeyle içeriğin üstüne açılır; <768 cam sekme
-  çubuğu (Genel Bakış · Takvim · Müşteriler · Menü) + ayrı arama düğmesi,
+  çubuğu (Genel Bakış · Randevular · Müşteriler · Menü) + ayrı arama düğmesi,
   Menü alt sayfada. Komut paleti ⌘K/Ctrl+K. Tema: kullanıcı menüsünde
   Açık / Koyu / Sistem (varsayılan Sistem).
+- **Menü.** Yedi başlık (Genel Bakış, Randevular, Müşteriler, Satışlar,
+  Pazarlama, Raporlar, İşletme) + açılan modüller (Lead'ler, Paketler, Stok,
+  Görevler). Aynı işin sayfaları menüde tek satır, sayfada `PageTabs`
+  segmenti (`src/lib/nav.ts` `tabs`). Yeni sayfa önce bir gruba girer;
+  menüye ancak ayrı bir iş ise yeni başlık eklenir.
+- **Telefonda uygulama.** Ana ekrana eklenince tam ekran açılır
+  (`manifest.ts`, `appleWebApp`); üst çubuk `--toolbar-h` durum çubuğu
+  payını içerir.
 - **Hareket.** Her hareket yaydır (`spring.default` sıçramasız ~0.35 sn,
   `spring.momentum` fırlatmadan sonra hafif sıçrama); motion'ın `animate`,
   `drag`, `dragElastic` (lastik bant) ve `useMotionPreset` kullanılır, elle

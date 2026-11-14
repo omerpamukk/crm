@@ -14,6 +14,7 @@
 
 export const SUPPORTED_TRIGGERS = [
   "randevu_oncesi",
+  "randevu_tamamlandi",
   "odeme_gecikti",
   "paket_bitiyor",
   "pasif_musteri",

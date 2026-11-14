@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getAccountContext } from "@/lib/supabase/account";
 import { can } from "@/lib/permissions";
 import { getBusinessId } from "@/lib/supabase/business";
+import { getEnabledModules } from "@/lib/supabase/guard";
+import { isModuleEnabled } from "@/lib/modules";
 import { fetchDebtors, isOverdue, summarizeBalances } from "@/lib/balances";
 import { canChangeArrival } from "@/lib/appointment-status";
 import { Avatar } from "@/components/ui/avatar";
@@ -85,6 +87,9 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
 
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
+  const modules = await getEnabledModules();
+  const showOpp = isModuleEnabled(modules, "firsatlar");
+  const hasCari = isModuleEnabled(modules, "cari");
 
   // Uzman yalnızca kendi randevularını görür; personel kaydına bağlı değilse hiçbirini.
   let staffId: string | null = null;
@@ -294,7 +299,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
           <Metric
             label="Açık borç"
             value={formatMoney(totalDebt)}
-            href="/cari"
+            href={hasCari ? "/cari" : undefined}
             tone={totalDebt > 0 ? "danger" : "default"}
             flag={overdueCount > 0 ? `${overdueCount} gecikmiş` : undefined}
             context={debtors.length > 0 ? `${debtors.length} müşteri` : "Açık borç yok"}
@@ -309,9 +314,9 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
           <TodaySchedule appointments={schedule} nowIso={now.toISOString()} canPay={canFinance} canCreate={canCreate} />
         )}
 
-        {(canCustomers || canFinance) && (
+        {((canCustomers && showOpp) || canFinance) && (
           <div className="min-w-0 space-y-8">
-            {canCustomers && (
+            {canCustomers && showOpp && (
               <ListGroup
                 title="Gelir Fırsatları"
                 detail={oppTotal > 0 ? `${oppTotal} fırsat` : undefined}
@@ -343,9 +348,11 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
                     <span className="min-w-0 truncate">
                       {debtors.length > 5 ? `${debtors.length - 5} müşteri daha · ${formatMoney(debtors.slice(5).reduce((s, x) => s + x.debt, 0))}` : ""}
                     </span>
-                    <Link href="/cari" className="focus-ring shrink-0 rounded font-medium text-primary-text">
-                      Cari Hesap
-                    </Link>
+                    {hasCari && (
+                      <Link href="/cari" className="focus-ring shrink-0 rounded font-medium text-primary-text">
+                        Cari Hesap
+                      </Link>
+                    )}
                   </>
                 }
               >

@@ -222,7 +222,7 @@
   --radius: 0.875rem; /* 14px — içerik grupları */
   --radius-ctl: 9px; /* metin alanı, küçük denetim */
   --sidebar-w: 248px;
-  --toolbar-h: 60px;
+  --toolbar-h: calc(60px + env(safe-area-inset-top, 0px)); /* ana ekrandan açılınca durum çubuğu payı */
   --dur-spring: 420ms; /* CSS yayının süresi (görsel ~0.3 sn) */
   --toast-bottom: 24px;
 

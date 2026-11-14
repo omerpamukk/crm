@@ -2,29 +2,37 @@ import {
   LayoutDashboard,
   Users,
   Columns3,
-  Scissors,
-  CalendarDays,
   CalendarRange,
   Package,
   Sparkles,
   ShoppingBag,
+  Boxes,
   BarChart3,
-  Scale,
-  Receipt,
-  UserCog,
   Home,
-  ShoppingCart,
   Building2,
-  TrendingUp,
-  Link2,
-  Bell,
   ListTodo,
+  Megaphone,
+  Bell,
+  Star,
+  Link2,
+  Grid3x3,
+  Scissors,
+  UserCog,
+  Receipt,
   type LucideIcon,
 } from "lucide-react";
 
 import type { UserRole } from "@/types/database";
 import { can, type Capability } from "@/lib/permissions";
 import { isModuleEnabled, moduleForPath } from "@/lib/modules";
+
+/** Gruplu bir menü öğesinin sekmesi (sayfanın üstünde segment olarak çıkar). */
+export interface NavTab {
+  href: string;
+  /** Sayfanın başlığıyla aynı ad ("Tek şey, tek ad"). */
+  label: string;
+  cap?: Capability;
+}
 
 export interface NavItem {
   href: string;
@@ -36,9 +44,14 @@ export interface NavItem {
   tag?: string;
   /**
    * Bu öğeyi görmek için gereken yetenek (src/lib/permissions.ts).
-   * Tanımsızsa herkes görür.
+   * Tanımsızsa herkes görür. Sekmeli öğede yetki sekme başınadır.
    */
   cap?: Capability;
+  /**
+   * Aynı işin sayfaları: menüde tek satır, sayfada sekme. Öğenin `href`'i
+   * rolün ve modüllerin izin verdiği ilk sekmedir.
+   */
+  tabs?: NavTab[];
 }
 
 export interface NavSection {
@@ -53,15 +66,18 @@ export interface NavSection {
 }
 
 /**
- * Dashboard sol menüsü — katlanabilir bölümler halinde.
+ * Dashboard menüsü (Kasım 2026).
  *
- * Menüde OLMAYAN ama çalışan sayfalar (Kasım 2026, kullanıcı kararı):
- * /mesajlar, /eposta-sms, /yorumlar — dış entegrasyon bekleyen, örnek
- * veriyle çalışan demo sayfalar. İlgili bağlantı (WhatsApp/SMS/Google)
- * kurulunca buraya geri eklenir.
+ * Kullanıcı kararı (14 Kas): menü kategorileri birleştirilmez; Ana Menü ·
+ * Satış · Büyüme · Yönetim düzeni kalır. Yalnızca iki iş tek satırda sekmeli:
+ * Randevular (Takvim + Liste) ve Satışlar (Satışlar + Cari Hesap).
+ * Kapalı modüle ait sayfalar menüden düşer (src/lib/modules.ts).
  *
- * `cap` taşıyan öğelerin sayfası da aynı yetenekle `requireCapability`
- * çağırır; menü ile sayfa kapısı aynı kalmalı.
+ * Menüde OLMAYAN ama çalışan sayfa: /mesajlar — dış entegrasyon bekleyen,
+ * örnek veriyle çalışan demo sayfa.
+ *
+ * `cap` taşıyan her sayfa da aynı yetenekle `requireCapability` çağırır;
+ * menü ile sayfa kapısı aynı kalmalı (nav.test.ts).
  */
 export const NAV_SECTIONS: NavSection[] = [
   {
@@ -70,8 +86,15 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: Home,
     items: [
       { href: "/panel", label: "Genel Bakış", icon: LayoutDashboard },
-      { href: "/takvim", label: "Takvim", icon: CalendarRange },
-      { href: "/randevular", label: "Randevular", icon: CalendarDays },
+      {
+        href: "/takvim",
+        label: "Randevular",
+        icon: CalendarRange,
+        tabs: [
+          { href: "/takvim", label: "Takvim" },
+          { href: "/randevular", label: "Liste" },
+        ],
+      },
       { href: "/musteriler", label: "Müşteriler", icon: Users },
       { href: "/gorevler", label: "Görevler", icon: ListTodo },
     ],
@@ -79,22 +102,32 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     key: "satis",
     label: "Satış",
-    icon: ShoppingCart,
+    icon: ShoppingBag,
     items: [
-      { href: "/tahsilat", label: "Satışlar", icon: ShoppingBag, cap: "tahsilat" },
+      {
+        href: "/tahsilat",
+        label: "Satışlar",
+        icon: ShoppingBag,
+        badge: "overdueCari",
+        tabs: [
+          { href: "/tahsilat", label: "Satışlar", cap: "tahsilat" },
+          { href: "/cari", label: "Cari Hesap", cap: "tahsilat" },
+        ],
+      },
       { href: "/paketler", label: "Paketler", icon: Package, cap: "tahsilat" },
-      { href: "/cari", label: "Cari Hesap", icon: Scale, badge: "overdueCari", cap: "tahsilat" },
     ],
   },
   {
     key: "buyume",
     label: "Büyüme",
-    icon: TrendingUp,
+    icon: Sparkles,
     items: [
       { href: "/leadler", label: "Lead'ler", icon: Columns3, cap: "musteri_yonet" },
       { href: "/firsatlar", label: "Gelir Fırsatları", icon: Sparkles, cap: "musteri_yonet" },
-      { href: "/randevu-linki", label: "Randevu Linki", icon: Link2, cap: "randevu_yonet" },
+      { href: "/kampanyalar", label: "Kampanyalar", icon: Megaphone, cap: "musteri_yonet" },
       { href: "/hatirlaticilar", label: "Hatırlatmalar", icon: Bell, cap: "musteri_yonet" },
+      { href: "/yorumlar", label: "Yorumlar", icon: Star, cap: "musteri_yonet" },
+      { href: "/randevu-linki", label: "Randevu Linki", icon: Link2, cap: "randevu_yonet" },
     ],
   },
   {
@@ -103,43 +136,83 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: Building2,
     items: [
       { href: "/raporlar", label: "Raporlar", icon: BarChart3, cap: "raporlar" },
+      { href: "/doluluk", label: "Doluluk", icon: Grid3x3, cap: "raporlar" },
       { href: "/hizmetler", label: "Hizmetler", icon: Scissors, cap: "randevu_yonet" },
       { href: "/personel", label: "Personel", icon: UserCog, cap: "personel_yonet" },
-      { href: "/stok", label: "Stok", icon: Package, cap: "tahsilat" },
+      { href: "/stok", label: "Stok", icon: Boxes, cap: "tahsilat" },
       { href: "/giderler", label: "Giderler", icon: Receipt, cap: "finans" },
     ],
   },
 ];
 
-/** Tüm menü öğeleri (düz liste gerekirse). */
+/** Menüdeki her sayfa (sekmeler dahil), düz liste: başlık ve kapı için. */
+export const NAV_PAGES: NavTab[] = NAV_SECTIONS.flatMap((s) =>
+  s.items.flatMap((i) => i.tabs ?? [{ href: i.href, label: i.label, cap: i.cap }])
+);
+
+/** Geriye dönük: menü öğeleri (düz). */
 export const NAV_ITEMS: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
+
+function pageVisible(page: NavTab, role: UserRole, modules: readonly string[] | null): boolean {
+  if (page.cap && !can(role, page.cap)) return false;
+  const mod = moduleForPath(page.href);
+  return !mod || isModuleEnabled(modules, mod);
+}
 
 /**
  * Menüyü role ve açık modüllere göre süzer: yetkisiz ya da kapalı modüle ait
- * öğeler gizlenir, boş kalan bölüm düşer.
- * Bu yalnızca görsel gizleme — asıl koruma server action'larda ve RLS'te.
+ * sayfalar gizlenir, sekmesi kalmayan öğe ve boş kalan bölüm düşer.
+ * Bu yalnızca görsel gizleme — asıl koruma sayfa kapısında, server
+ * action'larda ve RLS'te.
  */
 export function navSectionsForRole(role: UserRole, modules: readonly string[] | null = null): NavSection[] {
   return NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((item) => {
-      if (item.cap && !can(role, item.cap)) return false;
-      const mod = moduleForPath(item.href);
-      return !mod || isModuleEnabled(modules, mod);
+    items: section.items.flatMap((item): NavItem[] => {
+      if (!item.tabs) return pageVisible(item, role, modules) ? [item] : [];
+      const tabs = item.tabs.filter((t) => pageVisible(t, role, modules));
+      if (tabs.length === 0) return [];
+      return [{ ...item, href: tabs[0].href, tabs }];
     }),
   })).filter((section) => section.items.length > 0);
+}
+
+/** Rolün açabildiği tüm sayfalar (sekmeler dahil), menü sırasıyla. */
+export function navPagesForRole(
+  role: UserRole,
+  modules: readonly string[] | null = null
+): (NavTab & { icon: LucideIcon })[] {
+  return navSectionsForRole(role, modules).flatMap((s) =>
+    s.items.flatMap((i) => (i.tabs ?? [{ href: i.href, label: i.label, cap: i.cap }]).map((t) => ({ ...t, icon: i.icon })))
+  );
+}
+
+function onPath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** Menü öğesi bu sayfada mı (sekmeleri dahil). */
+export function isItemActive(pathname: string, item: Pick<NavItem, "href" | "tabs">): boolean {
+  if (item.tabs) return item.tabs.some((t) => onPath(pathname, t.href));
+  return onPath(pathname, item.href);
+}
+
+/** Yola karşılık gelen (süzülmüş) menü öğesi. */
+export function itemForPath(pathname: string, sections: NavSection[]): NavItem | null {
+  for (const s of sections) for (const i of s.items) if (isItemActive(pathname, i)) return i;
+  return null;
+}
+
+/** Yolun sayfa adı (araç çubuğundaki küçük başlık için). */
+export function pageLabelForPath(pathname: string): string | null {
+  const exact = NAV_PAGES.find((p) => pathname === p.href) ?? NAV_PAGES.find((p) => onPath(pathname, p.href));
+  return exact?.label ?? null;
 }
 
 /** Verilen yola karşılık gelen bölümün anahtarı (aktif bölümü açmak için). */
 export function sectionKeyForPath(pathname: string): string | null {
   for (const section of NAV_SECTIONS) {
-    if (
-      section.items.some(
-        (i) => pathname === i.href || pathname.startsWith(`${i.href}/`)
-      )
-    ) {
-      return section.key;
-    }
+    if (section.items.some((i) => isItemActive(pathname, i))) return section.key;
   }
   return null;
 }

@@ -1,26 +1,27 @@
 import type { MetadataRoute } from "next";
 
 /**
- * PWA manifesti — salon resepsiyonundaki tablete "ana ekrana ekle"
- * yapılabilsin diye.
+ * PWA manifesti: telefonda "Ana ekrana ekle" ile uygulama gibi, tam ekran
+ * ve kendi simgesiyle açılır. Renkler tasarım tokenlarının açık tema
+ * değerleridir (manifest CSS değişkeni okuyamaz).
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "CRM — Müşteri ve Randevu Yönetimi",
-    short_name: "CRM",
-    description:
-      "İşletmen için müşteri, randevu, paket ve tahsilat yönetimi.",
+    id: "/panel",
+    name: "Ravel — Müşteri ve Randevu",
+    short_name: "Ravel",
+    description: "İşletmen için müşteri, randevu, satış ve pazarlama yönetimi.",
     start_url: "/panel",
+    scope: "/",
     display: "standalone",
-    background_color: "#f7f8fa",
-    theme_color: "#6d3ef2",
+    orientation: "portrait",
+    background_color: "#f2f2f7",
+    theme_color: "#f2f2f7",
     lang: "tr",
     icons: [
-      {
-        src: "/icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-      },
+      { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

@@ -1,3 +1,4 @@
+import { isModuleEnabled } from "@/lib/modules";
 import { cookies } from "next/headers";
 
 import { getAccountContext } from "@/lib/supabase/account";
@@ -57,7 +58,7 @@ export default async function DashboardLayout({
   if (todayAppts > 0) {
     notifications.push({ id: "n-appt", icon: "appointment", title: `Bugün ${todayAppts} randevu`, detail: "Günün programını kontrol et", href: "/randevular" });
   }
-  if (overdueCari > 0) {
+  if (overdueCari > 0 && isModuleEnabled(modules, "cari")) {
     notifications.push({ id: "n-debt", icon: "debt", title: `${overdueCari} müşteride gecikmiş ödeme`, detail: "Cari hesabı incele ve hatırlat", href: "/cari" });
   }
 
@@ -85,7 +86,7 @@ export default async function DashboardLayout({
   const counts: Record<string, number> = {
     "/musteriler": b.customers ?? 0,
     "/leadler": b.leads ?? 0,
-    "/randevular": b.upcomingAppts ?? 0,
+    "/takvim": b.upcomingAppts ?? 0,
   };
 
   return (

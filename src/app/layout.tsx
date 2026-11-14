@@ -10,7 +10,14 @@ export const metadata: Metadata = {
     template: "%s · CRM",
   },
   description: "İşletmeniz için müşteri, randevu, paket ve tahsilat yönetimi.",
-  applicationName: "CRM",
+  applicationName: "Ravel",
+  // Ana ekrana eklenince uygulama gibi tam ekran açılır (iPhone).
+  appleWebApp: {
+    capable: true,
+    title: "Ravel",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: { telephone: false },
   // Panel içeriği arama motorlarında görünmemeli
   robots: { index: false, follow: false },
 };

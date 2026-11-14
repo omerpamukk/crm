@@ -1,14 +1,30 @@
 /** İşletme onboarding sırasında seçilebilecek sektörler. */
 export const SECTORS = [
-  { value: "guzellik_salonu", label: "Güzellik Salonu" },
+  { value: "guzellik_salonu", label: "Güzellik Merkezi" },
+  { value: "kuafor", label: "Kuaför" },
+  { value: "berber", label: "Berber" },
   { value: "klinik", label: "Klinik" },
-  { value: "spor_salonu", label: "Spor Salonu" },
-  { value: "masaj_salonu", label: "Masaj Salonu" },
+  { value: "estetik", label: "Estetik / Lazer Merkezi" },
+  { value: "dis_klinigi", label: "Diş Kliniği" },
+  { value: "masaj_salonu", label: "Spa / Masaj" },
+  { value: "spor_salonu", label: "Spor / Pilates Stüdyosu" },
+  { value: "danismanlik", label: "Danışmanlık" },
   { value: "restoran_kafe", label: "Restoran / Kafe" },
   { value: "arac_kiralama", label: "Araç Kiralama" },
   { value: "teknik_servis", label: "Teknik Servis" },
   { value: "diger", label: "Diğer" },
 ] as const;
+
+/** Sektör kodu → ad (listede yoksa kodu okunur hale getirir). */
+export function sectorLabel(value: string | null | undefined): string {
+  if (!value) return "—";
+  const hit = SECTORS.find((s) => s.value === value);
+  if (hit) return hit.label;
+  return value
+    .split(/[_\s]+/)
+    .map((w) => w.charAt(0).toLocaleUpperCase("tr-TR") + w.slice(1))
+    .join(" ");
+}
 
 /** Müşteri/lead kaynakları. */
 export const CUSTOMER_SOURCES = [

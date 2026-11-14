@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertPerm, assertOwner } from "@/lib/supabase/admin-context";
 import { logAdminAction } from "@/lib/supabase/audit";
+import { cleanModules } from "@/lib/modules";
 import { checkTargetUser, isLastOwner } from "@/lib/admin-user-guard";
 import type { UserRole } from "@/types/database";
 
@@ -84,6 +85,29 @@ export async function updateBusinessInfo(id: string, patch: BusinessInfoPatch): 
   if (error) return { ok: false, error: error.message.includes("slug") ? "Bu web adresi (slug) başka firmada kullanılıyor." : error.message };
 await logAdminAction("firma_duzenle", { businessId: id, businessName: patch.name });
     revalidatePath(`/admin/firma/${id}`);
+  return { ok: true };
+}
+
+/** Firmanın açık modülleri (0036). Yalnızca bilinen anahtarlar kaydedilir. */
+export async function updateBusinessModules(id: string, modules: string[]): Promise<Result> {
+  const err = await assertPerm("firma_duzenle");
+  if (err) return { ok: false, error: err };
+  if (!Array.isArray(modules) || modules.some((m) => typeof m !== "string")) {
+    return { ok: false, error: "Geçersiz modül listesi." };
+  }
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("businesses")
+    .update({ enabled_modules: cleanModules(modules), updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("name")
+    .maybeSingle();
+  if (error) {
+    console.error("updateBusinessModules:", error);
+    return { ok: false, error: "Modüller kaydedilemedi. Tekrar deneyin." };
+  }
+  await logAdminAction("firma_duzenle", { businessId: id, businessName: (data as { name: string } | null)?.name, detail: "modüller" });
+  revalidatePath(`/admin/firma/${id}`);
   return { ok: true };
 }
 
