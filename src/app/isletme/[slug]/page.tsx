@@ -29,10 +29,14 @@ type Profile = {
 
 const DAY = ["", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
-async function load(slug: string): Promise<Profile> {
+async function load(slug: string): Promise<Profile & { logo?: string | null }> {
   const supabase = await createClient();
-  const { data } = await supabase.rpc("public_profile", { p_slug: slug });
-  return (data ?? { valid: false }) as Profile;
+  const [{ data }, logoRes] = await Promise.all([
+    supabase.rpc("public_profile", { p_slug: slug }),
+    supabase.rpc("public_business_logo", { p_slug: slug, p_booking_token: null }),
+  ]);
+  const profile = (data ?? { valid: false }) as Profile;
+  return { ...profile, logo: logoRes.error ? null : ((logoRes.data as string | null) ?? null) };
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -79,6 +83,12 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       <div aria-hidden className="app-wall" />
       <main className="mx-auto w-full max-w-xl space-y-8">
         <header className="space-y-3 text-center">
+          {p.logo && (
+            <span className="mx-auto grid size-20 place-items-center overflow-hidden rounded-2xl bg-white ring-1 ring-separator">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p.logo} alt={`${p.name} logosu`} className="size-full object-contain p-1.5" />
+            </span>
+          )}
           <p className="eyebrow">{sectorLabel(p.sector)}</p>
           <h1 className="text-large-title font-bold text-balance">{p.name}</h1>
           {count > 0 && p.rating_avg != null && (

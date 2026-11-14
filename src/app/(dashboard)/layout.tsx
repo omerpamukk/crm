@@ -13,7 +13,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { fullName, email, businessName, roleLabel, role, impersonating, manageMode } =
+  const { fullName, email, businessName, businessLogo, roleLabel, role, impersonating, manageMode } =
     await getAccountContext();
   const displayName = fullName ?? email ?? "Kullanıcı";
 
@@ -92,6 +92,7 @@ export default async function DashboardLayout({
   return (
     <AppShell
       businessName={businessName}
+      businessLogo={businessLogo}
       displayName={displayName}
       roleLabel={roleLabel}
       role={role}

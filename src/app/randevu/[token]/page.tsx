@@ -16,8 +16,11 @@ export default async function PublicBookingPage({
 }) {
   const { token } = await params;
   const supabase = await createClient();
-  const { data: raw } = await supabase.rpc("booking_config", { p_token: token });
-  const config = (raw ?? { valid: false }) as BookingConfig;
+  const [{ data: raw }, logoRes] = await Promise.all([
+    supabase.rpc("booking_config", { p_token: token }),
+    supabase.rpc("public_business_logo", { p_slug: null, p_booking_token: token }),
+  ]);
+  const config = { ...((raw ?? { valid: false }) as BookingConfig), logo: logoRes.error ? null : ((logoRes.data as string | null) ?? null) };
 
   if (!config.valid) {
     return (

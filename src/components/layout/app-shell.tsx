@@ -24,6 +24,8 @@ const WIDE = "(min-width: 1280px)"
 
 export type AppShellProps = {
   businessName: string
+  /** İşletme logosu; yoksa baş harf gösterilir. */
+  businessLogo?: string | null
   displayName: string
   roleLabel: string
   role: UserRole
@@ -60,6 +62,7 @@ export function AppShell(props: AppShellProps) {
 
 function Shell({
   businessName,
+  businessLogo = null,
   displayName,
   roleLabel,
   role,
@@ -149,6 +152,7 @@ function Shell({
       <Sidebar
         id="kenar-cubugu"
         businessName={businessName}
+        businessLogo={businessLogo}
         displayName={displayName}
         roleLabel={roleLabel}
         role={role}
