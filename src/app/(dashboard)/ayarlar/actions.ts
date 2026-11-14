@@ -459,3 +459,28 @@ export async function updatePublicProfile(input: { enabled: boolean; slug: strin
   revalidatePath("/ayarlar");
   return {};
 }
+
+/**
+ * İşletme logosu: dosya tarayıcıdan business-logos/<işletme>/ klasörüne
+ * yüklenir (0018 storage kuralları), burada yalnızca adresi kaydedilir.
+ * Adres bu işletmenin klasörüne ait değilse reddedilir.
+ */
+export async function updateLogo(url: string | null): Promise<ActionResult> {
+  const supabase = await createClient();
+  const auth = await authorize(supabase, "ayarlar");
+  if ("error" in auth) return { error: auth.error };
+  const prefix = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/business-logos/${auth.businessId}/`;
+  if (url !== null && (typeof url !== "string" || !url.startsWith(prefix) || url.length > 500)) {
+    return { error: "Logo kaydedilemedi. Dosyayı yeniden yükleyin." };
+  }
+  const { error } = await supabase
+    .from("businesses")
+    .update({ logo_url: url, updated_at: new Date().toISOString() })
+    .eq("id", auth.businessId);
+  if (error) {
+    console.error("updateLogo:", error);
+    return { error: "Logo kaydedilemedi." };
+  }
+  revalidatePath("/", "layout");
+  return {};
+}

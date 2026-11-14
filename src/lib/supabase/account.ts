@@ -11,6 +11,8 @@ export interface AccountContext {
   fullName: string | null;
   businessId: string;
   businessName: string;
+  /** İşletme logosu (Ayarlar → Temel bilgiler); yoksa null. */
+  businessLogo: string | null;
   role: UserRole;
   roleLabel: string;
   /** Süper-admin bu firmayı görüntülüyor/yönetiyor mu? */
@@ -48,7 +50,7 @@ export async function getAccountContext(): Promise<AccountContext> {
     // RLS (0026 oturum tablosu) bu okumayı yalnızca acting firmaya daraltır.
     const { data: biz } = await supabase
       .from("businesses")
-      .select("id, name")
+      .select("id, name, logo_url")
       .eq("id", acting)
       .maybeSingle();
     if (!biz) {
@@ -60,6 +62,7 @@ export async function getAccountContext(): Promise<AccountContext> {
       fullName: user.email ?? null,
       businessId: acting,
       businessName: (biz as { name: string }).name,
+      businessLogo: (biz as { logo_url?: string | null }).logo_url ?? null,
       role: "owner",
       roleLabel: manageMode ? "Yönetici (Ajans)" : "Görüntüleyici",
       impersonating: true,
@@ -69,7 +72,7 @@ export async function getAccountContext(): Promise<AccountContext> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, business_id, role, businesses(name)")
+    .select("full_name, business_id, role, businesses(name, logo_url)")
     .eq("id", user.id)
     .single();
 
@@ -93,7 +96,7 @@ export async function getAccountContext(): Promise<AccountContext> {
     Array.isArray(profile.businesses)
       ? profile.businesses[0]
       : profile.businesses
-  ) as { name: string } | null;
+  ) as { name: string; logo_url?: string | null } | null;
 
   const rawRole = profile.role as string | null;
   const role: UserRole =
@@ -107,6 +110,7 @@ export async function getAccountContext(): Promise<AccountContext> {
     fullName: profile.full_name,
     businessId: profile.business_id,
     businessName: business?.name ?? "İşletmen",
+    businessLogo: business?.logo_url ?? null,
     role,
     roleLabel: ROLE_LABEL[role],
     impersonating: false,

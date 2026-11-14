@@ -29,6 +29,8 @@ import { contactSchema, type ContactInput } from "./schema";
 export interface BookingConfig {
   valid: boolean;
   business_name?: string;
+  /** İşletme logosu (0041); yoksa yalnızca ad. */
+  logo?: string | null;
   slot_minutes?: number;
   work_days?: number[];
   start_time?: string;
@@ -157,7 +159,7 @@ export function BookingFlow({
   if (done) {
     const name = getValues("name");
     return (
-      <Frame businessName={config.business_name}>
+      <Frame businessName={config.business_name} logo={config.logo}>
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <CheckCircle2 aria-hidden className="size-12 text-positive-text" strokeWidth={1.5} />
           <h2 className="text-title-3 font-semibold">Randevu talebiniz alındı</h2>
@@ -173,7 +175,7 @@ export function BookingFlow({
   }
 
   return (
-    <Frame businessName={config.business_name}>
+    <Frame businessName={config.business_name} logo={config.logo}>
       {/* Adım göstergesi: çubuk + metin (renk tek başına anlam taşımaz) */}
       <div className="mb-5" role="group" aria-label={`Adım ${step} / ${STEP_TITLES.length}`}>
         <div className="flex gap-1.5" aria-hidden>
@@ -466,13 +468,19 @@ function SummaryRow({ label, value, extra }: { label: string; value: string; ext
 }
 
 /** Sayfa çerçevesi: kabuk yok; Randevu Linki'ndeki önizlemeyle aynı başlık bandı. */
-function Frame({ businessName, children }: { businessName?: string; children: React.ReactNode }) {
+function Frame({ businessName, logo, children }: { businessName?: string; logo?: string | null; children: React.ReactNode }) {
   return (
     <div className="min-h-svh px-4 py-6 sm:py-10">
       <div aria-hidden className="app-wall" />
       <main className="mx-auto w-full max-w-md">
         <div className="surface overflow-hidden">
           <header className="bg-primary-fill px-5 py-5 text-center text-on-primary-fill">
+            {logo && (
+              <span className="mx-auto mb-3 grid size-14 place-items-center overflow-hidden rounded-xl bg-white">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={logo} alt="" className="size-full object-contain p-1" />
+              </span>
+            )}
             <p className="text-subhead opacity-85">Online randevu</p>
             <h1 className="mt-0.5 text-title-3 font-semibold break-words">
               {businessName ?? "Randevunuzu oluşturun"}

@@ -1,6 +1,7 @@
 "use client";
 
 import { isModuleEnabled } from "@/lib/modules";
+import { LogoSection } from "./section-logo";
 import { LoyaltySection, type LoyaltyForm } from "./section-loyalty";
 import { ProfileSection, type ProfileForm } from "./section-profile";
 import { useRouter } from "next/navigation";
@@ -21,7 +22,9 @@ import { SubscriptionSection } from "./section-subscription";
 import type { NotificationSettingInput, Provider, WorkingDay } from "./schema";
 
 export interface SettingsData {
-  business: { name: string; sector: string; phone: string; email: string; address: string };
+  business: { name: string; sector: string; phone: string; email: string; address: string; logo_url?: string | null };
+  /** Logo yükleme yolu için (business-logos/<işletme>/). */
+  businessId: string;
   owner: { full_name: string; phone: string; email: string; roleLabel: string };
   workingDays: WorkingDay[];
   subscription: Pick<Subscription, "plan" | "status" | "price" | "started_at" | "expires_at"> | null;
@@ -86,6 +89,9 @@ export function SettingsView({ data, loadFailed }: { data: SettingsData; loadFai
 
           {section === "temel" && (
             <div className="space-y-8">
+              {data.businessId && (
+                <LogoSection businessId={data.businessId} businessName={data.business.name} logoUrl={data.business.logo_url ?? null} />
+              )}
               <GeneralSection business={data.business} owner={data.owner} />
               {data.extras && <ProfileSection initial={data.extras.profile} />}
             </div>

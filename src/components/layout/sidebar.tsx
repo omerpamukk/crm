@@ -24,6 +24,7 @@ export function isActivePath(pathname: string, href: string) {
  */
 export function Sidebar({
   businessName,
+  businessLogo = null,
   displayName,
   roleLabel,
   role,
@@ -35,6 +36,7 @@ export function Sidebar({
   id,
 }: {
   businessName: string
+  businessLogo?: string | null
   displayName: string
   roleLabel: string
   role: UserRole
@@ -90,12 +92,16 @@ export function Sidebar({
         onClick={onNavigate}
         className="mx-2 mt-2.5 mb-1 flex min-w-0 items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors duration-150 hover:bg-hover"
       >
-        <span
-          aria-hidden
-          className="grid size-8 shrink-0 place-items-center rounded-lg bg-label text-[0.9375rem] font-bold text-[color:var(--bg)]"
-        >
-          {initial}
-        </span>
+        {businessLogo ? (
+          <BusinessLogo src={businessLogo} />
+        ) : (
+          <span
+            aria-hidden
+            className="grid size-8 shrink-0 place-items-center rounded-lg bg-label text-[0.9375rem] font-bold text-[color:var(--bg)]"
+          >
+            {initial}
+          </span>
+        )}
         <span className="min-w-0 flex-1 truncate text-[0.9375rem] leading-5 font-semibold">{businessName}</span>
       </Link>
 
@@ -194,5 +200,15 @@ function SidebarLink({
         <span className="text-[0.8125rem] text-label-2 tabular-nums">{count.toLocaleString("tr-TR")}</span>
       ) : null}
     </Link>
+  )
+}
+
+/** İşletme logosu: beyaz zeminli kare, logo ortada sığdırılır (koyu temada da okunur). */
+function BusinessLogo({ src }: { src: string }) {
+  return (
+    <span aria-hidden className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-white ring-1 ring-separator">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" className="size-full object-contain p-0.5" />
+    </span>
   )
 }

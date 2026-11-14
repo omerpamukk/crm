@@ -130,7 +130,9 @@ export default async function AyarlarPage() {
       phone: biz?.phone ?? "",
       email: biz?.email ?? "",
       address: biz?.address ?? "",
+      logo_url: biz?.logo_url ?? null,
     },
+    businessId: businessId ?? "",
     owner: {
       full_name: profile?.full_name ?? fullName ?? "",
       phone: profile?.phone ?? "",
