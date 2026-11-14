@@ -1,5 +1,8 @@
 "use client";
 
+import { isModuleEnabled } from "@/lib/modules";
+import { LoyaltySection, type LoyaltyForm } from "./section-loyalty";
+import { ProfileSection, type ProfileForm } from "./section-profile";
 import { useRouter } from "next/navigation";
 
 import { useUrlState } from "@/lib/use-url-state";
@@ -38,6 +41,8 @@ export interface SettingsData {
   modules: string[] | null;
   /** 0036 çalıştırıldı mı (enabled_modules okunabildi mi). */
   modulesReady: boolean;
+  /** Sadakat kartı ve herkese açık sayfa (0040); okunamazsa null (bölümler gizli). */
+  extras: { profile: ProfileForm; loyalty: LoyaltyForm } | null;
 }
 
 const SECTIONS = [
@@ -79,9 +84,19 @@ export function SettingsView({ data, loadFailed }: { data: SettingsData; loadFai
             className="w-full md:w-auto"
           />
 
-          {section === "temel" && <GeneralSection business={data.business} owner={data.owner} />}
+          {section === "temel" && (
+            <div className="space-y-8">
+              <GeneralSection business={data.business} owner={data.owner} />
+              {data.extras && <ProfileSection initial={data.extras.profile} />}
+            </div>
+          )}
           {section === "saatler" && <HoursSection days={data.workingDays} />}
-          {section === "moduller" && <ModulesSection modules={data.modules} ready={data.modulesReady} />}
+          {section === "moduller" && (
+            <div className="space-y-8">
+              <ModulesSection modules={data.modules} ready={data.modulesReady} />
+              {data.extras && isModuleEnabled(data.modules, "sadakat") && <LoyaltySection initial={data.extras.loyalty} />}
+            </div>
+          )}
           {section === "bildirimler" && (
             <NotificationsSection items={data.notifications} connected={connected} />
           )}

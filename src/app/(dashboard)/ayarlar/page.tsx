@@ -76,7 +76,7 @@ export default async function AyarlarPage() {
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
 
-  const [bizRes, subRes, profileRes, logRes, notifRes, integRes, modRes] = await Promise.all([
+  const [bizRes, subRes, profileRes, logRes, notifRes, integRes, modRes, extraRes] = await Promise.all([
     supabase
       .from("businesses")
       .select("id, name, sector, phone, email, address, logo_url, working_hours")
@@ -111,6 +111,12 @@ export default async function AyarlarPage() {
       .eq("business_id", businessId ?? ""),
     // Açık modüller (0036). Ayrı sorgu: sütun yoksa yalnızca bu bölüm etkilenir.
     supabase.from("businesses").select("enabled_modules").eq("id", businessId ?? "").maybeSingle(),
+    // Sadakat kartı + herkese açık sayfa (0040). Ayrı sorgu: sütunlar yoksa bölümler gizlenir.
+    supabase
+      .from("businesses")
+      .select("slug, profile_public, profile_about, loyalty_target, loyalty_reward, loyalty_notify_before")
+      .eq("id", businessId ?? "")
+      .maybeSingle(),
   ]);
 
   if (bizRes.error) console.error("ayarlar:", bizRes.error);
@@ -144,6 +150,18 @@ export default async function AyarlarPage() {
       ? null
       : ((modRes.data as { enabled_modules: string[] | null } | null)?.enabled_modules ?? null),
     modulesReady: !modRes.error,
+    extras: extraRes.error
+      ? null
+      : (() => {
+          const x = (extraRes.data ?? {}) as {
+            slug?: string | null; profile_public?: boolean; profile_about?: string | null;
+            loyalty_target?: number | null; loyalty_reward?: string | null; loyalty_notify_before?: number | null;
+          };
+          return {
+            profile: { enabled: Boolean(x.profile_public), slug: x.slug ?? "", about: x.profile_about ?? "" },
+            loyalty: { target: x.loyalty_target ?? null, reward: x.loyalty_reward ?? "", notifyBefore: x.loyalty_notify_before ?? null },
+          };
+        })(),
   };
 
   return <SettingsView data={data} loadFailed={Boolean(bizRes.error) || !biz} />;
