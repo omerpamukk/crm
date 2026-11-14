@@ -6,6 +6,8 @@ import { can } from "@/lib/permissions";
 import { getBusinessId } from "@/lib/supabase/business";
 import { fetchCustomerBalances } from "@/lib/balances";
 import { fetchRhythm } from "@/lib/rhythm-query";
+import { countVisits, loyaltyProgress, readLoyalty, type LoyaltyProgress } from "@/lib/loyalty";
+import { isModuleEnabled } from "@/lib/modules";
 import type { Customer, Package, Payment, Interaction } from "@/types/database";
 
 import { Customer360View, type ApptItem } from "./customer-360-view";
@@ -65,6 +67,22 @@ export default async function CustomerDetailPage({
 
   const loadFailed = [apptRes, pkgRes, payRes, intRes].some((r) => r.error);
 
+  // Sadakat kartı (0040): modül açık ve hedef girilmişse. Sütunlar yoksa kart çıkmaz.
+  let loyalty: { progress: LoyaltyProgress; reward: string | null } | null = null;
+  if (!(customer as Customer).is_lead) {
+    const [bizRes, lastRes] = await Promise.all([
+      supabase.from("businesses").select("enabled_modules, loyalty_target, loyalty_reward, loyalty_notify_before").eq("id", businessId).maybeSingle(),
+      supabase.from("loyalty_redemptions").select("created_at").eq("business_id", businessId).eq("customer_id", id).order("created_at", { ascending: false }).limit(1),
+    ]);
+    const biz = bizRes.data as ({ enabled_modules: string[] | null } & Parameters<typeof readLoyalty>[0]) | null;
+    const settings = !bizRes.error && !lastRes.error && isModuleEnabled(biz?.enabled_modules ?? null, "sadakat") ? readLoyalty(biz) : null;
+    if (settings) {
+      const since = ((lastRes.data ?? [])[0] as { created_at: string } | undefined)?.created_at ?? null;
+      const visits = countVisits((apptRes.data ?? []) as { starts_at: string; status: string | null }[], since);
+      loyalty = { progress: loyaltyProgress(visits, settings.target), reward: settings.reward };
+    }
+  }
+
   return (
     <Customer360View
       customer={customer as Customer}
@@ -80,6 +98,7 @@ export default async function CustomerDetailPage({
       loadFailed={loadFailed || balanceRes.error}
       balance={balanceRes.rows[0]?.balance ?? 0}
       rhythm={rhythmRes?.map.get(id) ?? null}
+      loyalty={loyalty}
     />
   );
 }

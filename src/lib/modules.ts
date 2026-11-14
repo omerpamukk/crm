@@ -27,6 +27,7 @@ export const MODULES = [
   { key: "randevu_linki", label: "Randevu Linki", hint: "Müşteriler boş saatleri görüp kendi randevusunu alır." },
   { key: "stok", label: "Stok", hint: "Ürün satıyor ya da malzeme takibi yapıyorsanız." },
   { key: "gorevler", label: "Görevler", hint: "Ekip içi iş takibi panosu." },
+  { key: "sadakat", label: "Sadakat kartı", hint: "Belirli sayıda ziyarette hediye: müşteri kartında kaçıncı ziyarette olduğu görünür." },
   { key: "giderler", label: "Giderler", hint: "Kira, maaş, malzeme gibi giderleri yazın, kârı görün." },
 ] as const;
 
@@ -84,11 +85,18 @@ export const SECTOR_PRESETS: Record<string, readonly ModuleKey[]> = {
   klinik: [...BASE, "leadler", "firsatlar", "paketler", "cari"],
   dis_klinigi: [...BASE, "leadler", "firsatlar", "cari"],
   estetik: [...BASE, "leadler", "firsatlar", "paketler", "cari"],
-  guzellik_salonu: [...BASE, "firsatlar", "paketler", "cari"],
-  kuafor: [...BASE, "cari"],
-  berber: [...BASE],
-  masaj_salonu: [...BASE, "paketler"],
+  fizyoterapi: [...BASE, "leadler", "paketler", "cari"],
+  psikolog: ["hatirlaticilar", "randevu_linki", "cari", "giderler"],
+  diyetisyen: [...BASE, "leadler", "paketler", "cari"],
+  guzellik_salonu: [...BASE, "firsatlar", "paketler", "cari", "sadakat"],
+  kuafor: [...BASE, "cari", "sadakat"],
+  berber: [...BASE, "sadakat"],
+  tirnak: [...BASE, "sadakat"],
+  masaj_salonu: [...BASE, "paketler", "sadakat"],
   spor_salonu: ["kampanyalar", "hatirlaticilar", "paketler", "cari", "giderler"],
+  kisisel_antrenor: ["kampanyalar", "hatirlaticilar", "randevu_linki", "paketler", "cari"],
+  dovme: [...BASE, "leadler", "cari"],
+  evcil_hayvan: [...BASE, "sadakat"],
   danismanlik: [...BASE, "leadler", "cari"],
 };
 

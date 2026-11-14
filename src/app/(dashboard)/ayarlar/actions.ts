@@ -404,3 +404,58 @@ export async function updateModules(modules: string[]): Promise<ActionResult & {
   }
   return {};
 }
+
+/** Sadakat kartı ayarı (0040). target null = kapalı. */
+export async function updateLoyalty(input: {
+  target: number | null;
+  reward: string;
+  notifyBefore: number | null;
+}): Promise<ActionResult> {
+  const target = input.target;
+  if (target !== null && (!Number.isInteger(target) || target < 2 || target > 50)) {
+    return { error: "Ziyaret sayısı 2 ile 50 arasında olmalı." };
+  }
+  const nb = input.notifyBefore;
+  if (nb !== null && (!Number.isInteger(nb) || nb < 1 || nb > 5)) return { error: "Geçersiz hatırlatma." };
+  const reward = (input.reward ?? "").trim().slice(0, 120);
+  if (target !== null && !reward) return { error: "Hediyeyi yazın (ör. Ücretsiz fön)." };
+
+  const supabase = await createClient();
+  const auth = await authorize(supabase, "ayarlar");
+  if ("error" in auth) return { error: auth.error };
+  const { error } = await supabase
+    .from("businesses")
+    .update({ loyalty_target: target, loyalty_reward: reward || null, loyalty_notify_before: nb, updated_at: new Date().toISOString() })
+    .eq("id", auth.businessId);
+  if (error) {
+    console.error("updateLoyalty:", error);
+    return { error: "Sadakat kartı kaydedilemedi." };
+  }
+  revalidatePath("/ayarlar");
+  revalidatePath("/musteriler", "layout");
+  return {};
+}
+
+/** Herkese açık işletme sayfası (0040). */
+export async function updatePublicProfile(input: { enabled: boolean; slug: string; about: string }): Promise<ActionResult> {
+  const slug = (input.slug ?? "").trim().toLowerCase();
+  if (!/^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/.test(slug)) {
+    return { error: "Adres 3–40 karakter olmalı; yalnızca küçük harf, rakam ve tire (ör. defne-guzellik)." };
+  }
+  const about = (input.about ?? "").trim().slice(0, 600);
+
+  const supabase = await createClient();
+  const auth = await authorize(supabase, "ayarlar");
+  if ("error" in auth) return { error: auth.error };
+  const { error } = await supabase
+    .from("businesses")
+    .update({ profile_public: input.enabled, slug, profile_about: about || null, updated_at: new Date().toISOString() })
+    .eq("id", auth.businessId);
+  if (error) {
+    if (error.code === "23505") return { error: "Bu adres başka bir işletmede kullanılıyor. Başka bir adres deneyin." };
+    console.error("updatePublicProfile:", error);
+    return { error: "Sayfa ayarı kaydedilemedi." };
+  }
+  revalidatePath("/ayarlar");
+  return {};
+}

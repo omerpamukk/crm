@@ -4,6 +4,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/messaging/send";
+import { alertChannelFailures, isChannelError } from "@/lib/messaging/alerts";
+import { planLoyaltyNudges } from "@/lib/loyalty-nudge";
 import { firstName, isQuietHour, planAutomations } from "@/lib/automations/plan";
 
 /**
@@ -53,6 +55,12 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient();
   const { planned } = await planAutomations(admin, now, { baseUrl: request.nextUrl.origin });
+  let loyaltyPlanned = 0;
+  try {
+    loyaltyPlanned = await planLoyaltyNudges(admin, now);
+  } catch (e) {
+    console.error("planLoyaltyNudges:", e);
+  }
 
   const { data, error } = await admin
     .from("reminders")
@@ -84,6 +92,7 @@ export async function GET(request: NextRequest) {
   const rows = (data ?? []) as Row[];
   let sent = 0;
   let failed = 0;
+  const channelFailures = new Map<string, { channel: Row["channel"]; error: string }>();
 
   for (const r of rows) {
     // Süre doldu: bu satıra hiç dokunulmadı (status hâlâ pending), sonraki tur alır.
@@ -138,8 +147,13 @@ export async function GET(request: NextRequest) {
       .eq("id", r.id);
 
     if (result.ok) sent++;
-    else failed++;
+    else {
+      failed++;
+      if (isChannelError(result.error)) channelFailures.set(r.business_id, { channel: r.channel, error: result.error ?? "" });
+    }
   }
 
-  return NextResponse.json({ planned, processed: sent + failed, sent, failed });
+  if (channelFailures.size > 0) await alertChannelFailures(admin, channelFailures);
+
+  return NextResponse.json({ planned: planned + loyaltyPlanned, processed: sent + failed, sent, failed });
 }

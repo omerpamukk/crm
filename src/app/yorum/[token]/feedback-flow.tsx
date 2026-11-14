@@ -32,6 +32,7 @@ export function FeedbackFlow({ token, info }: { token: string; info: FeedbackInf
   const [rating, setRating] = useState<number>(0);
   const [comment, setComment] = useState("");
   const [wantsCall, setWantsCall] = useState(false);
+  const [publish, setPublish] = useState(false);
   const [done, setDone] = useState(Boolean(info.answered));
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -69,7 +70,7 @@ export function FeedbackFlow({ token, info }: { token: string; info: FeedbackInf
   function send() {
     setError(null);
     start(async () => {
-      const res = await submitFeedback({ token, rating, comment, wantsCall });
+      const res = await submitFeedback({ token, rating, comment, wantsCall, publish: publish && comment.trim() !== "" });
       if (res.error) {
         setError(res.error);
         if (res.error.includes("daha önce")) setDone(true);
@@ -114,6 +115,12 @@ export function FeedbackFlow({ token, info }: { token: string; info: FeedbackInf
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[0.9375rem] text-label">Beni arayın</span>
                 <Switch checked={wantsCall} onCheckedChange={setWantsCall} label="Beni arayın" />
+              </div>
+            )}
+            {comment.trim() && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[0.9375rem] text-label">Yorumum işletmenin sayfasında görünebilir (ör. “Ayşe Y.”)</span>
+                <Switch checked={publish} onCheckedChange={setPublish} label="Yorumum işletmenin sayfasında görünebilir" />
               </div>
             )}
           </div>

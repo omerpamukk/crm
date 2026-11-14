@@ -46,6 +46,8 @@ import { Metric, MetricStrip } from "@/components/shared/metric";
 import type { Rhythm } from "@/lib/customer-rhythm";
 
 import { RhythmCard } from "./rhythm-card";
+import { LoyaltyCard } from "./loyalty-card";
+import type { LoyaltyProgress } from "@/lib/loyalty";
 import { formatMoney, Money } from "@/components/shared/money";
 import { PackageProgress } from "@/components/shared/package-progress";
 import { PageHeader } from "@/components/shared/page-header";
@@ -101,6 +103,7 @@ export function Customer360View({
   loadFailed,
   balance,
   rhythm = null,
+  loyalty = null,
 }: {
   customer: Customer;
   appointments: ApptItem[];
@@ -117,6 +120,8 @@ export function Customer360View({
   balance: number;
   /** Ziyaret ritmi ve müşteri puanı (0035); lead'lerde yok. */
   rhythm?: Rhythm | null;
+  /** Sadakat kartı (0040); kapalıysa yok. */
+  loyalty?: { progress: LoyaltyProgress; reward: string | null } | null;
 }) {
   const router = useRouter();
   const [nowMs] = useState(() => Date.now());
@@ -324,6 +329,9 @@ export function Customer360View({
       </MetricStrip>
 
       {rhythm && <RhythmCard rhythm={rhythm} />}
+      {loyalty && (
+        <LoyaltyCard customerId={customer.id} progress={loyalty.progress} reward={loyalty.reward} canRedeem={abilities.manage} />
+      )}
 
       <div className="grid items-start gap-8 lg:grid-cols-2">
         <div className="min-w-0 space-y-8">
