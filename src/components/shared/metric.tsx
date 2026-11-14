@@ -67,7 +67,7 @@ export function Metric({
             <DeltaPill value={delta} invert={invertDelta} />
           ) : null}
           {context && (
-            <span className="min-w-0 truncate" title={context}>
+            <span className={cn("min-w-0 truncate", (flag || delta != null) && "max-md:hidden")} title={context}>
               {flag ? `· ${context}` : context}
             </span>
           )}
