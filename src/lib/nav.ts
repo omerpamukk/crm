@@ -12,6 +12,13 @@ import {
   Building2,
   ListTodo,
   Megaphone,
+  Bell,
+  Star,
+  Link2,
+  Grid3x3,
+  Scissors,
+  UserCog,
+  Receipt,
   type LucideIcon,
 } from "lucide-react";
 
@@ -59,15 +66,15 @@ export interface NavSection {
 }
 
 /**
- * Dashboard menüsü (Kasım 2026, kullanıcı kararı: "kafa karışmasın").
+ * Dashboard menüsü (Kasım 2026).
  *
- * Yedi ana başlık; aynı işin sayfaları tek başlık altında sekme olur
- * (Takvim + liste, Satışlar + Cari Hesap, Fırsatlar + Kampanyalar +
- * Hatırlatmalar, Raporlar + Doluluk + Giderler, Hizmetler + Personel + Randevu
- * Linki). İkinci bölüm, işletmenin açtığı ek modüllerdir.
+ * Kullanıcı kararı (14 Kas): menü kategorileri birleştirilmez; Ana Menü ·
+ * Satış · Büyüme · Yönetim düzeni kalır. Yalnızca iki iş tek satırda sekmeli:
+ * Randevular (Takvim + Liste) ve Satışlar (Satışlar + Cari Hesap).
+ * Kapalı modüle ait sayfalar menüden düşer (src/lib/modules.ts).
  *
- * Menüde OLMAYAN ama çalışan sayfa: /mesajlar — dış
- * entegrasyon bekleyen, örnek veriyle çalışan demo sayfalar.
+ * Menüde OLMAYAN ama çalışan sayfa: /mesajlar — dış entegrasyon bekleyen,
+ * örnek veriyle çalışan demo sayfa.
  *
  * `cap` taşıyan her sayfa da aynı yetenekle `requireCapability` çağırır;
  * menü ile sayfa kapısı aynı kalmalı (nav.test.ts).
@@ -89,6 +96,14 @@ export const NAV_SECTIONS: NavSection[] = [
         ],
       },
       { href: "/musteriler", label: "Müşteriler", icon: Users },
+      { href: "/gorevler", label: "Görevler", icon: ListTodo },
+    ],
+  },
+  {
+    key: "satis",
+    label: "Satış",
+    icon: ShoppingBag,
+    items: [
       {
         href: "/tahsilat",
         label: "Satışlar",
@@ -99,48 +114,33 @@ export const NAV_SECTIONS: NavSection[] = [
           { href: "/cari", label: "Cari Hesap", cap: "tahsilat" },
         ],
       },
-      {
-        href: "/firsatlar",
-        label: "Pazarlama",
-        icon: Megaphone,
-        tabs: [
-          { href: "/firsatlar", label: "Gelir Fırsatları", cap: "musteri_yonet" },
-          { href: "/kampanyalar", label: "Kampanyalar", cap: "musteri_yonet" },
-          { href: "/hatirlaticilar", label: "Hatırlatmalar", cap: "musteri_yonet" },
-          { href: "/yorumlar", label: "Yorumlar", cap: "musteri_yonet" },
-        ],
-      },
-      {
-        href: "/raporlar",
-        label: "Raporlar",
-        icon: BarChart3,
-        tabs: [
-          { href: "/raporlar", label: "Raporlar", cap: "raporlar" },
-          { href: "/doluluk", label: "Doluluk", cap: "raporlar" },
-          { href: "/giderler", label: "Giderler", cap: "finans" },
-        ],
-      },
-      {
-        href: "/hizmetler",
-        label: "İşletme",
-        icon: Building2,
-        tabs: [
-          { href: "/hizmetler", label: "Hizmetler", cap: "randevu_yonet" },
-          { href: "/personel", label: "Personel", cap: "personel_yonet" },
-          { href: "/randevu-linki", label: "Randevu Linki", cap: "randevu_yonet" },
-        ],
-      },
+      { href: "/paketler", label: "Paketler", icon: Package, cap: "tahsilat" },
     ],
   },
   {
-    key: "moduller",
-    label: "Modüller",
+    key: "buyume",
+    label: "Büyüme",
     icon: Sparkles,
     items: [
       { href: "/leadler", label: "Lead'ler", icon: Columns3, cap: "musteri_yonet" },
-      { href: "/paketler", label: "Paketler", icon: Package, cap: "tahsilat" },
+      { href: "/firsatlar", label: "Gelir Fırsatları", icon: Sparkles, cap: "musteri_yonet" },
+      { href: "/kampanyalar", label: "Kampanyalar", icon: Megaphone, cap: "musteri_yonet" },
+      { href: "/hatirlaticilar", label: "Hatırlatmalar", icon: Bell, cap: "musteri_yonet" },
+      { href: "/yorumlar", label: "Yorumlar", icon: Star, cap: "musteri_yonet" },
+      { href: "/randevu-linki", label: "Randevu Linki", icon: Link2, cap: "randevu_yonet" },
+    ],
+  },
+  {
+    key: "yonetim",
+    label: "Yönetim",
+    icon: Building2,
+    items: [
+      { href: "/raporlar", label: "Raporlar", icon: BarChart3, cap: "raporlar" },
+      { href: "/doluluk", label: "Doluluk", icon: Grid3x3, cap: "raporlar" },
+      { href: "/hizmetler", label: "Hizmetler", icon: Scissors, cap: "randevu_yonet" },
+      { href: "/personel", label: "Personel", icon: UserCog, cap: "personel_yonet" },
       { href: "/stok", label: "Stok", icon: Boxes, cap: "tahsilat" },
-      { href: "/gorevler", label: "Görevler", icon: ListTodo },
+      { href: "/giderler", label: "Giderler", icon: Receipt, cap: "finans" },
     ],
   },
 ];

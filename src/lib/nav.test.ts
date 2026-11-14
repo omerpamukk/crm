@@ -51,26 +51,27 @@ describe("giriş koruması", () => {
   });
 });
 
-describe("gruplu menü", () => {
-  it("ana menü yedi başlık", () => {
-    const main = navSectionsForRole("owner", null)[0];
-    expect(main.items.map((i) => i.label)).toEqual([
-      "Genel Bakış", "Randevular", "Müşteriler", "Satışlar", "Pazarlama", "Raporlar", "İşletme",
-    ]);
+describe("menü düzeni", () => {
+  it("kategoriler birleşmez: Ana Menü · Satış · Büyüme · Yönetim", () => {
+    const sections = navSectionsForRole("owner", null);
+    expect(sections.map((s) => s.label)).toEqual(["Ana Menü", "Satış", "Büyüme", "Yönetim"]);
+    expect(sections[0].items.map((i) => i.label)).toEqual(["Genel Bakış", "Randevular", "Müşteriler", "Görevler"]);
   });
 
-  it("öğe, rolün açabildiği ilk sekmeye gider", () => {
-    const items = navSectionsForRole("reception", null).flatMap((s) => s.items);
-    expect(items.find((i) => i.label === "İşletme")?.href).toBe("/hizmetler");
-    expect(items.find((i) => i.label === "İşletme")?.tabs?.map((t) => t.href)).toEqual(["/hizmetler", "/randevu-linki"]);
-    expect(items.find((i) => i.label === "Raporlar")).toBeUndefined();
+  it("yalnızca Randevular ve Satışlar sekmeli (kullanıcı kararı)", () => {
+    const items = navSectionsForRole("owner", null).flatMap((s) => s.items);
+    expect(items.filter((i) => i.tabs).map((i) => i.label)).toEqual(["Randevular", "Satışlar"]);
+    expect(items.find((i) => i.label === "Randevular")?.tabs?.map((t) => t.href)).toEqual(["/takvim", "/randevular"]);
+    expect(items.find((i) => i.label === "Satışlar")?.tabs?.map((t) => t.href)).toEqual(["/tahsilat", "/cari"]);
   });
 
-  it("kapalı modülün sekmesi çıkmaz; ilk sekme kapalıysa öğe sonrakine gider", () => {
+  it("kapalı modülün sayfası menüden düşer; sekmesi kalan öğe durur", () => {
+    const hrefs = navPagesForRole("owner", ["kampanyalar", "v2"]).map((p) => p.href);
+    expect(hrefs).toContain("/kampanyalar");
+    expect(hrefs).not.toContain("/cari");
+    expect(hrefs).not.toContain("/leadler");
     const items = navSectionsForRole("owner", ["kampanyalar", "v2"]).flatMap((s) => s.items);
-    const p = items.find((i) => i.label === "Pazarlama");
-    expect(p?.href).toBe("/kampanyalar");
-    expect(p?.tabs?.map((t) => t.href)).toEqual(["/kampanyalar", "/yorumlar"]);
+    expect(items.find((i) => i.label === "Satışlar")?.tabs?.map((t) => t.href)).toEqual(["/tahsilat"]);
   });
 
   it("sekme sayfasında öğe etkin görünür", () => {
