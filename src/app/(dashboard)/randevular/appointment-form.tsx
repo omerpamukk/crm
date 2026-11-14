@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ import {
   type AppointmentInput,
 } from "./schema";
 import { createAppointment, updateAppointment } from "./actions";
+import { quickCreateCustomer } from "../musteriler/actions";
 
 export interface CustomerOption {
   id: string;
@@ -78,6 +80,12 @@ export function AppointmentForm({
   // randevuda durum salt-okunur gösterilir ve kayıtta olduğu gibi korunur.
   const isArrived = appointment?.status === "arrived";
   const [formError, setFormError] = useState<string | null>(null);
+  const [customerList, setCustomerList] = useState(customers);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickName, setQuickName] = useState("");
+  const [quickPhone, setQuickPhone] = useState("");
+  const [quickError, setQuickError] = useState<string | null>(null);
+  const [quickSaving, setQuickSaving] = useState(false);
 
   const {
     register,
@@ -105,6 +113,44 @@ export function AppointmentForm({
     (p) => p.customer_id === selectedCustomer && (p.remaining_sessions ?? 0) > 0
   );
 
+  function closeQuick() {
+    setQuickOpen(false);
+    setQuickName("");
+    setQuickPhone("");
+    setQuickError(null);
+  }
+
+  async function saveQuick() {
+    if (quickSaving) return;
+    setQuickError(null);
+    setQuickSaving(true);
+    const res = await quickCreateCustomer({ full_name: quickName, phone: quickPhone });
+    setQuickSaving(false);
+    if (res.error || !res.customer) {
+      setQuickError(res.error ?? "Müşteri eklenemedi.");
+      return;
+    }
+    const added = res.customer;
+    setCustomerList((list) =>
+      list.some((c) => c.id === added.id)
+        ? list
+        : [...list, added].sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"))
+    );
+    setValue("customer_id", added.id, { shouldValidate: true });
+    setValue("package_id", NONE);
+    toast.success(
+      res.existing ? `Bu telefon kayıtlı, ${added.full_name} seçildi` : "Müşteri eklendi ve seçildi"
+    );
+    closeQuick();
+  }
+
+  function quickKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void saveQuick();
+    }
+  }
+
   async function onSubmit(values: AppointmentInput) {
     setFormError(null);
     const result = isEdit
@@ -123,7 +169,69 @@ export function AppointmentForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="customer_id">Müşteri</Label>
+        <div className="flex min-h-11 items-center justify-between gap-3">
+          <Label htmlFor="customer_id">Müşteri</Label>
+          {!isEdit && !quickOpen && (
+            <Button
+              type="button"
+              variant="plain"
+              className="min-h-11 shrink-0 whitespace-nowrap"
+              onClick={() => setQuickOpen(true)}
+            >
+              <UserPlus aria-hidden className="size-4" />
+              Yeni müşteri
+            </Button>
+          )}
+        </div>
+        {quickOpen && (
+          <div role="group" aria-label="Yeni müşteri" className="space-y-3 rounded-[var(--radius-ctl)] bg-fill p-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="quick_name">Ad soyad</Label>
+                <Input
+                  id="quick_name"
+                  autoFocus
+                  autoComplete="off"
+                  value={quickName}
+                  onChange={(e) => setQuickName(e.target.value)}
+                  onKeyDown={quickKey}
+                  className="bg-surface"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="quick_phone">Telefon</Label>
+                <Input
+                  id="quick_phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="off"
+                  placeholder="05xx xxx xx xx"
+                  value={quickPhone}
+                  onChange={(e) => setQuickPhone(e.target.value)}
+                  onKeyDown={quickKey}
+                  className="bg-surface"
+                />
+              </div>
+            </div>
+            {quickError && (
+              <p role="alert" className="text-[0.875rem] text-danger-text">{quickError}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="plain" className="min-h-11" onClick={closeQuick}>
+                Vazgeç
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11"
+                disabled={quickSaving || quickName.trim().length < 2}
+                onClick={() => void saveQuick()}
+              >
+                {quickSaving ? "Ekleniyor…" : "Müşteriyi ekle"}
+              </Button>
+            </div>
+          </div>
+        )}
         <Controller
           control={control}
           name="customer_id"
@@ -139,7 +247,7 @@ export function AppointmentForm({
                 <SelectValue placeholder="Müşteri seçin" />
               </SelectTrigger>
               <SelectContent>
-                {customers.map((c) => (
+                {customerList.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.full_name}
                   </SelectItem>

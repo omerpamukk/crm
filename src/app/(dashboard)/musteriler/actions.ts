@@ -278,3 +278,65 @@ export async function updateCustomerStatus(
   revalidatePath("/musteriler");
   return {};
 }
+
+export type QuickCustomerResult = {
+  error?: string;
+  customer?: { id: string; full_name: string };
+  existing?: boolean;
+};
+
+export async function quickCreateCustomer(input: {
+  full_name: string;
+  phone?: string;
+}): Promise<QuickCustomerResult> {
+  const { role } = await getAccountContext();
+  if (!can(role, "musteri_ekle")) return denied();
+  const fullName = input.full_name?.trim().replace(/\s+/g, " ") ?? "";
+  if (fullName.length < 2) return { error: "Müşterinin adını yazın." };
+  if (fullName.length > 120) return { error: "Ad çok uzun." };
+  const phone = input.phone?.trim() || null;
+  if (phone && phone.replace(/\D/g, "").length < 10) {
+    return { error: "Telefonu eksiksiz yazın ya da boş bırakın." };
+  }
+
+  const supabase = await createClient();
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return { error: "Oturum bulunamadı." };
+
+  if (phone) {
+    const digits = phone.replace(/\D/g, "").slice(-10);
+    const { data: same } = await supabase
+      .from("customers")
+      .select("id, full_name, phone")
+      .eq("business_id", businessId)
+      .ilike("phone", `%${digits.slice(-4)}%`)
+      .limit(50);
+    const match = (same ?? []).find(
+      (c) => (c.phone ?? "").replace(/\D/g, "").slice(-10) === digits
+    );
+    if (match) return { customer: { id: match.id, full_name: match.full_name }, existing: true };
+  }
+
+  const { data, error } = await supabase
+    .from("customers")
+    .insert({
+      business_id: businessId,
+      is_lead: false,
+      status: "active",
+      full_name: fullName,
+      phone,
+    })
+    .select("id, full_name")
+    .single();
+
+  if (error || !data) {
+    console.error("quickCreateCustomer:", error);
+    return { error: "Müşteri eklenemedi. Biraz sonra tekrar deneyin." };
+  }
+
+  revalidatePath("/musteriler");
+  revalidatePath("/randevular");
+  revalidatePath("/takvim");
+  revalidatePath("/panel");
+  return { customer: data };
+}
