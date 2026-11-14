@@ -55,6 +55,7 @@ const STARTERS: Record<AudienceKey, string> = {
   gelmeyen_30: "Merhaba {ad}, sizi özledik! Bu ay gelirseniz size özel %15 indirim var. Randevu için bu mesajı yanıtlayabilir ya da bizi arayabilirsiniz.",
   geri_kazan: "Merhaba {ad}, bakım zamanınız geldi. Size uygun bir saat ayıralım mı? Randevu için bizi arayabilirsiniz.",
   dogum_gunu: "Doğum gününüz kutlu olsun {ad}! Bu ay boyunca size özel %20 hediye indiriminiz var.",
+  excel: "Merhaba {ad}, ",
   hepsi: "Merhaba {ad}, ",
 };
 

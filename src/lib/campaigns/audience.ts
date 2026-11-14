@@ -15,6 +15,7 @@ export const AUDIENCES = [
   { key: "gelmeyen_30", label: "1 aydır gelmeyenler", hint: "Son ziyareti 30 günden eski, ileri tarihli randevusu yok." },
   { key: "geri_kazan", label: "Geri kazanılabilirler", hint: "Kendi düzenine göre gecikmiş, henüz kaybedilmemiş." },
   { key: "dogum_gunu", label: "Bu ay doğum günü olanlar", hint: "Doğum günü bu ay içinde olan müşteriler." },
+  { key: "excel", label: "Excel'den yüklenenler", hint: "Son 7 günde Excel ile eklenen müşteriler." },
   { key: "hepsi", label: "Tüm müşteriler", hint: "Kampanya izni olan herkes." },
 ] as const;
 
@@ -32,6 +33,8 @@ export interface AudienceCustomer {
   phone: string | null;
   birthday: string | null;
   marketing_sms_at: string | null;
+  source?: string | null;
+  created_at?: string | null;
 }
 
 export interface Recipient {
@@ -59,6 +62,8 @@ function inAudience(
   switch (key) {
     case "hepsi":
       return true;
+    case "excel":
+      return c.source === "Excel" && !!c.created_at && ctx.now.getTime() - new Date(c.created_at).getTime() <= 7 * DAY;
     case "dogum_gunu":
       return !!c.birthday && c.birthday.slice(5, 7) === ctx.month;
     case "geri_kazan":

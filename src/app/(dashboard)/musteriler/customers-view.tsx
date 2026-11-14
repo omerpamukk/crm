@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Banknote as BanknoteIcon, ChevronRight, Download, PanelRight, Phone as PhoneIcon, Plus, Search, UserRound, Users } from "lucide-react";
+import { Banknote as BanknoteIcon, ChevronRight, Download, PanelRight, Phone as PhoneIcon, Plus, Search, Upload, UserRound, Users } from "lucide-react";
 
 import { customerStatusLabel, customerStatusVariant } from "@/lib/constants";
 import { useUrlState } from "@/lib/use-url-state";
@@ -28,6 +28,7 @@ import { SwipeRow } from "@/components/shared/swipe-row";
 
 import { CustomerFilters, type FilterDef } from "./customer-filters";
 import { CustomerPane } from "./customer-detail-pane";
+import { ImportSheet } from "./import-sheet";
 import { AppointmentSheet, CustomerCreateSheet, PaymentSheet } from "./customer-sheets";
 import {
   DAY,
@@ -56,11 +57,6 @@ export type CustomerMetrics = {
 const FILTER_KEYS = ["hizmet", "kalan", "odeme", "deger", "iletisim", "etiket"] as const;
 const XL_QUERY = "(min-width: 1280px)";
 const nf = (n: number) => n.toLocaleString("tr-TR");
-
-function csvCell(v: string | number): string {
-  const s = String(v ?? "");
-  return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
 
 export function CustomersView({
   customers,
@@ -135,6 +131,7 @@ export function CustomersView({
   // "Yeni müşteri" komut paletinden / başka sayfadan ?yeni=1 ile de açılır.
   const yeniParam = params.get("yeni");
   const [createOpenLocal, setCreateOpenLocal] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const createOpen = createOpenLocal || (abilities.add && yeniParam === "1");
   const setCreateOpen = (open: boolean) => {
     setCreateOpenLocal(open);
@@ -276,32 +273,28 @@ export function CustomersView({
     setQUrl("");
   }
 
-  function exportCsv() {
-    const headers = ["Ad Soyad", "Telefon", "E-posta", "Hizmet", "Kullanılan Seans", "Toplam Seans", "Toplam Ödeme", "Açık Borç", "Son İletişim", "Durum"];
-    const lines = filtered.map((c) =>
-      [
-        c.full_name,
-        c.phone ?? "",
-        c.email ?? "",
-        c.service ?? "",
-        c.total != null && c.remaining != null ? c.total - c.remaining : "",
-        c.total ?? "",
-        c.totalValue,
-        c.openDebt,
-        relTime(c.lastContactAt, nowMs),
-        customerStatusLabel(c.status),
-      ]
-        .map(csvCell)
-        .join(",")
-    );
-    const csv = "﻿" + [headers.join(","), ...lines].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `musteriler-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  async function exportXlsx() {
+    const { default: writeXlsxFile } = await import("write-excel-file/browser");
+    const heads = ["Ad Soyad", "Telefon", "E-posta", "Doğum günü", "Hizmet", "Kullanılan seans", "Toplam seans", "Toplam ödeme", "Açık borç", "Son iletişim", "Durum", "Kampanya izni"];
+    const rows = filtered.map((c) => [
+      { value: c.full_name },
+      { value: c.phone ?? "" },
+      { value: c.email ?? "" },
+      { value: c.birthday ?? "" },
+      { value: c.service ?? "" },
+      c.total != null && c.remaining != null ? { value: c.total - c.remaining, type: Number } : { value: "" },
+      c.total != null ? { value: c.total, type: Number } : { value: "" },
+      { value: c.totalValue, type: Number },
+      { value: c.openDebt, type: Number },
+      { value: relTime(c.lastContactAt, nowMs) },
+      { value: customerStatusLabel(c.status) },
+      { value: c.marketing_sms_at ? "Evet" : "Hayır" },
+    ]);
+    await writeXlsxFile([heads.map((h) => ({ value: h, fontWeight: "bold" as const })), ...rows], {
+      sheet: "Müşteriler",
+      stickyRowsCount: 1,
+      columns: [{ width: 24 }, { width: 16 }, { width: 24 }, { width: 12 }, { width: 18 }, { width: 10 }, { width: 10 }, { width: 12 }, { width: 12 }, { width: 14 }, { width: 12 }, { width: 12 }],
+    }).toFile(`musteriler-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
   const columns: DataTableColumn<EnrichedCustomer>[] = [
@@ -536,14 +529,23 @@ export function CustomersView({
           }
           action={
             abilities.add ? (
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus />
-                Yeni müşteri
-              </Button>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button onClick={() => setCreateOpen(true)}>
+                  <Plus />
+                  Yeni müşteri
+                </Button>
+                {abilities.manage && (
+                  <Button variant="secondary" onClick={() => setImportOpen(true)}>
+                    <Upload />
+                    {"Excel'den yükle"}
+                  </Button>
+                )}
+              </div>
             ) : undefined
           }
         />
         <CustomerCreateSheet open={createOpen} onOpenChange={setCreateOpen} services={serviceNames} tags={tags} />
+        {abilities.manage && <ImportSheet open={importOpen} onOpenChange={setImportOpen} />}
       </div>
     );
   }
@@ -598,10 +600,16 @@ export function CustomersView({
           actions={
             <>
               {abilities.manage && (
-                <Button variant="plain" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
-                  <Download />
-                  Dışa aktar
-                </Button>
+                <>
+                  <Button variant="plain" size="sm" onClick={() => setImportOpen(true)}>
+                    <Upload />
+                    {"Excel'den yükle"}
+                  </Button>
+                  <Button variant="plain" size="sm" onClick={() => void exportXlsx()} disabled={filtered.length === 0}>
+                    <Download />
+                    {"Excel'e indir"}
+                  </Button>
+                </>
               )}
               <Button
                 variant="ghost"
@@ -732,6 +740,7 @@ export function CustomersView({
       </Sheet>
 
       <CustomerCreateSheet open={createOpen} onOpenChange={setCreateOpen} services={serviceNames} tags={tags} />
+      {abilities.manage && <ImportSheet open={importOpen} onOpenChange={setImportOpen} />}
       {bookCustomer && (
         <AppointmentSheet
           customer={bookCustomer}
