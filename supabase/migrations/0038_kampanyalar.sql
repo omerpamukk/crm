@@ -1,5 +1,5 @@
 -- =============================================================
--- 0037_kampanyalar.sql
+-- 0038_kampanyalar.sql
 -- Toplu SMS kampanyaları: kime, ne gönderildi ve sonucu.
 -- Dayandığı migration'lar: 0001 (customers, appointments), 0003 (payments),
 -- 0007 (current_business_id), 0032 (pazarlama izni).

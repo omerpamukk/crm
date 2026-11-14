@@ -11,7 +11,7 @@ const schema = z.object({
   wantsCall: z.boolean().optional().default(false),
 });
 
-/** Giriş gerektirmez: token yalnızca kendi satırını günceller (0038 submit_feedback). */
+/** Giriş gerektirmez: token yalnızca kendi satırını günceller (0039 submit_feedback). */
 export async function submitFeedback(input: z.input<typeof schema>): Promise<{ error?: string }> {
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { error: "Lütfen 1 ile 5 arasında bir puan seçin." };

@@ -29,7 +29,7 @@ export default async function KampanyalarPage() {
     isSmsConnected(businessId),
   ]);
 
-  // Tablo henüz yoksa (0037 çalıştırılmadı) sayfa "hazır değil" der, kırılmaz.
+  // Tablo henüz yoksa (0038 çalıştırılmadı) sayfa "hazır değil" der, kırılmaz.
   const missing = campRes.error?.code === "42P01" || campRes.error?.code === "PGRST205";
   if (campRes.error && !missing) console.error("kampanyalar:", campRes.error);
 

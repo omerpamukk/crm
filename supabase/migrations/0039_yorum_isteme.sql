@@ -1,5 +1,5 @@
 -- =============================================================
--- 0038_yorum_isteme.sql
+-- 0039_yorum_isteme.sql
 -- Ziyaret sonrası memnuniyet sorusu ve Google yorum daveti.
 -- Dayandığı migration'lar: 0001, 0023 (notifications), 0025 (automations).
 --

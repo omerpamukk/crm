@@ -279,7 +279,7 @@ export interface Package {
   payment_status: PaymentStatus;
 }
 
-/** Toplu SMS kampanyası (0037). */
+/** Toplu SMS kampanyası (0038). */
 export interface Campaign {
   id: string;
   created_at: string;

@@ -66,7 +66,7 @@ export function CampaignsView({
   loadFailed,
 }: {
   campaigns: CampaignRow[];
-  /** 0037 çalıştırıldı mı. */
+  /** 0038 çalıştırıldı mı. */
   ready: boolean;
   smsConnected: boolean;
   loadFailed: boolean;
