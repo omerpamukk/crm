@@ -7,6 +7,7 @@ import { CalendarPlus, CalendarX2, ChevronLeft, ChevronRight, Plus, UserRound } 
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
+import { fromDateTimeLocal } from "@/lib/zaman";
 import { project, useMotionPreset } from "@/lib/motion";
 import { PHONE_QUERY, useMediaQuery } from "@/lib/use-media-query";
 import { canChangeArrival } from "@/lib/appointment-status";
@@ -41,6 +42,7 @@ import { useTakvimParams } from "./use-takvim-params";
 import { hourBounds, offIntervals, type WorkWindow } from "./yerlesim";
 import {
   GUN_KISA,
+  hhmm,
   addDays,
   dayKeyOf,
   dayTitle,
@@ -379,12 +381,18 @@ export function TakvimView({
     [patch, undo],
   );
 
-  type FormState = { mode: "create" } | { mode: "edit"; appt: CalAppt };
+  type FormState = { mode: "create"; startsAt?: string; staffId?: string } | { mode: "edit"; appt: CalAppt };
   const [form, setForm] = React.useState<FormState | null>(null);
   const [shownForm, setShownForm] = React.useState<FormState | null>(null);
   if (form && form !== shownForm) setShownForm(form);
-  const noCustomers = (formOptions?.customers.length ?? 0) === 0;
+  const noCustomers = !formOptions;
   const openCreate = () => setForm({ mode: "create" });
+  const openSlot = (dayKey: string, minute: number, staffId: string | null) => {
+    if (!canManage || !formOptions) return;
+    const startsAt = fromDateTimeLocal(`${dayKey}T${hhmm(minute)}`, tz) ?? undefined;
+    setSel(null);
+    setForm({ mode: "create", startsAt, staffId: staffId ?? undefined });
+  };
 
   const agenda: AgendaActions = {
     tz,
@@ -453,6 +461,7 @@ export function TakvimView({
       return {
         key: l.id ?? "none",
         dayKey: dateKey,
+        staffId: l.id,
         label: l.name,
         header: <ColumnHeader kind={l.id === null ? "none" : "staff"} name={l.name} count={items.length} />,
         items,
@@ -471,6 +480,7 @@ export function TakvimView({
     return {
       key: "phone",
       dayKey: dateKey,
+      staffId: phoneStaffId,
       label: dayTitle(dateKey, todayKey),
       items: dayItems,
       off: offIntervals(win, 0, 1440, leave),
@@ -493,6 +503,7 @@ export function TakvimView({
         return {
           key: k,
           dayKey: k,
+          staffId: weekStaffId,
           label: dayTitle(k, todayKey),
           header: (
             <button
@@ -603,6 +614,7 @@ export function TakvimView({
             loading={loading}
             selectedId={sel}
             onOpen={openAppt}
+            onSlot={canManage ? openSlot : undefined}
             scrollKey={rangeKey}
             overlay={overlay}
             ariaLabel={`${dayTitle(dateKey, todayKey)} — personele göre randevular`}
@@ -620,6 +632,7 @@ export function TakvimView({
             selectedId={sel}
             initialsFor={initialsFor}
             onOpen={openAppt}
+            onSlot={canManage ? openSlot : undefined}
             scrollKey={rangeKey}
             overlay={overlay}
             ariaLabel={`${dayTitle(dateKey, todayKey)} randevuları`}
@@ -641,6 +654,7 @@ export function TakvimView({
             selectedId={sel}
             initialsFor={initialsFor}
             onOpen={openAppt}
+            onSlot={canManage ? openSlot : undefined}
             scrollKey={rangeKey}
             overlay={overlay}
             ariaLabel={`${rangeTitle("hafta", dateKey, todayKey)} haftasının randevuları`}
@@ -957,12 +971,14 @@ export function TakvimView({
                 />
               ) : shownForm ? (
                 <AppointmentForm
-                  key={shownForm.mode === "edit" ? shownForm.appt.id : "new"}
+                  key={shownForm.mode === "edit" ? shownForm.appt.id : `new-${shownForm.startsAt ?? ""}-${shownForm.staffId ?? ""}`}
                   appointment={shownForm.mode === "edit" ? shownForm.appt : undefined}
                   customers={formOptions.customers}
                   services={formOptions.services}
                   staff={formOptions.staff}
                   packages={formOptions.packages}
+                  presetStartsAt={shownForm.mode === "create" ? shownForm.startsAt : undefined}
+                  presetStaffId={shownForm.mode === "create" ? shownForm.staffId : undefined}
                   onSuccess={() => {
                     setForm(null);
                     void store.refresh();

@@ -26,7 +26,11 @@ export type GridColumn = {
   /** Soluk bölgelerin üstüne küçük not ("Kapalı", "İzinli"). */
   notes?: { at: number; text: string }[];
   isToday: boolean;
+  /** Boş alana tıklayınca yeni randevuda seçili gelecek personel. */
+  staffId?: string | null;
 };
+
+const SLOT_MIN = 15;
 
 /**
  * Dikey zaman ızgarası (Google Takvim gibi): solda saatler, her sütun bir
@@ -46,6 +50,7 @@ export function TimeGrid({
   selectedId,
   initialsFor,
   onOpen,
+  onSlot,
   scrollKey,
   overlay,
   ariaLabel,
@@ -64,6 +69,8 @@ export function TimeGrid({
   /** Blokta personelin baş harfleri (Tümü görünümü). */
   initialsFor?: (a: Placed) => string | null;
   onOpen: (a: Placed, el: HTMLElement) => void;
+  /** Boş alana tıklama: o gün, o saat (dakika) ve sütunun personeli. */
+  onSlot?: (dayKey: string, minute: number, staffId: string | null) => void;
   /** Değişince ızgara "şu an"a ya da ilk randevuya kayar. */
   scrollKey: string;
   overlay?: React.ReactNode;
@@ -188,6 +195,7 @@ export function TimeGrid({
               selectedId={selectedId}
               initialsFor={initialsFor}
               onOpen={onOpen}
+              onSlot={onSlot}
             />
           ))}
         </div>
@@ -209,6 +217,7 @@ function Column({
   selectedId,
   initialsFor,
   onOpen,
+  onSlot,
 }: {
   column: GridColumn;
   index: number;
@@ -221,7 +230,14 @@ function Column({
   selectedId: string | null;
   initialsFor?: (a: Placed) => string | null;
   onOpen: (a: Placed, el: HTMLElement) => void;
+  onSlot?: (dayKey: string, minute: number, staffId: string | null) => void;
 }) {
+  const [hoverMin, setHoverMin] = React.useState<number | null>(null);
+  const slotAt = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const min = from + Math.floor((e.clientY - rect.top) / PPM / SLOT_MIN) * SLOT_MIN;
+    return Math.min(Math.max(min, from), to - SLOT_MIN);
+  };
   const slots = React.useMemo(
     () => packOverlaps(c.items.map((a) => ({ id: a.id, start: a.startMin, end: a.endMin }))),
     [c.items]
@@ -244,9 +260,32 @@ function Column({
       ref={ref}
       role="group"
       aria-label={c.label}
-      className="relative min-w-0 border-l border-separator"
+      className={cn("relative min-w-0 border-l border-separator", onSlot && !loading && "cursor-pointer")}
       style={{ height, ...lines }}
+      onClick={
+        onSlot && !loading
+          ? (e) => {
+              if (e.target !== e.currentTarget) return;
+              onSlot(c.dayKey, slotAt(e), c.staffId ?? null);
+            }
+          : undefined
+      }
+      onMouseMove={
+        onSlot && !loading
+          ? (e) => setHoverMin(e.target === e.currentTarget ? slotAt(e) : null)
+          : undefined
+      }
+      onMouseLeave={onSlot ? () => setHoverMin(null) : undefined}
     >
+      {hoverMin !== null && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-1 flex items-start rounded-[9px] bg-primary-soft px-2 pt-0.5 text-[0.6875rem] font-semibold text-primary-text tabular-nums"
+          style={{ top: yOf(hoverMin) + 1, height: SLOT_MIN * PPM * 2 - 2 }}
+        >
+          {hhmm(hoverMin)} · Yeni randevu
+        </div>
+      )}
       {c.off.map(([s, e]) => (
         <div
           key={`off-${s}-${e}`}
