@@ -34,7 +34,7 @@ async function fetchAll<T>(
   return { rows, error: false };
 }
 
-export type MonthPoint = { key: string; y: number; m: number; ciro: number; gider: number; hizmet: number; partial: boolean };
+export type MonthPoint = { key: string; y: number; m: number; ciro: number; gider: number; hizmet: number; randevu: number; partial: boolean };
 export type NamedValue = { name: string; value: number };
 export type StaffRow = { id: string; name: string; count: number; revenue: number; rate: number; commission: number };
 export type Risk = { text: string; tone: "danger" | "warning" };
@@ -53,6 +53,11 @@ export type ReportData = {
   avgCustomerValue: number;
   customersTotal: number;
   newCustomers: number;
+  appointments: number;
+  showRate: number | null;
+  newRealCustomers: number;
+  perStaff: number | null;
+  topCustomers: NamedValue[];
   debt: DebtSummary;
   months: MonthPoint[];
   sourceRevenue: NamedValue[];
@@ -146,11 +151,13 @@ export async function loadReport(
       status: string | null;
       price: number | null;
       staff_member_id: string | null;
+      customer_id: string | null;
       service: { name: string } | { name: string }[] | null;
+      customer: { full_name: string | null } | { full_name: string | null }[] | null;
     }>((from, to) =>
       supabase
         .from("appointments")
-        .select("status, price, staff_member_id, service:services(name)")
+        .select("status, price, staff_member_id, customer_id, service:services(name), customer:customers(full_name)")
         .eq("business_id", businessId)
         .gte("starts_at", startAt)
         .lt("starts_at", endAt)
@@ -196,12 +203,12 @@ export async function loadReport(
         .order("id")
         .range(from, to)
     ),
-    fetchAll<{ starts_at: string }>((from, to) =>
+    fetchAll<{ starts_at: string; status: string | null }>((from, to) =>
       supabase
         .from("appointments")
-        .select("starts_at")
+        .select("starts_at, status")
         .eq("business_id", businessId)
-        .eq("status", "completed")
+        .neq("status", "cancelled")
         .gte("starts_at", chartStartAt)
         .lt("starts_at", chartEndAt)
         .order("id")
@@ -297,7 +304,7 @@ export async function loadReport(
   // --- Aylık seri (12 ay, İstanbul ayları) ---
   const months: MonthPoint[] = monthKeys.map((key) => {
     const [y, m] = key.split("-").map(Number);
-    return { key, y, m, ciro: 0, gider: 0, hizmet: 0, partial: key === curMonth };
+    return { key, y, m, ciro: 0, gider: 0, hizmet: 0, randevu: 0, partial: key === curMonth };
   });
   const at = new Map(months.map((p, i) => [p.key, i]));
   for (const p of payChart.rows) {
@@ -310,8 +317,28 @@ export async function loadReport(
   }
   for (const a of apptChart.rows) {
     const i = at.get(dayKeyOf(a.starts_at, BUSINESS_TZ).slice(0, 7));
-    if (i !== undefined) months[i].hizmet += 1;
+    if (i === undefined) continue;
+    months[i].randevu += 1;
+    if (a.status === "completed") months[i].hizmet += 1;
   }
+
+  // --- Randevu özeti ---
+  const active = apptPeriod.rows.filter((a) => a.status !== "cancelled");
+  const cameCount = apptPeriod.rows.filter((a) => a.status === "completed" || a.status === "arrived").length;
+  const noShowCount = apptPeriod.rows.filter((a) => a.status === "no_show").length;
+  const showRate = cameCount + noShowCount > 0 ? Math.round((cameCount / (cameCount + noShowCount)) * 100) : null;
+  const staffWithAppts = new Set(active.map((a) => a.staff_member_id).filter(Boolean)).size;
+  const perStaff = staffWithAppts > 0 ? Math.round((active.filter((a) => a.staff_member_id).length / staffWithAppts) * 10) / 10 : null;
+  const custCount = new Map<string, { name: string; value: number }>();
+  for (const a of active) {
+    if (!a.customer_id) continue;
+    const cur = custCount.get(a.customer_id) ?? { name: pickOne(a.customer)?.full_name?.trim() || "Adsız müşteri", value: 0 };
+    cur.value += 1;
+    custCount.set(a.customer_id, cur);
+  }
+  const topCustomers = [...custCount.values()]
+    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "tr"))
+    .slice(0, 5);
 
   // --- Dikkat edilecekler ---
   const debt = summarizeBalances(debtors.rows);
@@ -343,7 +370,7 @@ export async function loadReport(
   }
 
   const hasAnyData =
-    revenue > 0 || expense > 0 || apptPeriod.rows.length > 0 || newPeople > 0 || months.some((p) => p.ciro > 0 || p.gider > 0 || p.hizmet > 0);
+    revenue > 0 || expense > 0 || apptPeriod.rows.length > 0 || newPeople > 0 || months.some((p) => p.ciro > 0 || p.gider > 0 || p.randevu > 0);
 
   return {
     failed,
@@ -359,6 +386,11 @@ export async function loadReport(
     avgCustomerValue,
     customersTotal,
     newCustomers: newPeople,
+    appointments: active.length,
+    showRate,
+    newRealCustomers: custPeriod.rows.filter((c) => !c.is_lead).length,
+    perStaff,
+    topCustomers,
     debt,
     months,
     sourceRevenue: topN(srcRev, 5),

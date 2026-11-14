@@ -129,6 +129,7 @@ export default async function RaporlarPage({
   }));
   const chartEmpty = data.months.every((p) => p.ciro === 0 && p.gider === 0);
   const servicesEmpty = data.months.every((p) => p.hizmet === 0);
+  const apptsEmpty = data.months.every((p) => p.randevu === 0);
   const sparkline = data.months.map((p) => p.ciro);
 
   return (
@@ -159,6 +160,21 @@ export default async function RaporlarPage({
           context={data.debt.debtorCount > 0 ? `${data.debt.debtorCount} borçlu müşteri` : "Ödeme bekleyen yok"}
         />
         <Metric label="Satılan hizmet" value={COUNT.format(data.servicesSold)} delta={data.servicesDelta} context="önceki döneme göre" />
+      </MetricStrip>
+
+      <MetricStrip aria-label="Randevu özeti">
+        <Metric label="Randevu" value={COUNT.format(data.appointments)} href="/randevular" context="iptaller hariç" />
+        <Metric
+          label="Gelme oranı"
+          value={data.showRate != null ? `%${data.showRate}` : "—"}
+          context={data.showRate != null ? "gelen / gelen + gelmeyen" : "henüz sonuçlanan randevu yok"}
+        />
+        <Metric label="Yeni müşteri" value={COUNT.format(data.newRealCustomers)} href="/musteriler" context="bu dönem eklenen" />
+        <Metric
+          label="Personel başına"
+          value={data.perStaff != null ? COUNT.format(data.perStaff) : "—"}
+          context={data.perStaff != null ? "randevu, ortalama" : "personele atanmış randevu yok"}
+        />
       </MetricStrip>
 
       <MetricStrip aria-label="Müşteri özeti">
@@ -211,6 +227,26 @@ export default async function RaporlarPage({
             data={trend.map((t, i) => ({ ...t, value: data.months[i].hizmet }))}
             height={240}
           />
+        </ReportSection>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-2">
+        <ReportSection title="Randevular" detail="Son 12 ay, iptaller hariç" empty={apptsEmpty ? "Son 12 ayda randevu yok." : undefined}>
+          <TrendChart
+            kind="bar"
+            unit="number"
+            label="Son 12 ay randevu sayısı"
+            seriesName="Randevu"
+            data={trend.map((t, i) => ({ ...t, value: data.months[i].randevu }))}
+            height={240}
+          />
+        </ReportSection>
+        <ReportSection
+          title="En sık gelen müşteriler"
+          detail="Bu dönem, randevu sayısı"
+          empty={data.topCustomers.length === 0 ? "Bu dönemde randevu yok." : undefined}
+        >
+          <BarList rows={data.topCustomers} format={(n) => `${COUNT.format(n)} randevu`} aria-label="En sık gelen müşteriler" />
         </ReportSection>
       </div>
 

@@ -19,8 +19,8 @@ export function BarList({
   const max = Math.max(...rows.map((r) => r.value), 1);
   return (
     <ul role="list" aria-label={ariaLabel} className={cn("space-y-3.5", className)}>
-      {rows.map((r) => (
-        <li key={r.name} className="min-w-0">
+      {rows.map((r, i) => (
+        <li key={`${r.name}-${i}`} className="min-w-0">
           <div className="flex min-w-0 items-baseline justify-between gap-3 text-[0.9375rem]">
             <span className="min-w-0 truncate text-label" title={r.name}>
               {r.name}
