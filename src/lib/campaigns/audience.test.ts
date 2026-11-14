@@ -84,3 +84,19 @@ describe("mesaj", () => {
     expect(smsParts("a".repeat(301))).toBe(3);
   });
 });
+
+describe("excel kitlesi", () => {
+  it("son 7 günde Excel'den yüklenenler", () => {
+    const r = buildAudience(
+      "excel",
+      [
+        cust("1", { source: "Excel", created_at: "2026-11-13T10:00:00Z" }),
+        cust("2", { source: "Excel", created_at: "2026-10-01T10:00:00Z" }),
+        cust("3", { source: "Instagram", created_at: "2026-11-13T10:00:00Z" }),
+      ],
+      [],
+      NOW
+    );
+    expect(r.recipients.map((x) => x.customerId)).toEqual(["1"]);
+  });
+});

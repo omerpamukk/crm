@@ -41,7 +41,7 @@ async function resolveAudience(
   const [custRes, rhythmRes] = await Promise.all([
     supabase
       .from("customers")
-      .select("id, full_name, phone, birthday, marketing_sms_at")
+      .select("id, full_name, phone, birthday, marketing_sms_at, source, created_at")
       .eq("business_id", businessId)
       .eq("is_lead", false)
       .limit(20000),
