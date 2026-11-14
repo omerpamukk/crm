@@ -233,6 +233,17 @@ export interface Staff {
   commission_rate: number;
   is_active: boolean;
   note: string | null;
+  /** Takvim rengi (0042): src/lib/staff-colors.ts anahtarı. */
+  color?: string | null;
+}
+
+/** Personelin verdiği hizmetler (0042). Personelin hiç satırı yoksa = tüm hizmetler. */
+export interface StaffService {
+  id: string;
+  created_at: string;
+  business_id: string;
+  staff_id: string;
+  service_id: string;
 }
 
 export type AgencyPermission = "view" | "view_report";
@@ -263,6 +274,8 @@ export interface BookingSettings {
   start_time: string;
   end_time: string;
   is_active: boolean;
+  /** Online randevuda müşteri personel seçebilsin (0042). */
+  choose_staff?: boolean;
 }
 
 export interface Package {

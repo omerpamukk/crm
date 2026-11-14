@@ -132,6 +132,24 @@ export async function setBookingActive(
   return {};
 }
 
+/** Online randevuda müşteri personel seçebilsin mi (0042). */
+export async function setChooseStaff(id: string, on: boolean): Promise<ActionResult> {
+  const supabase = await createClient();
+  const auth = await authorize(supabase, "randevu_yonet");
+  if ("error" in auth) return { error: auth.error };
+  const { error } = await supabase
+    .from("booking_settings")
+    .update({ choose_staff: on })
+    .eq("id", id)
+    .eq("business_id", auth.businessId);
+  if (error) {
+    console.error("setChooseStaff:", error);
+    return { error: "Güncellenemedi. Biraz sonra tekrar deneyin." };
+  }
+  revalidatePath("/randevu-linki");
+  return {};
+}
+
 /** Yeni token üretir (eski link çalışmaz hale gelir). */
 export async function regenerateBookingToken(id: string): Promise<ActionResult> {
   const supabase = await createClient();

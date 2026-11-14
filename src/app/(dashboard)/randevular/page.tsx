@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAccountContext } from "@/lib/supabase/account";
 import { can } from "@/lib/permissions";
+import { attachServiceIds } from "@/lib/staff-services";
 
 import { AppointmentsView } from "./appointments-view";
 import type { AppointmentRow } from "./types";
@@ -42,12 +43,14 @@ export default async function RandevularPage() {
     supabase.from("packages").select("id, customer_id, service_name, remaining_sessions"),
   ]);
 
+  const staffOptions = await attachServiceIds(supabase, (staffRes.data ?? []) as { id: string; full_name: string }[]);
+
   return (
     <AppointmentsView
       appointments={(appointmentsRes.data ?? []) as unknown as AppointmentRow[]}
       customers={customersRes.data ?? []}
       services={servicesRes.data ?? []}
-      staff={staffRes.data ?? []}
+      staff={staffOptions}
       packages={packagesRes.data ?? []}
       loadFailed={Boolean(appointmentsRes.error)}
       role={role}

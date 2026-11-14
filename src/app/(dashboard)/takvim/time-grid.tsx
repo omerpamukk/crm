@@ -67,7 +67,7 @@ export function TimeGrid({
   loading?: boolean;
   selectedId: string | null;
   /** Blokta personelin baş harfleri (Tümü görünümü). */
-  initialsFor?: (a: Placed) => string | null;
+  initialsFor?: (a: Placed) => React.ReactNode;
   onOpen: (a: Placed, el: HTMLElement) => void;
   /** Boş alana tıklama: o gün, o saat (dakika) ve sütunun personeli. */
   onSlot?: (dayKey: string, minute: number, staffId: string | null) => void;
@@ -228,7 +228,7 @@ function Column({
   nowY: number | null;
   loading: boolean;
   selectedId: string | null;
-  initialsFor?: (a: Placed) => string | null;
+  initialsFor?: (a: Placed) => React.ReactNode;
   onOpen: (a: Placed, el: HTMLElement) => void;
   onSlot?: (dayKey: string, minute: number, staffId: string | null) => void;
 }) {

@@ -5,7 +5,7 @@ import { requireCapability } from "@/lib/supabase/guard";
 import { can } from "@/lib/permissions";
 import type { Staff } from "@/types/database";
 
-import { StaffView } from "./staff-view";
+import { StaffView, type ServiceOption } from "./staff-view";
 
 export const metadata = { title: "Personel" };
 
@@ -15,20 +15,32 @@ export default async function PersonelPage() {
   const { role } = await getAccountContext();
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
-  if (!businessId) return <StaffView staff={[]} canManage={false} loadFailed />;
+  if (!businessId) return <StaffView staff={[]} services={[]} staffServices={{}} canManage={false} loadFailed />;
 
-  const { data, error } = await supabase
-    .from("staff")
-    .select("*")
-    .eq("business_id", businessId)
-    .order("is_active", { ascending: false })
-    .order("full_name");
+  const [staffRes, servicesRes, linksRes] = await Promise.all([
+    supabase
+      .from("staff")
+      .select("*")
+      .eq("business_id", businessId)
+      .order("is_active", { ascending: false })
+      .order("full_name"),
+    supabase.from("services").select("id, name").eq("business_id", businessId).order("name"),
+    // 0042 çalışmadıysa tablo yoktur: herkes "Tüm hizmetler" sayılır.
+    supabase.from("staff_services").select("staff_id, service_id").eq("business_id", businessId),
+  ]);
+
+  const staffServices: Record<string, string[]> = {};
+  for (const r of (linksRes.error ? [] : linksRes.data ?? []) as { staff_id: string; service_id: string }[]) {
+    (staffServices[r.staff_id] ??= []).push(r.service_id);
+  }
 
   return (
     <StaffView
-      staff={(data ?? []) as Staff[]}
+      staff={(staffRes.data ?? []) as Staff[]}
+      services={(servicesRes.data ?? []) as ServiceOption[]}
+      staffServices={staffServices}
       canManage={can(role, "personel_yonet")}
-      loadFailed={Boolean(error)}
+      loadFailed={Boolean(staffRes.error)}
     />
   );
 }

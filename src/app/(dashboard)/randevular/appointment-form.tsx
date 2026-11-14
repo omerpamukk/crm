@@ -21,6 +21,7 @@ import { APPOINTMENT_STATUSES } from "@/lib/constants";
 import { StatusBadge } from "@/components/shared/status";
 import { formatTime, toDateTimeLocal } from "@/lib/format";
 import type { Appointment } from "@/types/database";
+import { staffDoesService } from "@/lib/staff-colors";
 
 import {
   appointmentSchema,
@@ -42,6 +43,8 @@ export interface ServiceOption {
 export interface StaffOption {
   id: string;
   full_name: string;
+  /** Verdiği hizmetler (0042); boş ya da yok = tüm hizmetler. */
+  service_ids?: string[];
 }
 export interface PackageOption {
   id: string;
@@ -109,6 +112,15 @@ export function AppointmentForm({
   });
 
   const selectedCustomer = useWatch({ control, name: "customer_id" });
+  const selectedService = useWatch({ control, name: "service_id" });
+  const selectedStaff = useWatch({ control, name: "staff_member_id" });
+  // Seçilen hizmeti veren personel; seçili personel listede kalır. Kimse
+  // vermiyorsa (ayar yapılmamış) bütün liste görünür.
+  const staffForService = (() => {
+    const svc = selectedService && selectedService !== NONE ? selectedService : null;
+    const fit = staff.filter((p) => p.id === selectedStaff || staffDoesService(p.service_ids, svc));
+    return fit.length > 0 ? fit : staff;
+  })();
   const customerPackages = packages.filter(
     (p) => p.customer_id === selectedCustomer && (p.remaining_sessions ?? 0) > 0
   );
@@ -304,7 +316,7 @@ export function AppointmentForm({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE}>Atanmadı</SelectItem>
-                  {staff.map((p) => (
+                  {staffForService.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.full_name}
                     </SelectItem>

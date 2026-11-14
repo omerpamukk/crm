@@ -32,6 +32,7 @@ import { StatusDot } from "@/components/shared/status";
 import {
   regenerateBookingToken,
   setBookingActive,
+  setChooseStaff,
   toggleServiceBookable,
 } from "./booking-actions";
 import { DAYS, ScheduleForm } from "./schedule-form";
@@ -99,6 +100,17 @@ export function BookingLinkView({
       if (res.error) toast.error(res.error);
       else {
         toast.success(next ? "Randevu linki açıldı" : "Randevu linki kapatıldı");
+        router.refresh();
+      }
+    });
+  }
+
+  function setStaffChoice(next: boolean) {
+    startTransition(async () => {
+      const res = await setChooseStaff(settings.id, next);
+      if (res.error) toast.error(res.error);
+      else {
+        toast.success(next ? "Müşteriler artık personel seçebilir" : "Personel seçimi kapatıldı");
         router.refresh();
       }
     });
@@ -239,6 +251,28 @@ export function BookingLinkView({
                   />
                 );
               })}
+            </ListGroup>
+          )}
+
+          {/* Personel seçimi (0042 çalıştıysa görünür) */}
+          {typeof settings.choose_staff === "boolean" && (
+            <ListGroup title="Personel" inset={16}>
+              <ListRow
+                title="Müşteri personel seçebilsin"
+                subtitle={
+                  settings.choose_staff
+                    ? "Boş saatler personelin takvimine göre çıkar"
+                    : "Kapalı: saatler yalnızca kapasiteye göre çıkar"
+                }
+                trailing={
+                  <Switch
+                    checked={settings.choose_staff}
+                    onCheckedChange={setStaffChoice}
+                    disabled={pending}
+                    label="Müşteri personel seçebilsin"
+                  />
+                }
+              />
             </ListGroup>
           )}
 

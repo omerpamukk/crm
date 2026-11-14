@@ -4,6 +4,7 @@ import { type Rhythm } from "@/lib/customer-rhythm";
 import { fetchRhythm, isWinnable } from "@/lib/rhythm-query";
 
 import { createClient } from "@/lib/supabase/server";
+import { attachServiceIds } from "@/lib/staff-services";
 import { getAccountContext } from "@/lib/supabase/account";
 import { can } from "@/lib/permissions";
 import { getBusinessId } from "@/lib/supabase/business";
@@ -287,7 +288,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const form = {
     customers: (formCustRes.data ?? []) as { id: string; full_name: string; is_lead: boolean }[],
     services: (servicesRes.data ?? []) as { id: string; name: string; price: number | null }[],
-    staff: (staffRes.data ?? []) as { id: string; full_name: string }[],
+    staff: await attachServiceIds(supabase, (staffRes.data ?? []) as { id: string; full_name: string }[], businessId),
     packages: pkgs.map((p) => ({ id: p.id, customer_id: p.customer_id, service_name: p.service_name, remaining_sessions: p.remaining_sessions })),
   };
 

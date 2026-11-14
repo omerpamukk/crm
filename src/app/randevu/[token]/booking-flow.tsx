@@ -3,10 +3,12 @@
 import { useMemo, useState, useTransition } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarX2, CheckCircle2, ChevronLeft } from "lucide-react";
+import { CalendarX2, CheckCircle2, ChevronLeft, Users } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/format";
+import { staffDoesService } from "@/lib/staff-colors";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,9 +38,21 @@ export interface BookingConfig {
   start_time?: string;
   end_time?: string;
   services?: { id: string; name: string; price: number | null; duration_min: number | null }[];
+  /** İşletme "Müşteri personel seçebilsin"i açtıysa (0042). */
+  choose_staff?: boolean;
+  staff?: { id: string; name: string; service_ids: string[] }[];
 }
 
-const STEP_TITLES = ["Hizmet seçin", "Gün ve saat seçin", "Bilgileriniz", "Onay"] as const;
+type StepKey = "hizmet" | "personel" | "zaman" | "bilgi" | "onay";
+const STEP_TITLE: Record<StepKey, string> = {
+  hizmet: "Hizmet seçin",
+  personel: "Personel seçin",
+  zaman: "Gün ve saat seçin",
+  bilgi: "Bilgileriniz",
+  onay: "Onay",
+};
+/** "Fark etmez": uygun olan personel atanır. */
+const ANY = "any";
 const DAYS_AHEAD = 21;
 
 /**
@@ -64,6 +78,8 @@ export function BookingFlow({
 
   const [step, setStep] = useState(1);
   const [serviceId, setServiceId] = useState<string | null>(null);
+  // null = henüz seçilmedi, ANY = fark etmez, diğer = personel id
+  const [staffChoice, setStaffChoice] = useState<string | null>(null);
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -76,6 +92,21 @@ export function BookingFlow({
   const [cutoff, setCutoff] = useState(0);
 
   const service = services.find((s) => s.id === serviceId) ?? null;
+
+  // Personel adımı: işletme açtıysa ve bu hizmeti veren birden çok kişi varsa.
+  const eligibleStaff = useMemo(
+    () => (config.choose_staff ? (config.staff ?? []).filter((p) => staffDoesService(p.service_ids, serviceId)) : []),
+    [config.choose_staff, config.staff, serviceId]
+  );
+  const withStaffStep = eligibleStaff.length > 1;
+  const steps: StepKey[] = withStaffStep
+    ? ["hizmet", "personel", "zaman", "bilgi", "onay"]
+    : ["hizmet", "zaman", "bilgi", "onay"];
+  const current = steps[Math.min(step, steps.length) - 1];
+  const goTo = (key: StepKey) => setStep(steps.indexOf(key) + 1);
+  /** Sunucuya giden personel: yalnızca açıkça seçildiyse. */
+  const staffId = staffChoice && staffChoice !== ANY ? staffChoice : null;
+  const staffName = staffId ? (eligibleStaff.find((p) => p.id === staffId)?.name ?? null) : null;
 
   const {
     register,
@@ -109,7 +140,7 @@ export function BookingFlow({
     setBookedSlots([]);
     setCutoff(nowMinutes());
     setLoadingSlots(true);
-    getBookedSlots(token, key)
+    getBookedSlots(token, key, config.choose_staff ? serviceId : null, staffId)
       .then(setBookedSlots)
       .catch(() => setBookedSlots([]))
       .finally(() => setLoadingSlots(false));
@@ -141,6 +172,7 @@ export function BookingFlow({
         serviceId: service.id,
         startsAt,
         kvkk: contact.kvkk,
+        staffId,
       });
       if (res.ok) {
         setDone(true);
@@ -149,7 +181,7 @@ export function BookingFlow({
       const msg = res.error ?? "Randevu oluşturulamadı. Lütfen tekrar deneyin.";
       // Saat başkası tarafından alınmışsa gün ve saat adımına dön.
       if (msg.includes("doldu")) {
-        setStep(2);
+        goTo("zaman");
         pickDate(date);
       }
       setError(msg);
@@ -164,7 +196,8 @@ export function BookingFlow({
           <CheckCircle2 aria-hidden className="size-12 text-positive-text" strokeWidth={1.5} />
           <h2 className="text-title-3 font-semibold">Randevu talebiniz alındı</h2>
           <p className="text-[0.9375rem] text-label-2">
-            {service?.name} · {date && dayLabel(date)} · {time}
+            {service?.name}
+            {staffName ? ` · ${staffName}` : ""} · {date && dayLabel(date)} · {time}
           </p>
           <p className="max-w-xs text-[0.9375rem] text-label-2">
             İşletme randevunuzu onayladığında sizinle iletişime geçecek. Teşekkürler{name ? `, ${name.split(" ")[0]}` : ""}.
@@ -177,9 +210,9 @@ export function BookingFlow({
   return (
     <Frame businessName={config.business_name} logo={config.logo}>
       {/* Adım göstergesi: çubuk + metin (renk tek başına anlam taşımaz) */}
-      <div className="mb-5" role="group" aria-label={`Adım ${step} / ${STEP_TITLES.length}`}>
+      <div className="mb-5" role="group" aria-label={`Adım ${step} / ${steps.length}`}>
         <div className="flex gap-1.5" aria-hidden>
-          {STEP_TITLES.map((_, i) => (
+          {steps.map((_, i) => (
             <span
               key={i}
               className={cn("h-1 flex-1 rounded-full", i < step ? "bg-primary-fill" : "bg-fill-2")}
@@ -187,16 +220,16 @@ export function BookingFlow({
           ))}
         </div>
         <p className="mt-2 text-subhead text-label-2">
-          Adım {step} / {STEP_TITLES.length}
+          Adım {step} / {steps.length}
         </p>
       </div>
 
       <h2 className="mb-3 text-title-3 font-semibold">
-        {step}. {STEP_TITLES[step - 1]}
+        {step}. {STEP_TITLE[current]}
       </h2>
 
       {/* Adım 1: Hizmet */}
-      {step === 1 &&
+      {current === "hizmet" &&
         (services.length === 0 ? (
           <EmptyState
             variant="inline"
@@ -214,7 +247,14 @@ export function BookingFlow({
                     type="button"
                     role="radio"
                     aria-checked={on}
-                    onClick={() => setServiceId(s.id)}
+                    onClick={() => {
+                      if (s.id !== serviceId) {
+                        setServiceId(s.id);
+                        setStaffChoice(null);
+                        setDate(null);
+                        setTime(null);
+                      }
+                    }}
                     className={cn(
                       "focus-ring pressable flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition-colors",
                       on ? "bg-primary-soft ring-2 ring-primary" : "bg-fill hover:bg-fill-2"
@@ -236,8 +276,51 @@ export function BookingFlow({
           </ul>
         ))}
 
-      {/* Adım 2: Gün ve saat */}
-      {step === 2 && (
+      {/* Personel (işletme açtıysa) */}
+      {current === "personel" && (
+        <ul role="radiogroup" aria-label="Personel" className="space-y-2">
+          {[{ id: ANY, name: "Fark etmez" }, ...eligibleStaff].map((p) => {
+            const on = staffChoice === p.id;
+            return (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => {
+                    if (p.id !== staffChoice) {
+                      setStaffChoice(p.id);
+                      setDate(null);
+                      setTime(null);
+                    }
+                  }}
+                  className={cn(
+                    "focus-ring pressable flex min-h-14 w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition-colors",
+                    on ? "bg-primary-soft ring-2 ring-primary" : "bg-fill hover:bg-fill-2"
+                  )}
+                >
+                  {p.id === ANY ? (
+                    <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-fill-2 text-label-2">
+                      <Users className="size-4" />
+                    </span>
+                  ) : (
+                    <Avatar name={p.name} size="md" />
+                  )}
+                  <span className="min-w-0">
+                    <span className="block truncate text-[0.9375rem] font-medium">{p.name}</span>
+                    {p.id === ANY && (
+                      <span className="block text-subhead text-label-2">En erken boş saati görün</span>
+                    )}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* Gün ve saat */}
+      {current === "zaman" && (
         <div className="space-y-5">
           {error && (
             <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-[0.9375rem] text-danger-text">
@@ -329,12 +412,12 @@ export function BookingFlow({
       )}
 
       {/* Adım 3: Bilgiler */}
-      {step === 3 && (
+      {current === "bilgi" && (
         <form
           id="contact-form"
           onSubmit={handleSubmit(() => {
             setError(null);
-            setStep(4);
+            goTo("onay");
           })}
           className="space-y-4"
           noValidate
@@ -397,10 +480,11 @@ export function BookingFlow({
       )}
 
       {/* Adım 4: Onay */}
-      {step === 4 && (
+      {current === "onay" && (
         <div className="space-y-4">
           <dl className="surface-flat divide-y divide-[color:var(--separator)] px-4 text-[0.9375rem]">
             <SummaryRow label="Hizmet" value={service?.name ?? "—"} extra={service ? formatPrice(service.price) : undefined} />
+            {withStaffStep && <SummaryRow label="Personel" value={staffName ?? "Fark etmez"} />}
             <SummaryRow label="Gün" value={date ? dayLabel(date) : "—"} />
             <SummaryRow label="Saat" value={time ?? "—"} />
             <SummaryRow label="Ad soyad" value={getValues("name")} />
@@ -430,22 +514,27 @@ export function BookingFlow({
             Geri
           </Button>
         )}
-        {step === 1 && (
+        {current === "hizmet" && (
           <Button size="lg" className="flex-1" onClick={() => setStep(2)} disabled={!serviceId}>
             Devam et
           </Button>
         )}
-        {step === 2 && (
-          <Button size="lg" className="flex-1" onClick={() => setStep(3)} disabled={!date || !time}>
+        {current === "personel" && (
+          <Button size="lg" className="flex-1" onClick={() => goTo("zaman")} disabled={!staffChoice}>
             Devam et
           </Button>
         )}
-        {step === 3 && (
+        {current === "zaman" && (
+          <Button size="lg" className="flex-1" onClick={() => goTo("bilgi")} disabled={!date || !time}>
+            Devam et
+          </Button>
+        )}
+        {current === "bilgi" && (
           <Button type="submit" form="contact-form" size="lg" className="flex-1">
             Devam et
           </Button>
         )}
-        {step === 4 && (
+        {current === "onay" && (
           <Button size="lg" className="flex-1" onClick={handleSubmit(submit)} disabled={pending}>
             {pending ? "Gönderiliyor..." : "Randevuyu oluştur"}
           </Button>

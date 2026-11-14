@@ -27,6 +27,8 @@ import { Metric, MetricStrip } from "@/components/shared/metric";
 import { PageHeader } from "@/components/shared/page-header";
 import { PageSkeleton } from "@/components/shared/skeletons";
 import { StatusBadge } from "@/components/shared/status";
+import { staffDotClass } from "@/lib/staff-colors";
+import { cn } from "@/lib/utils";
 
 import { useRandevuParams } from "../randevular/use-randevu-params";
 import { deleteStaff } from "./actions";
@@ -38,6 +40,12 @@ function useMounted() {
 }
 
 type Scope = "aktif" | "pasif" | "hepsi";
+export type ServiceOption = { id: string; name: string };
+
+/** Personelin rengi: küçük nokta, adın yanında (renk tek başına anlam taşımaz). */
+function ColorDot({ color }: { color?: string | null }) {
+  return <span aria-hidden className={cn("status-dot shrink-0", staffDotClass(color))} />;
+}
 const tr = (s: string) => s.toLocaleLowerCase("tr-TR");
 const rateText = (s: Staff) => (s.commission_rate > 0 ? `%${s.commission_rate}` : "—");
 
@@ -74,10 +82,15 @@ function StatusCell({ s }: { s: Staff }) {
 
 export function StaffView({
   staff,
+  services,
+  staffServices,
   canManage,
   loadFailed,
 }: {
   staff: Staff[];
+  services: ServiceOption[];
+  /** personel id → verdiği hizmet id'leri (yoksa tüm hizmetler) */
+  staffServices: Record<string, string[]>;
   canManage: boolean;
   loadFailed: boolean;
 }) {
@@ -105,6 +118,11 @@ export function StaffView({
       avgRate: rated.length ? rated.reduce((t, s) => t + s.commission_rate, 0) / rated.length : null,
     };
   }, [staff]);
+
+  const serviceText = (s: Staff) => {
+    const n = staffServices[s.id]?.length ?? 0;
+    return n === 0 || n >= services.length ? "Tüm hizmetler" : `${n} hizmet`;
+  };
 
   const needle = tr(q.trim());
   const searched = useMemo(
@@ -156,8 +174,9 @@ export function StaffView({
         <span className="flex min-w-0 items-center gap-2.5">
           <Avatar name={s.full_name} size="sm" />
           <span className="min-w-0">
-            <span className="block truncate font-medium" title={s.full_name}>
-              {s.full_name}
+            <span className="flex min-w-0 items-center gap-1.5 font-medium" title={s.full_name}>
+              <ColorDot color={s.color} />
+              <span className="truncate">{s.full_name}</span>
             </span>
             {s.title && <span className="block truncate text-subhead text-label-2">{s.title}</span>}
           </span>
@@ -177,6 +196,13 @@ export function StaffView({
         ) : (
           <span className="text-label-3">—</span>
         ),
+    },
+    {
+      key: "services",
+      header: "Hizmetler",
+      hideBelow: "@2xl",
+      sortValue: (s) => staffServices[s.id]?.length ?? 0,
+      cell: (s) => <span className="whitespace-nowrap text-label-2">{serviceText(s)}</span>,
     },
     {
       key: "rate",
@@ -202,7 +228,9 @@ export function StaffView({
   ];
 
   function renderMobileRow(s: Staff) {
-    const sub = [s.title, s.commission_rate > 0 ? `Komisyon ${rateText(s)}` : null].filter(Boolean).join(" · ");
+    const sub = [s.title, serviceText(s), s.commission_rate > 0 ? `Komisyon ${rateText(s)}` : null]
+      .filter(Boolean)
+      .join(" · ");
     return (
       <div className="flex min-h-[60px] items-center gap-1 pr-1 pl-4">
         <button
@@ -214,7 +242,10 @@ export function StaffView({
         >
           <Avatar name={s.full_name} size="md" />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[1rem] leading-[1.3125rem] font-semibold">{s.full_name}</span>
+            <span className="flex min-w-0 items-center gap-1.5 text-[1rem] leading-[1.3125rem] font-semibold">
+              <ColorDot color={s.color} />
+              <span className="truncate">{s.full_name}</span>
+            </span>
             {sub && <span className="block truncate text-subhead text-label-2">{sub}</span>}
           </span>
           <span className="shrink-0">
@@ -264,7 +295,7 @@ export function StaffView({
     <div className="space-y-8">
       <PageHeader
         title="Personel"
-        description="Personelinizi, ünvanlarını ve komisyon oranlarını yönetin."
+        description="Personelinizi, verdikleri hizmetleri ve komisyon oranlarını yönetin."
         search={
           <SearchField
             variant="glass"
@@ -346,6 +377,9 @@ export function StaffView({
         <StaffForm
           key={editing?.id ?? "yeni"}
           staff={editing ?? undefined}
+          services={services}
+          serviceIds={editing ? staffServices[editing.id] ?? [] : []}
+          usedColors={staff.map((s) => s.color)}
           onSuccess={() => {
             closeForm();
             router.refresh();

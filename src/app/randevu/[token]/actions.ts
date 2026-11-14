@@ -10,6 +10,8 @@ export interface CreateBookingInput {
   startsAt: string; // ISO
   /** KVKK aydınlatma metni onayı (0016 + 0024). */
   kvkk?: boolean;
+  /** Seçilen personel (0042). Yok = işletme atar / "Fark etmez". */
+  staffId?: string | null;
 }
 
 export async function submitBooking(
@@ -19,14 +21,21 @@ export async function submitBooking(
     return { ok: false, error: "Ad ve telefon zorunludur." };
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("create_booking", {
+  const args = {
     p_token: input.token,
     p_name: input.name.trim(),
     p_phone: input.phone.trim(),
     p_service_id: input.serviceId,
     p_starts_at: input.startsAt,
     p_kvkk: input.kvkk ?? false,
-  });
+  };
+  let { data, error } = input.staffId
+    ? await supabase.rpc("create_booking", { ...args, p_staff_id: input.staffId })
+    : await supabase.rpc("create_booking", args);
+  // 0042 çalışmadıysa personelli sürüm yok: personelsiz kaydet.
+  if (error?.code === "PGRST202" && input.staffId) {
+    ({ data, error } = await supabase.rpc("create_booking", args));
+  }
 
   if (error) {
     console.error("submitBooking:", error);
@@ -47,16 +56,30 @@ export async function submitBooking(
   return { ok: true };
 }
 
-/** Seçilen gündeki dolu saatler — müşteriye gösterilmez. */
+/**
+ * Seçilen gündeki dolu saatler — müşteriye gösterilmez.
+ * Personel seçimi açıksa (0042) hizmete ve personele göre hesaplanır;
+ * staffId yok = "Fark etmez" (hizmeti veren biri boşsa saat açık).
+ */
 export async function getBookedSlots(
   token: string,
-  day: string
+  day: string,
+  serviceId?: string | null,
+  staffId?: string | null
 ): Promise<string[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("booked_slots", {
-    p_token: token,
-    p_day: day,
-  });
+  let { data, error } = serviceId
+    ? await supabase.rpc("booking_blocked_slots", {
+        p_token: token,
+        p_day: day,
+        p_service_id: serviceId,
+        p_staff_id: staffId ?? null,
+      })
+    : await supabase.rpc("booked_slots", { p_token: token, p_day: day });
+  if (error && serviceId) {
+    // 0042 çalışmadıysa eski hesap
+    ({ data, error } = await supabase.rpc("booked_slots", { p_token: token, p_day: day }));
+  }
 
   if (error) {
     console.error("getBookedSlots:", error);

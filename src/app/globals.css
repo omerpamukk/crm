@@ -75,6 +75,16 @@
   --color-info-foreground: var(--info-foreground);
   --color-info-text: var(--info-text);
   --color-info-dot: var(--info-dot);
+
+  /* Personel renkleri: yalnızca nokta/çizgi (metin değil). Ad = staff.color */
+  --color-staff-indigo: var(--staff-indigo);
+  --color-staff-mavi: var(--staff-mavi);
+  --color-staff-turkuaz: var(--staff-turkuaz);
+  --color-staff-yesil: var(--staff-yesil);
+  --color-staff-turuncu: var(--staff-turuncu);
+  --color-staff-pembe: var(--staff-pembe);
+  --color-staff-mor: var(--staff-mor);
+  --color-staff-kahve: var(--staff-kahve);
   --color-info-soft: var(--info-soft);
 
   /* Apple katmanı: etiket, dolgu, ayırıcı, yüzey */
@@ -193,6 +203,15 @@
   --info-foreground: #ffffff;
   --info-text: #0068d6;
   --info-dot: #0088ff;
+
+  --staff-indigo: #5856d6;
+  --staff-mavi: #0088ff;
+  --staff-turkuaz: #00b8c4;
+  --staff-yesil: #34c759;
+  --staff-turuncu: #ff8d28;
+  --staff-pembe: #ff2d55;
+  --staff-mor: #af52de;
+  --staff-kahve: #ac7f5e;
   --info-soft: rgba(0, 136, 255, 0.12);
 
   /* Zemindeki hafif renkli ışık (yalnızca uygulama zemininde) */
@@ -312,6 +331,15 @@
   --info-foreground: #001a33;
   --info-text: #5cb8ff;
   --info-dot: #0091ff;
+
+  --staff-indigo: #6d7cff;
+  --staff-mavi: #0091ff;
+  --staff-turkuaz: #3cd3fe;
+  --staff-yesil: #30d158;
+  --staff-turuncu: #ff9230;
+  --staff-pembe: #ff375f;
+  --staff-mor: #db34f2;
+  --staff-kahve: #b78a66;
   --info-soft: rgba(0, 145, 255, 0.2);
 
   --wall:

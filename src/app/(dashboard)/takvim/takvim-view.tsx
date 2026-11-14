@@ -35,6 +35,7 @@ import { AgendaDay, AgendaSkeleton, type AgendaActions } from "./agenda";
 import { AppointmentDetail } from "./appointment-detail";
 import { MonthCompact, MonthGrid } from "./month-grid";
 import { EmptyOverlay, Legend, place, staffInitials, summaryText, useNowMinute, type Placed } from "./parts";
+import { staffDotClass } from "@/lib/staff-colors";
 import type { CalAppt, RangePayload } from "./queries";
 import { TimeGrid, type GridColumn } from "./time-grid";
 import { useRangeStore } from "./use-range-store";
@@ -66,6 +67,8 @@ export type CalStaff = {
   full_name: string;
   title: string | null;
   is_active: boolean;
+  /** Takvim rengi (0042); yoksa gri. */
+  color?: string | null;
 };
 export type CalShift = {
   staff_id: string;
@@ -463,14 +466,21 @@ export function TakvimView({
         dayKey: dateKey,
         staffId: l.id,
         label: l.name,
-        header: <ColumnHeader kind={l.id === null ? "none" : "staff"} name={l.name} count={items.length} />,
+        header: (
+          <ColumnHeader
+            kind={l.id === null ? "none" : "staff"}
+            name={l.name}
+            count={items.length}
+            color={l.id ? staff.find((x) => x.id === l.id)?.color : null}
+          />
+        ),
         items,
         off: offIntervals(win, 0, 1440, leave),
         notes,
         isToday,
       };
     });
-  }, [activeStaff, dateKey, dayItems, filterId, ownStaff, timeOffFor, todayKey, view, windowFor]);
+  }, [activeStaff, dateKey, dayItems, filterId, ownStaff, staff, timeOffFor, todayKey, view, windowFor]);
 
   // Telefonda Gün: tek sütun (Tümü'nde bütün personel, baş harfleriyle)
   const phoneStaffId = ownStaff ? (ownStaff[0]?.id ?? null) : filterId || null;
@@ -554,7 +564,19 @@ export function TakvimView({
   }, [activeStaff, businessWindow, byDay, dateKey, filterId, ownStaff, view, weekDays, windowFor]);
 
   const manyStaff = !filterId && !onlyOwn && activeStaff.length >= 2;
-  const initialsFor = manyStaff ? (a: Placed) => staffInitials(a) : undefined;
+  const colorOf = React.useMemo(() => new Map(staff.map((s) => [s.id, s.color ?? null])), [staff]);
+  const initialsFor = manyStaff
+    ? (a: Placed) => {
+        const text = staffInitials(a);
+        if (!text) return null;
+        return (
+          <span className="inline-flex items-center gap-1">
+            <span aria-hidden className={cn("status-dot size-1.5", staffDotClass(colorOf.get(a.staff_member_id ?? "")))} />
+            {text}
+          </span>
+        );
+      }
+    : undefined;
 
   /* ---------------- Boş durum ---------------- */
 
@@ -999,10 +1021,12 @@ function ColumnHeader({
   kind,
   name,
   count,
+  color,
 }: {
   kind: "staff" | "none" | "all";
   name: string;
   count: number;
+  color?: string | null;
 }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
@@ -1016,8 +1040,9 @@ function ColumnHeader({
         </span>
       )}
       <div className="min-w-0">
-        <p className="truncate text-[0.8125rem] leading-4 font-semibold" title={name}>
-          {name}
+        <p className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] leading-4 font-semibold" title={name}>
+          {kind === "staff" && <span aria-hidden className={cn("status-dot", staffDotClass(color))} />}
+          <span className="truncate">{name}</span>
         </p>
         <p className="truncate text-[0.75rem] leading-4 text-label-2">
           {count ? `${count} randevu` : "Randevu yok"}

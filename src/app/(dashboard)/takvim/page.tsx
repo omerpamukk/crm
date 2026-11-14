@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { attachServiceIds } from "@/lib/staff-services";
 import { can } from "@/lib/permissions";
 
 import { fetchRange, loadCalendarContext } from "./queries";
@@ -47,7 +48,8 @@ export default async function TakvimPage({
   const [staffRes, shiftsRes, initial, options] = await Promise.all([
     supabase
       .from("staff")
-      .select("id, full_name, title, is_active")
+      // "*": renk sütunu (0042) henüz yoksa sorgu yine çalışsın
+      .select("*")
       .eq("business_id", ctx.businessId)
       .order("full_name"),
     // Vardiyalar (0020). Tablo yoksa ya da boşsa işletme çalışma saatleri kullanılır.
@@ -101,7 +103,7 @@ async function loadFormOptions(
   return {
     customers: customers.data ?? [],
     services: services.data ?? [],
-    staff: staff.data ?? [],
+    staff: await attachServiceIds(supabase, staff.data ?? [], businessId),
     packages: packages.data ?? [],
   };
 }
