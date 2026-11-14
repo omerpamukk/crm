@@ -66,7 +66,7 @@ export interface NavSection {
  * Hatırlatmalar, Raporlar + Doluluk + Giderler, Hizmetler + Personel + Randevu
  * Linki). İkinci bölüm, işletmenin açtığı ek modüllerdir.
  *
- * Menüde OLMAYAN ama çalışan sayfalar: /mesajlar, /yorumlar — dış
+ * Menüde OLMAYAN ama çalışan sayfa: /mesajlar — dış
  * entegrasyon bekleyen, örnek veriyle çalışan demo sayfalar.
  *
  * `cap` taşıyan her sayfa da aynı yetenekle `requireCapability` çağırır;
@@ -107,6 +107,7 @@ export const NAV_SECTIONS: NavSection[] = [
           { href: "/firsatlar", label: "Gelir Fırsatları", cap: "musteri_yonet" },
           { href: "/kampanyalar", label: "Kampanyalar", cap: "musteri_yonet" },
           { href: "/hatirlaticilar", label: "Hatırlatmalar", cap: "musteri_yonet" },
+          { href: "/yorumlar", label: "Yorumlar", cap: "musteri_yonet" },
         ],
       },
       {

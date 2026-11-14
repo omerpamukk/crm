@@ -1,60 +1,53 @@
-import { PageHeader } from "@/components/shared/page-header";
-import { DemoBanner } from "@/components/shared/demo-banner";
-import { ReviewsView, type Review } from "./reviews-view";
+import { createClient } from "@/lib/supabase/server";
+import { getBusinessId } from "@/lib/supabase/business";
+import { requireCapability } from "@/lib/supabase/guard";
+import { isSmsConnected } from "@/lib/messaging/send";
+import { can } from "@/lib/permissions";
 
-export const metadata = { title: "Google Maps & Yorumlar" };
+import { ReviewsView, type FeedbackRow } from "./reviews-view";
 
-const DEMO_REVIEWS: Review[] = [
-  {
-    id: "r1",
-    author: "Elif Yıldız",
-    rating: 5,
-    date: "12 Eylül 2026",
-    text: "Cilt bakımı için gittim, ilgi ve temizlik harikaydı. Sonucundan çok memnunum, kesinlikle tavsiye ederim.",
-    reply: "Çok teşekkür ederiz Elif Hanım, sizi yeniden ağırlamayı çok isteriz! 🌸",
-  },
-  {
-    id: "r2",
-    author: "Merve Aksoy",
-    rating: 4,
-    date: "8 Eylül 2026",
-    text: "Personel çok ilgili, sonuçtan memnunum. Sadece randevu saatinde biraz bekledim.",
-  },
-  {
-    id: "r3",
-    author: "Zeynep Kaya",
-    rating: 5,
-    date: "2 Eylül 2026",
-    text: "Kalıcı makyaj yaptırdım, tam istediğim gibi oldu. Uzman ellerde olduğumu hissettim.",
-  },
-  {
-    id: "r4",
-    author: "Ayşe Demir",
-    rating: 3,
-    date: "27 Ağustos 2026",
-    text: "Hizmet iyiydi ama fiyatlar biraz yüksek geldi. Yine de sonuçtan memnunum.",
-  },
-  {
-    id: "r5",
-    author: "Selin Öz",
-    rating: 5,
-    date: "21 Ağustos 2026",
-    text: "Lazer epilasyon seanslarım devam ediyor, şimdiden fark belli. Salon çok hijyenik.",
-  },
-];
+export const metadata = { title: "Yorumlar" };
 
-export default function YorumlarPage() {
+export default async function YorumlarPage() {
+  const { role } = await requireCapability("musteri_yonet");
+  const canSettings = can(role, "ayarlar");
+
+  const supabase = await createClient();
+  const businessId = await getBusinessId(supabase);
+  if (!businessId) return <ReviewsView ready={false} loadFailed rows={[]} enabled={false} googleUrl="" canSettings={false} smsConnected={false} />;
+
+  const [fbRes, bizRes, ruleRes, smsConnected] = await Promise.all([
+    supabase
+      .from("feedback_requests")
+      .select("id, created_at, rating, comment, wants_call, answered_at, google_clicked_at, handled_at, customer_id, customer:customers(full_name, phone)")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false })
+      .limit(300),
+    supabase.from("businesses").select("google_review_url").eq("id", businessId).maybeSingle(),
+    supabase.from("automations").select("active").eq("business_id", businessId).eq("trigger_id", "randevu_tamamlandi").limit(1),
+    isSmsConnected(businessId),
+  ]);
+
+  const missing = ["42P01", "PGRST205", "42703"].includes(fbRes.error?.code ?? "") || ["42703"].includes(bizRes.error?.code ?? "");
+  if ((fbRes.error || bizRes.error) && !missing) console.error("yorumlar:", fbRes.error ?? bizRes.error);
+
+  type Raw = Omit<FeedbackRow, "name" | "phone"> & {
+    customer: { full_name: string; phone: string | null } | { full_name: string; phone: string | null }[] | null;
+  };
+  const rows: FeedbackRow[] = ((fbRes.data ?? []) as Raw[]).map(({ customer, ...r }) => {
+    const c = Array.isArray(customer) ? customer[0] : customer;
+    return { ...r, name: c?.full_name ?? "Müşteri", phone: c?.phone ?? null };
+  });
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Google Maps & Yorumlar"
-        description="Google İşletme profilini ve yorumları yönet."
-      />
-      <DemoBanner>
-        Google İşletme Profili bağlandığında gerçek yorumlar buraya düşecek ve
-        yanıtların Google&apos;da yayınlanacak. Şu an örnek yorumlar gösteriliyor.
-      </DemoBanner>
-      <ReviewsView initialReviews={DEMO_REVIEWS} />
-    </div>
+    <ReviewsView
+      ready={!missing}
+      loadFailed={Boolean((fbRes.error || bizRes.error) && !missing)}
+      rows={rows}
+      enabled={Boolean(((ruleRes.data ?? [])[0] as { active: boolean } | undefined)?.active)}
+      googleUrl={(bizRes.data as { google_review_url: string | null } | null)?.google_review_url ?? ""}
+      canSettings={canSettings}
+      smsConnected={smsConnected}
+    />
   );
 }

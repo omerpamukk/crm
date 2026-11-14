@@ -101,6 +101,14 @@ export const ruleFormSchema = z
     if (MESSAGE_ACTIONS.includes(v.action_id) && !v.message.trim()) {
       ctx.addIssue({ code: "custom", path: ["message"], message: "Gönderilecek mesajı yazın" });
     }
+    if (v.trigger_id === "randevu_tamamlandi") {
+      if (v.action_id !== "sms") {
+        ctx.addIssue({ code: "custom", path: ["action_id"], message: "Yorum isteme SMS ile gider." });
+      }
+      if (!v.message.includes("{link}")) {
+        ctx.addIssue({ code: "custom", path: ["message"], message: "Mesaja {link} ekleyin; müşterinin puan vereceği sayfa oraya gelir." });
+      }
+    }
     if (v.action_id === "etiket_ekle" && !v.action_param.trim()) {
       ctx.addIssue({ code: "custom", path: ["action_param"], message: "Eklenecek etiketi yazın" });
     }

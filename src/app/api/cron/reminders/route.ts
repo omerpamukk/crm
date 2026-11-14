@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
   }
 
   const admin = createAdminClient();
-  const { planned } = await planAutomations(admin, now);
+  const { planned } = await planAutomations(admin, now, { baseUrl: request.nextUrl.origin });
 
   const { data, error } = await admin
     .from("reminders")

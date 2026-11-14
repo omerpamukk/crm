@@ -32,6 +32,12 @@ export const SEND_UNTIL_HOUR = 21;
 /** Günlük tetikleyicilerin (doğum günü, geri kazanım…) gönderildiği saat. */
 const DAILY_SEND_HOUR = 10;
 
+/** Yorum isteme: ziyaret günü bu saatte (akşam) gider. */
+export const REVIEW_SEND_HOUR = 19;
+
+/** Yorum isteme yalnızca son N gündeki ziyaretler için (eski geçmişe toplu mesaj gitmez). */
+const REVIEW_LOOKBACK_DAYS = 3;
+
 /**
  * Geri kazanım penceresi: müşteri eşiği son N gün içinde geçtiyse mesaj
  * gider. Kural ilk açıldığında yıllardır gelmeyen yüzlerce kişiye birden
@@ -121,7 +127,22 @@ export function hasConsent(rule: Rule, channel: string, c: CustomerRef | null): 
 
 const CUSTOMER_COLS = "full_name, marketing_sms_at, marketing_email_at";
 
-async function planRule(admin: SupabaseClient, rule: Rule, now: Date): Promise<PlannedReminder[]> {
+export type PlanOptions = {
+  /** Mesajdaki {link} için site adresi (ör. https://ornek.app). Yoksa yorum isteme planlanmaz. */
+  baseUrl?: string;
+};
+
+/** Ziyaret günleri listesinden: bu randevu müşterinin ilk ziyareti mi? */
+export function isFirstVisit(visitDays: readonly string[], day: string): boolean {
+  return visitDays.length > 0 && [...new Set(visitDays)].sort()[0] === day && new Set(visitDays).size === 1;
+}
+
+async function planRule(
+  admin: SupabaseClient,
+  rule: Rule,
+  now: Date,
+  opts: PlanOptions = {}
+): Promise<PlannedReminder[]> {
   const channel = CHANNEL_OF[rule.action_id];
   if (!channel || !rule.message) return [];
   if (channel === "whatsapp" && !rule.wa_template) return [];
@@ -174,6 +195,92 @@ async function planRule(admin: SupabaseClient, rule: Rule, now: Date): Promise<P
         if (sendAt.getTime() > now.getTime()) return [];
         return make(row.customer_id, one(row.customers), sendAt.toISOString(), { type: "appointment", id: row.id });
       });
+    }
+
+    case "randevu_tamamlandi": {
+      // Ziyaret sonrası yorum isteme: yalnızca ilk kez gelen, daha önce hiç
+      // sorulmamış müşteriye, ziyaret günü akşam. Bilgilendirme sayılır
+      // (içinde kampanya yok); yine de {link} şart.
+      if (!opts.baseUrl || channel !== "sms" || !rule.message.includes("{link}")) return [];
+      const since = new Date(now.getTime() - REVIEW_LOOKBACK_DAYS * DAY);
+      const { data } = await admin
+        .from("appointments")
+        .select(`id, starts_at, status, customer_id, customers(${CUSTOMER_COLS})`)
+        .eq("business_id", rule.business_id)
+        .gte("starts_at", since.toISOString())
+        .lte("starts_at", new Date(now.getTime() - HOUR).toISOString())
+        .not("customer_id", "is", null);
+
+      type Row = { id: string; starts_at: string; status: string | null; customer_id: string; customers: Joined };
+      const done = ((data ?? []) as Row[]).filter((a) => a.status !== "cancelled" && a.status !== "no_show");
+      // Gönderim anı: ziyaret günü akşam (randevu akşamsa bitişinden sonra).
+      const due = done
+        .map((a) => {
+          const start = new Date(a.starts_at).getTime();
+          const at = Math.max(new Date(dayAt(start, REVIEW_SEND_HOUR)).getTime(), start + HOUR);
+          return { ...a, at };
+        })
+        .filter((a) => a.at <= now.getTime());
+      if (due.length === 0) return [];
+
+      const ids = [...new Set(due.map((a) => a.customer_id))];
+      const [visitsRes, askedRes] = await Promise.all([
+        admin
+          .from("appointments")
+          .select("customer_id, starts_at, status")
+          .eq("business_id", rule.business_id)
+          .in("customer_id", ids)
+          .lt("starts_at", now.toISOString()),
+        admin.from("feedback_requests").select("customer_id, appointment_id, token").eq("business_id", rule.business_id).in("customer_id", ids),
+      ]);
+      if (visitsRes.error || askedRes.error) {
+        console.error("plan yorum:", visitsRes.error ?? askedRes.error);
+        return [];
+      }
+      const dayKey = (iso: string) => {
+        const p = zonedParts(new Date(iso).getTime());
+        return `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.d).padStart(2, "0")}`;
+      };
+      const visits = new Map<string, string[]>();
+      for (const v of (visitsRes.data ?? []) as { customer_id: string; starts_at: string; status: string | null }[]) {
+        if (v.status === "cancelled" || v.status === "no_show") continue;
+        visits.set(v.customer_id, [...(visits.get(v.customer_id) ?? []), dayKey(v.starts_at)]);
+      }
+      const asked = (askedRes.data ?? []) as { customer_id: string; appointment_id: string | null; token: string }[];
+
+      const out: PlannedReminder[] = [];
+      for (const a of due) {
+        const c = one(a.customers);
+        if (!c) continue;
+        const prior = asked.find((x) => x.customer_id === a.customer_id);
+        if (prior && prior.appointment_id !== a.id) continue; // daha önce sorulmuş
+        if (!prior && !isFirstVisit(visits.get(a.customer_id) ?? [], dayKey(a.starts_at))) continue;
+
+        let token = prior?.token;
+        if (!token) {
+          const { data: created, error } = await admin
+            .from("feedback_requests")
+            .insert({ business_id: rule.business_id, customer_id: a.customer_id, appointment_id: a.id })
+            .select("token")
+            .single();
+          if (error || !created) {
+            if (error) console.error("plan yorum insert:", error);
+            continue;
+          }
+          token = (created as { token: string }).token;
+          asked.push({ customer_id: a.customer_id, appointment_id: a.id, token });
+        }
+        const body = fillTemplate(rule.message, c.full_name).replace(/\{link\}/g, `${opts.baseUrl}/yorum/${token}`);
+        out.push({
+          ...base,
+          customer_id: a.customer_id,
+          body,
+          scheduled_at: new Date(a.at).toISOString(),
+          related_type: "appointment",
+          related_id: a.id,
+        });
+      }
+      return out;
     }
 
     case "dogum_gunu": {
@@ -279,7 +386,8 @@ async function planRule(admin: SupabaseClient, rule: Rule, now: Date): Promise<P
  */
 export async function planAutomations(
   admin: SupabaseClient,
-  now = new Date()
+  now = new Date(),
+  opts: PlanOptions = {}
 ): Promise<{ planned: number; rules: number; quiet: boolean }> {
   if (isQuietHour(now)) return { planned: 0, rules: 0, quiet: true };
 
@@ -300,7 +408,7 @@ export async function planAutomations(
   for (const rule of rules) {
     let items: PlannedReminder[] = [];
     try {
-      items = await planRule(admin, rule, now);
+      items = await planRule(admin, rule, now, opts);
     } catch (e) {
       console.error(`planAutomations rule ${rule.id}:`, e);
       continue;

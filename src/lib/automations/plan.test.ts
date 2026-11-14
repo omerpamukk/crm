@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fillTemplate, hasConsent, isQuietHour, type Rule } from "./plan";
+import { fillTemplate, hasConsent, isQuietHour, type Rule, isFirstVisit } from "./plan";
 import { isMarketingRule, isRuleSupported } from "./supported";
 
 const rule = (trigger_id: string, action_id = "sms"): Rule => ({
@@ -53,8 +53,8 @@ describe("pazarlama izni", () => {
 
 describe("desteklenen kurallar", () => {
   it("olay anında çalışan tetikleyiciler ve mesaj dışı aksiyonlar desteklenmez", () => {
-    expect(isRuleSupported(rule("randevu_tamamlandi"))).toBe(false);
     expect(isRuleSupported(rule("yeni_lead"))).toBe(false);
+    expect(isRuleSupported(rule("noshow"))).toBe(false);
     expect(isRuleSupported(rule("randevu_oncesi", "gorev"))).toBe(false);
     expect(isRuleSupported(rule("randevu_oncesi", "wa"))).toBe(true);
   });
@@ -63,5 +63,18 @@ describe("desteklenen kurallar", () => {
 describe("mesaj şablonu", () => {
   it("{ad} müşterinin ilk adıyla dolar", () => {
     expect(fillTemplate("Merhaba {ad}, {ad}!", "  Ayşe   Yılmaz ")).toBe("Merhaba Ayşe, Ayşe!");
+  });
+});
+
+describe("yorum isteme", () => {
+  it("yalnızca ilk ziyaret", () => {
+    expect(isFirstVisit(["2026-11-14"], "2026-11-14")).toBe(true);
+    expect(isFirstVisit(["2026-11-14", "2026-11-14"], "2026-11-14")).toBe(true);
+    expect(isFirstVisit(["2026-10-01", "2026-11-14"], "2026-11-14")).toBe(false);
+    expect(isFirstVisit([], "2026-11-14")).toBe(false);
+  });
+
+  it("yorum kuralı desteklenir", () => {
+    expect(isRuleSupported(rule("randevu_tamamlandi", "sms"))).toBe(true);
   });
 });
