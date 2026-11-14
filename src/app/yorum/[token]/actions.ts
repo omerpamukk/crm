@@ -9,6 +9,7 @@ const schema = z.object({
   rating: z.number().int().min(1).max(5),
   comment: z.string().max(1000).optional().default(""),
   wantsCall: z.boolean().optional().default(false),
+  publish: z.boolean().optional().default(false),
 });
 
 /** Giriş gerektirmez: token yalnızca kendi satırını günceller (0039 submit_feedback). */
@@ -17,12 +18,10 @@ export async function submitFeedback(input: z.input<typeof schema>): Promise<{ e
   if (!parsed.success) return { error: "Lütfen 1 ile 5 arasında bir puan seçin." };
   const v = parsed.data;
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("submit_feedback", {
-    p_token: v.token,
-    p_rating: v.rating,
-    p_comment: v.comment,
-    p_wants_call: v.wantsCall,
-  });
+  const args = { p_token: v.token, p_rating: v.rating, p_comment: v.comment, p_wants_call: v.wantsCall };
+  // 0040 yayın izni parametresini ekler; çalışmadıysa eski fonksiyon kullanılır.
+  let { data, error } = await supabase.rpc("submit_feedback", { ...args, p_publish: v.publish });
+  if (error?.code === "PGRST202") ({ data, error } = await supabase.rpc("submit_feedback", args));
   if (error) {
     console.error("submitFeedback:", error);
     return { error: "Gönderilemedi. Biraz sonra tekrar deneyin." };
