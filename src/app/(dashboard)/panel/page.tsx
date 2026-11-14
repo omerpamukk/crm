@@ -9,6 +9,9 @@ import { can } from "@/lib/permissions";
 import { getBusinessId } from "@/lib/supabase/business";
 import { getEnabledModules } from "@/lib/supabase/guard";
 import { isModuleEnabled } from "@/lib/modules";
+import { isSmsConnected } from "@/lib/messaging/send";
+import { setupSteps, type SetupStep } from "@/lib/setup/checklist";
+import { SetupCard } from "./setup-card";
 import { fetchDebtors, isOverdue, summarizeBalances } from "@/lib/balances";
 import { canChangeArrival } from "@/lib/appointment-status";
 import { Avatar } from "@/components/ui/avatar";
@@ -254,6 +257,29 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
 
   const recent = (recentRes.data ?? []) as { id: string; full_name: string; created_at: string }[];
 
+  // İlk kurulum kartı: yalnızca işletme sahibine.
+  let setup: SetupStep[] | null = null;
+  if (can(role, "ayarlar") && businessId) {
+    const [hoursRes, svcRes, stfRes, custRes, bookRes, sms] = await Promise.all([
+      supabase.from("businesses").select("working_hours").eq("id", businessId).maybeSingle(),
+      supabase.from("services").select("id", { count: "exact", head: true }).eq("business_id", businessId),
+      supabase.from("staff").select("id", { count: "exact", head: true }).eq("business_id", businessId).eq("is_active", true),
+      supabase.from("customers").select("id", { count: "exact", head: true }).eq("business_id", businessId).eq("is_lead", false),
+      supabase.from("booking_settings").select("is_active").eq("business_id", businessId).maybeSingle(),
+      isSmsConnected(businessId),
+    ]);
+    const days = ((hoursRes.data as { working_hours: { days?: { open?: boolean }[] } | null } | null)?.working_hours?.days ?? []);
+    setup = setupSteps({
+      hasHours: Array.isArray(days) && days.some((x) => x?.open),
+      services: svcRes.count ?? 0,
+      staff: stfRes.count ?? 0,
+      customers: custRes.count ?? 0,
+      smsConnected: sms,
+      bookingModule: isModuleEnabled(modules, "randevu_linki"),
+      bookingActive: Boolean((bookRes.data as { is_active: boolean } | null)?.is_active),
+    });
+  }
+
   const weekday = now.toLocaleDateString("tr-TR", { weekday: "long", timeZone: TZ });
   const dayMonth = now.toLocaleDateString("tr-TR", { day: "numeric", month: "long", timeZone: TZ });
   const eyebrow = `${weekday}, ${dayMonth}`.toLocaleUpperCase("tr-TR");
@@ -267,6 +293,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
 
   return (
     <PanelShell eyebrow={eyebrow} canCreateAppointment={canCreate} canCollect={canFinance} canSearch={canCustomers} form={form}>
+      {setup && <SetupCard steps={setup} />}
       <MetricStrip aria-label="Özet göstergeler">
         {canFinance && (
           <Metric
