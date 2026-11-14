@@ -127,6 +127,7 @@ export type Template = {
 };
 
 const ALL_TEMPLATES: Template[] = [
+  { title: "Randevu onayı (SMS)", trigger_id: "randevu_oncesi", trigger_param: 24, action_id: "sms", action_param: null, message: "Merhaba {ad}, yaklaşan randevunuzu hatırlatırız. Gelebilecek misiniz? {onay}" },
   { title: "Randevu hatırlatma", trigger_id: "randevu_oncesi", trigger_param: 24, action_id: "wa", action_param: null, message: "Merhaba {ad}, yaklaşan randevunuzu hatırlatmak isteriz.", wa_template: "randevu_hatirlatma" },
   { title: "Paket yenileme", trigger_id: "paket_bitiyor", trigger_param: 1, action_id: "wa", action_param: null, message: "Merhaba {ad}, paketinizde son seansınız kaldı. Yenilemek isterseniz size yer ayıralım.", wa_template: "paket_yenileme" },
   { title: "Yorum isteme", trigger_id: "randevu_tamamlandi", trigger_param: null, action_id: "sms", action_param: null, message: "Merhaba {ad}, bugünkü ziyaretiniz nasıldı? 1 dakikanızı ayırıp puan verir misiniz: {link}" },

@@ -207,6 +207,11 @@ export type PlanOptions = {
   baseUrl?: string;
 };
 
+/** Hatırlatmadaki {onay} → randevuyu onaylama / iptal sayfası. */
+export function withConfirmLink(body: string, baseUrl: string, token: string): string {
+  return body.replace(/\{onay\}/g, `${baseUrl}/onay/${token}`);
+}
+
 /** Ziyaret günleri listesinden: bu randevu müşterinin ilk ziyareti mi? */
 export function isFirstVisit(visitDays: readonly string[], day: string): boolean {
   return visitDays.length > 0 && [...new Set(visitDays)].sort()[0] === day && new Set(visitDays).size === 1;
@@ -256,11 +261,14 @@ export async function planRule(
       // Sessiz saate düşen hatırlatmalar önceki akşam 20:05'e çekildiği için
       // pencere en fazla ~13 saat geniş tutulur.
       const windowEnd = new Date(now.getTime() + hours * HOUR + 14 * HOUR);
+      // {onay}: "Geliyorum / Gelemiyorum" sayfası (0040). Yalnızca mesajda
+      // geçiyorsa sütun okunur; migration çalışmadan eski kurallar etkilenmez.
+      const confirmLink = rule.message.includes("{onay}") && opts.baseUrl ? opts.baseUrl : null;
 
       const data = await fetchAll<unknown>((from, to) =>
         admin
           .from("appointments")
-          .select(`id, starts_at, created_at, customer_id, customers(${CUSTOMER_COLS})`)
+          .select(`id, starts_at, created_at, customer_id, ${confirmLink ? "confirm_token, " : ""}customers(${CUSTOMER_COLS})`)
           .eq("business_id", rule.business_id)
           .in("status", [...REMINDABLE_STATUSES])
           .gte("starts_at", now.toISOString())
@@ -276,6 +284,7 @@ export async function planRule(
           starts_at: string;
           created_at: string | null;
           customer_id: string | null;
+          confirm_token?: string | null;
           customers: Joined;
         };
         if (!row.customer_id) return [];
@@ -283,7 +292,10 @@ export async function planRule(
         if (sendAt > now.getTime()) return [];
         // Gönderim anından sonra alınan randevuya "yaklaşan randevunuz" mesajı gitmez.
         if (row.created_at && new Date(row.created_at).getTime() > sendAt) return [];
-        return make(row.customer_id, one(row.customers), new Date(sendAt).toISOString(), { type: "appointment", id: row.id });
+        const items = make(row.customer_id, one(row.customers), new Date(sendAt).toISOString(), { type: "appointment", id: row.id });
+        if (!confirmLink) return items;
+        if (!row.confirm_token) return [];
+        return items.map((i) => ({ ...i, body: withConfirmLink(i.body, confirmLink, row.confirm_token as string) }));
       });
     }
 

@@ -7,6 +7,7 @@ import {
   fillTemplate,
   hasConsent,
   isFirstVisit,
+  withConfirmLink,
   isQuietHour,
   planAutomations,
   planRule,
@@ -315,5 +316,13 @@ describe("yorum isteme", () => {
 
   it("yorum kuralı desteklenir", () => {
     expect(isRuleSupported(rule("randevu_tamamlandi", "sms"))).toBe(true);
+  });
+});
+
+describe("randevu onay linki", () => {
+  it("{onay} sayfa bağlantısına döner", () => {
+    expect(withConfirmLink("Gelebilecek misiniz? {onay}", "https://ornek.app", "abc123")).toBe(
+      "Gelebilecek misiniz? https://ornek.app/onay/abc123"
+    );
   });
 });

@@ -245,6 +245,9 @@ export function RuleForm({
             ) : (
               <p className="text-subhead text-label-2">
                 Müşterinin adı için {"{ad}"} yazın; mesajda müşterinin adıyla değişir.
+                {tDef.id === "randevu_oncesi" && (
+                  <> {"{onay}"} yazarsanız müşteri &quot;Geliyorum / Gelemiyorum&quot; diyebileceği bir link alır.</>
+                )}
               </p>
             )}
           </div>
