@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Service } from "@/types/database";
-import { requireCapability } from "@/lib/supabase/guard";
+import { requireCapability, requireModule } from "@/lib/supabase/guard";
 import { PageHeader } from "@/components/shared/page-header";
 import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function RandevuLinkiPage() {
   await requireCapability("randevu_yonet");
+  await requireModule("randevu_linki");
   const { settings, error } = await ensureBookingSettings();
 
   if (error || !settings) {

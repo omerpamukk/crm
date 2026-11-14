@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -53,6 +54,7 @@ export function CustomerForm({
       tags: customer?.tags?.join(", ") ?? "",
       birthday: customer?.birthday ?? "",
       note: customer?.note ?? "",
+      marketing_consent: Boolean(customer?.marketing_sms_at),
     },
   });
 
@@ -148,6 +150,29 @@ export function CustomerForm({
         <Label htmlFor="note">Not</Label>
         <Textarea id="note" rows={3} {...register("note")} />
       </div>
+
+      <Controller
+        control={control}
+        name="marketing_consent"
+        render={({ field }) => (
+          <div className="flex items-start justify-between gap-4 rounded-xl bg-fill px-4 py-3">
+            <div className="min-w-0">
+              <Label htmlFor="marketing_consent">Kampanya mesajı izni</Label>
+              <p id="marketing_consent_hint" className="mt-1 text-subhead text-label-2">
+                Müşteri doğum günü, indirim ve geri kazanım mesajlarını SMS ya da WhatsApp ile almayı kabul etti.
+                Randevu hatırlatması bu izinden bağımsız gider.
+              </p>
+            </div>
+            <Switch
+              id="marketing_consent"
+              checked={Boolean(field.value)}
+              onCheckedChange={field.onChange}
+              label="Kampanya mesajı izni"
+              aria-describedby="marketing_consent_hint"
+            />
+          </div>
+        )}
+      />
 
       {formError && (
         <p role="alert" className="text-subhead text-danger-text">

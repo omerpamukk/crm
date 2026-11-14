@@ -8,6 +8,7 @@ import { logBusinessAction } from "@/lib/supabase/business-audit";
 import { getAccountContext } from "@/lib/supabase/account";
 import { can, denied } from "@/lib/permissions";
 import { fromDateTimeLocal, zonedParts } from "@/lib/zaman";
+import { setMarketingConsent } from "@/lib/consent";
 import { customerSchema, type CustomerInput } from "./schema";
 
 type ActionResult = { error?: string };
@@ -70,14 +71,26 @@ export async function createCustomer(
     pipelineStageId = stage?.id ?? null;
   }
 
-  const { error } = await supabase.from("customers").insert({
-    business_id: businessId,
-    is_lead: asLead,
-    pipeline_stage_id: pipelineStageId,
-    ...toRow(parsed.data),
-  });
+  const { data: created, error } = await supabase
+    .from("customers")
+    .insert({
+      business_id: businessId,
+      is_lead: asLead,
+      pipeline_stage_id: pipelineStageId,
+      ...toRow(parsed.data),
+    })
+    .select("id")
+    .single();
 
-  if (error) return { error: `Kayıt eklenemedi: ${error.message}` };
+  if (error) {
+    console.error("createCustomer:", error);
+    return { error: "Kayıt eklenemedi. Biraz sonra tekrar deneyin." };
+  }
+
+  if (parsed.data.marketing_consent && created) {
+    const consent = await setMarketingConsent(supabase, businessId, created.id, true);
+    if (consent.error) return { error: "Kayıt eklendi ama kampanya izni kaydedilemedi. Kartından tekrar deneyin." };
+  }
 
   revalidatePath("/musteriler");
   revalidatePath("/leadler");
@@ -95,6 +108,7 @@ export interface CustomerDetailInput {
   source?: string;
   tags: string[];
   note?: string;
+  marketing_consent?: boolean;
 }
 
 /**
@@ -144,6 +158,11 @@ export async function createCustomerWithDetails(
     return { error: "Müşteri eklenemedi. Biraz sonra tekrar deneyin." };
   }
 
+  if (input.marketing_consent && customer) {
+    const consent = await setMarketingConsent(supabase, businessId, customer.id, true);
+    if (consent.error) return { error: "Müşteri eklendi ama kampanya izni kaydedilemedi. Kartından tekrar deneyin." };
+  }
+
   const total = input.total_sessions ? Number(input.total_sessions) : 0;
   if (input.service?.trim() && total > 0 && customer) {
     const { error: pkgErr } = await supabase.from("packages").insert({
@@ -188,6 +207,11 @@ export async function updateCustomer(
   if (error) {
     console.error("updateCustomer:", error);
     return { error: "Müşteri güncellenemedi." };
+  }
+
+  if (parsed.data.marketing_consent !== undefined) {
+    const consent = await setMarketingConsent(supabase, businessId, id, parsed.data.marketing_consent);
+    if (consent.error) return { error: "Bilgiler kaydedildi ama kampanya izni güncellenemedi." };
   }
 
   revalidatePath("/musteriler");

@@ -43,6 +43,9 @@ import { ErrorState } from "@/components/shared/error-state";
 import { GeldiButton } from "@/components/shared/geldi-button";
 import { ListGroup, ListRow } from "@/components/shared/list-group";
 import { Metric, MetricStrip } from "@/components/shared/metric";
+import type { Rhythm } from "@/lib/customer-rhythm";
+
+import { RhythmCard } from "./rhythm-card";
 import { formatMoney, Money } from "@/components/shared/money";
 import { PackageProgress } from "@/components/shared/package-progress";
 import { PageHeader } from "@/components/shared/page-header";
@@ -97,6 +100,7 @@ export function Customer360View({
   canArrive,
   loadFailed,
   balance,
+  rhythm = null,
 }: {
   customer: Customer;
   appointments: ApptItem[];
@@ -111,6 +115,8 @@ export function Customer360View({
   loadFailed: boolean;
   /** Açık borç: customer_balances tek kaynağından (0031). */
   balance: number;
+  /** Ziyaret ritmi ve müşteri puanı (0035); lead'lerde yok. */
+  rhythm?: Rhythm | null;
 }) {
   const router = useRouter();
   const [nowMs] = useState(() => Date.now());
@@ -316,6 +322,8 @@ export function Customer360View({
           context={daysSinceVisit !== null ? (daysSinceVisit <= 0 ? "bugün" : `${daysSinceVisit} gün önce`) : undefined}
         />
       </MetricStrip>
+
+      {rhythm && <RhythmCard rhythm={rhythm} />}
 
       <div className="grid items-start gap-8 lg:grid-cols-2">
         <div className="min-w-0 space-y-8">

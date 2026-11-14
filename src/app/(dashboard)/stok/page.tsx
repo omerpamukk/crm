@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessId } from "@/lib/supabase/business";
-import { requireCapability } from "@/lib/supabase/guard";
+import { requireCapability, requireModule } from "@/lib/supabase/guard";
 
 import { StockView, type StockProduct, type StockMovement } from "./stock-view";
 
@@ -18,6 +18,7 @@ type MovRow = {
 
 export default async function StokPage() {
   await requireCapability("tahsilat");
+  await requireModule("stok");
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
   if (!businessId) return <StockView products={[]} movements={[]} loadFailed />;

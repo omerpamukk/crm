@@ -8,6 +8,7 @@ import type { UserRole } from "@/types/database"
 import { NAV_ITEMS } from "@/lib/nav"
 import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/sonner"
+import { ThemeToggle } from "./account-menu"
 import { CommandPalette } from "./command-palette"
 import { MobileMenu } from "./mobile-menu"
 import { Notifications, type AppNotification } from "./notifications"
@@ -25,6 +26,8 @@ export type AppShellProps = {
   displayName: string
   roleLabel: string
   role: UserRole
+  /** Açık modüller (src/lib/modules.ts); null = hepsi açık. */
+  modules: string[] | null
   badges: Record<string, number>
   counts: Record<string, number>
   notifications: AppNotification[]
@@ -59,6 +62,7 @@ function Shell({
   displayName,
   roleLabel,
   role,
+  modules,
   badges,
   counts,
   notifications,
@@ -147,6 +151,7 @@ function Shell({
         displayName={displayName}
         roleLabel={roleLabel}
         role={role}
+        modules={modules}
         badges={badges}
         counts={counts}
         initialCollapsed={initialCollapsedGroups}
@@ -186,6 +191,7 @@ function Shell({
 
       <TabBar
         role={role}
+        modules={modules}
         menuOpen={menuOpen}
         onOpenMenu={() => setMenuOpen(true)}
         onOpenSearch={() => setPaletteOpen(true)}
@@ -194,13 +200,14 @@ function Shell({
         open={menuOpen}
         onOpenChange={setMenuOpen}
         role={role}
+        modules={modules}
         businessName={businessName}
         displayName={displayName}
         roleLabel={roleLabel}
         badges={badges}
         counts={counts}
       />
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} role={role} />
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} role={role} modules={modules} />
       <Toaster />
     </div>
   )
@@ -284,8 +291,9 @@ function Toolbar({
         {title}
       </span>
 
-      {/* Sağ: bildirimler · arama · sayfa eylemleri */}
+      {/* Sağ: tema · bildirimler · arama · sayfa eylemleri */}
       <div className="flex shrink-0 items-center gap-2.5">
+        <ThemeToggle className="glass pressable hidden size-9 md:grid shrink-0 place-items-center rounded-full text-label hover:brightness-[1.04]" />
         <div className="hidden md:block">
           <Notifications notifications={notifications} />
         </div>

@@ -1,33 +1,60 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { REMINDABLE_STATUSES } from "@/lib/appointment-status";
+import { BUSINESS_TZ, zonedParts, zonedWallToUtcMs } from "@/lib/zaman";
+
+import { isMarketingRule, isRuleRunnable, SUPPORTED_TRIGGERS } from "./supported";
 
 /**
  * Otomasyon kurallarını tarayıp `reminders` satırı üretir.
  *
- * Cron her sabah önce bunu çağırır, sonra kuyruğu gönderir. Yalnızca
- * "zamana bağlı" tetikleyiciler burada planlanabilir — olay anında
- * çalışması gereken tetikleyiciler (yeni lead, ödeme alındı gibi)
- * ilgili server action içinden tetiklenmeli.
+ * Cron saatte bir çağırır (bkz. 0034_saatlik_cron.sql), sonra kuyruğu
+ * gönderir. Günde tek tur çalışan kurulumda da doğru davranır; yalnızca
+ * "randevudan 2 saat önce" gibi kısa süreler o turun saatine kayar.
  *
  * ⚠️ YALNIZCA SUNUCU TARAFI — service_role istemcisi bekler.
  *
- * Mükerrer gönderim koruması: reminders üzerindeki
- * uq_reminders_automation_once indeksi (0025) aynı kural + müşteri +
- * zaman için ikinci satırı reddeder, bu yüzden cron tekrar çalışsa
- * bile aynı hatırlatma iki kez gitmez.
+ * Mükerrer koruması: her hatırlatmanın `scheduled_at`'i olaydan
+ * türetilir (randevu saati, son ziyaret, paket satın alma, doğum günü).
+ * Aynı olay her turda aynı anahtarı üretir; reminders üzerindeki
+ * uq_reminders_automation_once (automation_id, customer_id, scheduled_at)
+ * ikinci satırı reddeder. Böylece cron saatte bir çalışsa da aynı kişiye
+ * aynı olay için tek mesaj gider.
+ *
+ * Sessiz saatler: işletme saatiyle SEND_FROM_HOUR–SEND_UNTIL_HOUR dışında
+ * hiçbir şey planlanmaz ve gönderilmez (isQuietHour). Gece yarısı
+ * "randevunuzu hatırlatırız" mesajı gitmez.
  */
 
-/** Bu modülün planlayabildiği tetikleyiciler. */
-const PLANNABLE = [
-  "randevu_oncesi",
-  "odeme_gecikti",
-  "paket_bitiyor",
-  "pasif_musteri",
-  "dogum_gunu",
-] as const;
+export const SEND_FROM_HOUR = 9;
+export const SEND_UNTIL_HOUR = 21;
 
-/** Aksiyon kimliği → gönderim kanalı. Kanalsız aksiyonlar planlanmaz. */
+/** Günlük tetikleyicilerin (doğum günü, geri kazanım…) gönderildiği saat. */
+const DAILY_SEND_HOUR = 10;
+
+/**
+ * Geri kazanım penceresi: müşteri eşiği son N gün içinde geçtiyse mesaj
+ * gider. Kural ilk açıldığında yıllardır gelmeyen yüzlerce kişiye birden
+ * mesaj atılmasın diye; toplu geri kazanım ayrı bir kampanya işidir.
+ */
+const WINBACK_LOOKBACK_DAYS = 14;
+
+/**
+ * Borç hatırlatma penceresi: borcun vadesi son N gün içinde geldiyse mesaj
+ * gider. Kural ilk açıldığında aylardır borçlu olanlara toplu mesaj
+ * gitmesin diye (pasif_musteri ile aynı desen).
+ */
+const DEBT_LOOKBACK_DAYS = 14;
+
+/** Randevu hatırlatmasının gideceği son tur: cron :05'te çalışır (0034), 21:00'den önceki son tur 20:05. */
+const LAST_SLOT_MIN = (SEND_UNTIL_HOUR - 1) * 60 + 5;
+const FIRST_SLOT_MIN = SEND_FROM_HOUR * 60;
+
+/** PostgREST tek yanıtta en fazla 1000 satır döndürür; sayfa boyutu. */
+const PAGE = 1000;
+/** `.in(...)` listelerinde adres satırı uzamasın diye parça boyutu. */
+const CHUNK = 100;
+
 const CHANNEL_OF: Record<string, "sms" | "email" | "whatsapp"> = {
   wa: "whatsapp",
   indirim: "whatsapp",
@@ -35,7 +62,6 @@ const CHANNEL_OF: Record<string, "sms" | "email" | "whatsapp"> = {
   eposta: "email",
 };
 
-/** reminders.kind — tetikleyiciye göre. */
 const KIND_OF: Record<string, string> = {
   randevu_oncesi: "appointment",
   odeme_gecikti: "debt",
@@ -44,16 +70,20 @@ const KIND_OF: Record<string, string> = {
   dogum_gunu: "birthday",
 };
 
-type Rule = {
+const HOUR = 3_600_000;
+const DAY = 86_400_000;
+
+export type Rule = {
   id: string;
   business_id: string;
   trigger_id: string;
   trigger_param: number | null;
   action_id: string;
   message: string | null;
+  wa_template?: string | null;
 };
 
-type PlannedReminder = {
+export type PlannedReminder = {
   business_id: string;
   automation_id: string;
   customer_id: string;
@@ -65,200 +95,335 @@ type PlannedReminder = {
   related_id?: string;
 };
 
-/** {ad} gibi yer tutucuları doldurur. */
-function fillTemplate(template: string, name: string): string {
-  return template.replace(/\{ad\}/g, name.split(" ")[0] ?? name);
+type CustomerRef = {
+  full_name: string;
+  marketing_sms_at?: string | null;
+  marketing_email_at?: string | null;
+};
+
+type Joined = CustomerRef | CustomerRef[] | null;
+
+const one = (c: Joined): CustomerRef | null => (Array.isArray(c) ? c[0] ?? null : c);
+
+export function fillTemplate(template: string, name: string): string {
+  return template.replace(/\{ad\}/g, firstName(name));
 }
 
-const DAY = 86_400_000;
+export function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? "";
+}
 
-/**
- * Günlük tetikleyiciler için hatırlatma zamanı.
- *
- * `now` kullanılırsa her cron turu farklı bir milisaniye üretir ve
- * mükerrer ayıklaması tutmaz — aynı kişiye aynı gün ikinci kez mesaj
- * gider. Bu yüzden zaman günün başına sabitlenir: bir kural bir
- * müşteri için günde en fazla bir hatırlatma üretir.
- */
-function startOfDay(now: Date): string {
-  const d = new Date(now);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+/** İşletme saatiyle gönderim yapılmayan saat mi? */
+export function isQuietHour(now: Date, tz: string = BUSINESS_TZ): boolean {
+  const h = zonedParts(now.getTime(), tz).h;
+  return h < SEND_FROM_HOUR || h >= SEND_UNTIL_HOUR;
+}
+
+/** Bir anın işletme saatiyle günü, verilen saatte (ISO). */
+function dayAt(ms: number, hour: number, tz: string = BUSINESS_TZ): string {
+  const p = zonedParts(ms, tz);
+  return new Date(zonedWallToUtcMs(p.y, p.m, p.d, hour, 0, tz)).toISOString();
+}
+
+
+function chunks<T>(list: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
+
+type PageResult = { data: unknown[] | null; error: unknown };
+
+/** 1000 satır sınırını aşan okumalar için sayfalı okuma. Hata olursa fırlatır (sessizce eksik veri yok). */
+async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<PageResult>): Promise<T[]> {
+  const all: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await page(from, from + PAGE - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as T[];
+    all.push(...rows);
+    if (rows.length < PAGE) return all;
+  }
 }
 
 /**
- * Tek bir kural için gönderilecek hatırlatmaları hesaplar.
- * Her tetikleyici kendi sorgusunu yapar; hiçbiri eşleşmezse boş döner.
+ * Randevu hatırlatmasının gerçek gönderim anı. Hesaplanan an sessiz saate
+ * (ya da cron'un son turu olan 20:05'ten sonrasına) düşerse bir önceki
+ * pencerenin son turuna (20:05) çekilir; böylece sabah 09:00 randevusuna
+ * "2 saat önce" hatırlatması önceki akşam gider, hiç gitmemez.
  */
-async function planRule(
-  admin: SupabaseClient,
-  rule: Rule,
-  now: Date
-): Promise<PlannedReminder[]> {
+export function appointmentSendAt(startsAtMs: number, hours: number, tz: string = BUSINESS_TZ): number {
+  const at = startsAtMs - hours * HOUR;
+  const p = zonedParts(at, tz);
+  const minutes = p.h * 60 + p.min;
+  if (minutes >= FIRST_SLOT_MIN && minutes <= LAST_SLOT_MIN) return at;
+  const day = minutes < FIRST_SLOT_MIN ? zonedParts(at - DAY, tz) : p;
+  return zonedWallToUtcMs(day.y, day.m, day.d, Math.floor(LAST_SLOT_MIN / 60), LAST_SLOT_MIN % 60, tz);
+}
+
+export type DebtCharge = { at: number; amount: number };
+
+/**
+ * Borcun gecikmeye girdiği an (ms) ya da null. customer_balances (0031) ile
+ * aynı mantık: ödemeler en eski satıştan başlayarak düşülür; karşılanmayan
+ * ilk satışın tarihine `days` eklenir. Henüz vadesi gelmediyse null.
+ */
+export function debtOverdueSince(charges: DebtCharge[], paid: number, days: number, now: number): number | null {
+  let left = paid;
+  for (const c of [...charges].sort((a, b) => a.at - b.at)) {
+    if (left >= c.amount - 0.005) {
+      left -= c.amount;
+      continue;
+    }
+    const due = c.at + days * DAY;
+    return due <= now ? due : null;
+  }
+  return null;
+}
+
+/** Hatırlatma kuyruğu anahtarı (uq_reminders_automation_once ile aynı üçlü). */
+const keyOf = (customerId: string, scheduledAt: string) => `${customerId}|${new Date(scheduledAt).getTime()}`;
+
+/**
+ * Pazarlama kuralında müşterinin o kanaldan izni var mı? Bilgilendirme
+ * kurallarında (randevu, borç) izin aranmaz.
+ */
+export function hasConsent(rule: Rule, channel: string, c: CustomerRef | null): boolean {
+  if (!isMarketingRule(rule)) return true;
+  if (!c) return false;
+  return channel === "email" ? Boolean(c.marketing_email_at) : Boolean(c.marketing_sms_at);
+}
+
+const CUSTOMER_COLS = "full_name, marketing_sms_at, marketing_email_at";
+
+export async function planRule(admin: SupabaseClient, rule: Rule, now: Date): Promise<PlannedReminder[]> {
   const channel = CHANNEL_OF[rule.action_id];
   if (!channel || !rule.message) return [];
+  if (!isRuleRunnable(rule)) return [];
 
-  const kind = KIND_OF[rule.trigger_id] ?? "custom";
   const base = {
     business_id: rule.business_id,
     automation_id: rule.id,
-    kind,
+    kind: KIND_OF[rule.trigger_id] ?? "custom",
     channel,
   };
 
+  const make = (
+    customerId: string,
+    c: CustomerRef | null,
+    scheduledAt: string,
+    related?: { type: string; id: string }
+  ): PlannedReminder[] => {
+    if (!hasConsent(rule, channel, c)) return [];
+    return [
+      {
+        ...base,
+        customer_id: customerId,
+        body: fillTemplate(rule.message!, c?.full_name ?? ""),
+        scheduled_at: scheduledAt,
+        ...(related ? { related_type: related.type, related_id: related.id } : {}),
+      },
+    ];
+  };
+
+  const todayAt = dayAt(now.getTime(), DAILY_SEND_HOUR);
+  const dailyDue = now.getTime() >= new Date(todayAt).getTime();
+
   switch (rule.trigger_id) {
-    /* Randevudan N saat önce ------------------------------------- */
     case "randevu_oncesi": {
       const hours = rule.trigger_param ?? 24;
-      // Cron günde bir çalıştığı için, önümüzdeki 24 saatlik pencerede
-      // başlayan ve hatırlatma zamanı geçmiş olan randevular alınır.
-      const windowEnd = new Date(now.getTime() + DAY);
+      // Sessiz saate düşen hatırlatmalar önceki akşam 20:05'e çekildiği için
+      // pencere en fazla ~13 saat geniş tutulur.
+      const windowEnd = new Date(now.getTime() + hours * HOUR + 14 * HOUR);
 
-      const { data } = await admin
-        .from("appointments")
-        .select("id, starts_at, customer_id, customers(full_name)")
-        .eq("business_id", rule.business_id)
-        .in("status", [...REMINDABLE_STATUSES]) // gelmiş/tamamlanmış randevuya mesaj gitmez
-        .gte("starts_at", now.toISOString())
-        .lte("starts_at", windowEnd.toISOString());
+      const data = await fetchAll<unknown>((from, to) =>
+        admin
+          .from("appointments")
+          .select(`id, starts_at, created_at, customer_id, customers(${CUSTOMER_COLS})`)
+          .eq("business_id", rule.business_id)
+          .in("status", [...REMINDABLE_STATUSES])
+          .gte("starts_at", now.toISOString())
+          .lte("starts_at", windowEnd.toISOString())
+          .order("starts_at")
+          .order("id")
+          .range(from, to)
+      );
 
-      return (data ?? []).flatMap((a) => {
+      return data.flatMap((a) => {
         const row = a as {
           id: string;
           starts_at: string;
+          created_at: string | null;
           customer_id: string | null;
-          customers: { full_name: string } | { full_name: string }[] | null;
+          customers: Joined;
         };
         if (!row.customer_id) return [];
-        const cust = Array.isArray(row.customers) ? row.customers[0] : row.customers;
-        const sendAt = new Date(
-          new Date(row.starts_at).getTime() - hours * 3_600_000
-        );
-        // Hatırlatma zamanı henüz gelmediyse bir sonraki tura bırak.
-        if (sendAt.getTime() > now.getTime()) return [];
-        return [{
-          ...base,
-          customer_id: row.customer_id,
-          body: fillTemplate(rule.message!, cust?.full_name ?? ""),
-          scheduled_at: sendAt.toISOString(),
-          related_type: "appointment",
-          related_id: row.id,
-        }];
+        const sendAt = appointmentSendAt(new Date(row.starts_at).getTime(), hours);
+        if (sendAt > now.getTime()) return [];
+        // Gönderim anından sonra alınan randevuya "yaklaşan randevunuz" mesajı gitmez.
+        if (row.created_at && new Date(row.created_at).getTime() > sendAt) return [];
+        return make(row.customer_id, one(row.customers), new Date(sendAt).toISOString(), { type: "appointment", id: row.id });
       });
     }
 
-    /* Doğum günü -------------------------------------------------- */
     case "dogum_gunu": {
-      const mm = String(now.getMonth() + 1).padStart(2, "0");
-      const dd = String(now.getDate()).padStart(2, "0");
+      if (!dailyDue) return [];
+      const p = zonedParts(now.getTime());
+      const mmdd = `${String(p.m).padStart(2, "0")}-${String(p.d).padStart(2, "0")}`;
 
-      const { data } = await admin
-        .from("customers")
-        .select("id, full_name, birthday")
-        .eq("business_id", rule.business_id)
-        .not("birthday", "is", null);
+      const data = await fetchAll<unknown>((from, to) =>
+        admin
+          .from("customers")
+          .select(`id, birthday, ${CUSTOMER_COLS}`)
+          .eq("business_id", rule.business_id)
+          .not("birthday", "is", null)
+          .order("id")
+          .range(from, to)
+      );
 
-      return (data ?? []).flatMap((c) => {
-        const row = c as { id: string; full_name: string; birthday: string };
-        // birthday "YYYY-MM-DD"; yıl önemsiz, ay-gün eşleşmeli.
-        if (row.birthday.slice(5) !== `${mm}-${dd}`) return [];
-        return [{
-          ...base,
-          customer_id: row.id,
-          body: fillTemplate(rule.message!, row.full_name),
-          scheduled_at: startOfDay(now),
-        }];
+      return data.flatMap((c) => {
+        const row = c as CustomerRef & { id: string; birthday: string };
+        if (row.birthday.slice(5) !== mmdd) return [];
+        return make(row.id, row, todayAt);
       });
     }
 
-    /* Uzun süredir gelmeyen müşteri -------------------------------- */
     case "pasif_musteri": {
+      if (!dailyDue) return [];
       const days = rule.trigger_param ?? 60;
-      const cutoff = new Date(now.getTime() - days * DAY);
+      const newest = new Date(now.getTime() - days * DAY);
+      const oldest = new Date(newest.getTime() - WINBACK_LOOKBACK_DAYS * DAY);
 
-      const { data } = await admin
-        .from("customers")
-        .select("id, full_name, last_visit_at")
-        .eq("business_id", rule.business_id)
-        .eq("is_lead", false)
-        .not("last_visit_at", "is", null)
-        .lte("last_visit_at", cutoff.toISOString());
+      const data = await fetchAll<unknown>((from, to) =>
+        admin
+          .from("customers")
+          .select(`id, last_visit_at, ${CUSTOMER_COLS}`)
+          .eq("business_id", rule.business_id)
+          .eq("is_lead", false)
+          .lte("last_visit_at", newest.toISOString())
+          .gte("last_visit_at", oldest.toISOString())
+          .order("id")
+          .range(from, to)
+      );
 
-      return (data ?? []).map((c) => {
-        const row = c as { id: string; full_name: string };
-        return {
-          ...base,
-          customer_id: row.id,
-          body: fillTemplate(rule.message!, row.full_name),
-          scheduled_at: startOfDay(now),
-        };
+      return data.flatMap((c) => {
+        const row = c as CustomerRef & { id: string; last_visit_at: string };
+        const crossedAt = new Date(row.last_visit_at).getTime() + days * DAY;
+        return make(row.id, row, dayAt(crossedAt, DAILY_SEND_HOUR));
       });
     }
 
-    /* Paket bitmek üzere ------------------------------------------- */
     case "paket_bitiyor": {
+      if (!dailyDue) return [];
       const left = rule.trigger_param ?? 1;
 
-      const { data } = await admin
-        .from("packages")
-        .select("id, customer_id, remaining_sessions, customers(full_name)")
-        .eq("business_id", rule.business_id)
-        .gt("remaining_sessions", 0)
-        .lte("remaining_sessions", left);
+      const data = await fetchAll<unknown>((from, to) =>
+        admin
+          .from("packages")
+          .select(`id, customer_id, purchased_at, created_at, customers(${CUSTOMER_COLS})`)
+          .eq("business_id", rule.business_id)
+          .gt("remaining_sessions", 0)
+          .lte("remaining_sessions", left)
+          .order("id")
+          .range(from, to)
+      );
 
-      return (data ?? []).flatMap((p) => {
-        const row = p as {
+      return data.flatMap((pk) => {
+        const row = pk as {
           id: string;
           customer_id: string | null;
-          customers: { full_name: string } | { full_name: string }[] | null;
+          purchased_at: string | null;
+          created_at: string;
+          customers: Joined;
         };
         if (!row.customer_id) return [];
-        const cust = Array.isArray(row.customers) ? row.customers[0] : row.customers;
-        return [{
-          ...base,
-          customer_id: row.customer_id,
-          body: fillTemplate(rule.message!, cust?.full_name ?? ""),
-          scheduled_at: startOfDay(now),
-          related_type: "package",
-          related_id: row.id,
-        }];
+        const anchor = new Date(row.purchased_at ?? row.created_at).getTime();
+        return make(row.customer_id, one(row.customers), dayAt(anchor, DAILY_SEND_HOUR), { type: "package", id: row.id });
       });
     }
 
-    /* Ödeme geciktiğinde ------------------------------------------- */
     case "odeme_gecikti": {
+      if (!dailyDue) return [];
       const days = rule.trigger_param ?? 7;
-      const cutoff = new Date(now.getTime() - days * DAY);
+      const nowMs = now.getTime();
+      const oldestKey = nowMs - DEBT_LOOKBACK_DAYS * DAY;
 
-      // Borcu olan paketler: ödenen tutar paket ücretinin altındaysa.
-      // Vade satın alma tarihinden işler (created_at değil).
-      const { data } = await admin
-        .from("packages")
-        .select("id, customer_id, price, paid_amount, purchased_at, customers(full_name)")
-        .eq("business_id", rule.business_id)
-        .neq("payment_status", "paid")
-        .lte("purchased_at", cutoff.toISOString());
+      // Borç TEK KAYNAKTAN: customer_balances (0031). Paket fiyatından kendi
+      // hesabımızı yazmayız; paketsiz ödemeler de düşülmüş bakiye gelir.
+      const balances = await fetchAll<{ customer_id: string; payments: number | string }>((from, to) =>
+        admin
+          .from("customer_balances")
+          .select("customer_id, payments")
+          .eq("business_id", rule.business_id)
+          .gt("balance", 0)
+          .order("customer_id")
+          .range(from, to)
+      );
+      if (balances.length === 0) return [];
 
-      return (data ?? []).flatMap((p) => {
-        const row = p as {
-          id: string;
-          customer_id: string | null;
-          price: number | null;
-          paid_amount: number | null;
-          customers: { full_name: string } | { full_name: string }[] | null;
+      const due: { customerId: string; scheduledAt: string }[] = [];
+      for (const part of chunks(balances, CHUNK)) {
+        const ids = part.map((b) => b.customer_id);
+        const [pkgs, appts] = await Promise.all([
+          fetchAll<{ customer_id: string; price: number | string; purchased_at: string | null; created_at: string }>((from, to) =>
+            admin
+              .from("packages")
+              .select("customer_id, price, purchased_at, created_at")
+              .eq("business_id", rule.business_id)
+              .in("customer_id", ids)
+              .gt("price", 0)
+              .order("id")
+              .range(from, to)
+          ),
+          fetchAll<{ customer_id: string; price: number | string; starts_at: string }>((from, to) =>
+            admin
+              .from("appointments")
+              .select("customer_id, price, starts_at")
+              .eq("business_id", rule.business_id)
+              .in("customer_id", ids)
+              .eq("status", "completed")
+              .is("package_id", null)
+              .gt("price", 0)
+              .order("id")
+              .range(from, to)
+          ),
+        ]);
+
+        const byCustomer = new Map<string, DebtCharge[]>();
+        const add = (id: string, at: string, amount: number | string) => {
+          const list = byCustomer.get(id) ?? [];
+          list.push({ at: new Date(at).getTime(), amount: Number(amount) || 0 });
+          byCustomer.set(id, list);
         };
-        const debt = (row.price ?? 0) - (row.paid_amount ?? 0);
-        if (debt <= 0 || !row.customer_id) return [];
-        const cust = Array.isArray(row.customers) ? row.customers[0] : row.customers;
-        return [{
-          ...base,
-          customer_id: row.customer_id,
-          body: fillTemplate(rule.message!, cust?.full_name ?? ""),
-          scheduled_at: startOfDay(now),
-          related_type: "package",
-          related_id: row.id,
-        }];
-      });
+        for (const p of pkgs) add(p.customer_id, p.purchased_at ?? p.created_at, p.price);
+        for (const a of appts) add(a.customer_id, a.starts_at, a.price);
+
+        for (const b of part) {
+          const since = debtOverdueSince(byCustomer.get(b.customer_id) ?? [], Number(b.payments) || 0, days, nowMs);
+          if (since == null) continue;
+          // Olay anahtarı müşteri bazlı: borç gecikmeye girdiği gün. Aynı borç için tekrar mesaj gitmez.
+          const key = dayAt(since, DAILY_SEND_HOUR);
+          if (new Date(key).getTime() < oldestKey) continue;
+          due.push({ customerId: b.customer_id, scheduledAt: key });
+        }
+      }
+      if (due.length === 0) return [];
+
+      const customers = new Map<string, CustomerRef>();
+      for (const part of chunks(due, CHUNK)) {
+        const rows = await fetchAll<CustomerRef & { id: string }>((from, to) =>
+          admin
+            .from("customers")
+            .select(`id, ${CUSTOMER_COLS}`)
+            .eq("business_id", rule.business_id)
+            .in("id", part.map((d) => d.customerId))
+            .order("id")
+            .range(from, to)
+        );
+        for (const r of rows) customers.set(r.id, r);
+      }
+
+      return due.flatMap((d) => make(d.customerId, customers.get(d.customerId) ?? null, d.scheduledAt));
     }
 
     default:
@@ -268,76 +433,91 @@ async function planRule(
 
 /**
  * Tüm aktif kuralları tarar ve üretilen hatırlatmaları kuyruğa yazar.
- * Döndürdüğü sayı, gerçekten eklenen (mükerrer olmayan) satır sayısıdır.
+ * Sessiz saatlerde hiçbir şey planlamaz.
  */
 export async function planAutomations(
   admin: SupabaseClient,
   now = new Date()
-): Promise<{ planned: number; rules: number }> {
+): Promise<{ planned: number; rules: number; quiet: boolean }> {
+  if (isQuietHour(now)) return { planned: 0, rules: 0, quiet: true };
+
   const { data, error } = await admin
     .from("automations")
-    .select("id, business_id, trigger_id, trigger_param, action_id, message")
+    .select("id, business_id, trigger_id, trigger_param, action_id, message, wa_template")
     .eq("active", true)
-    .in("trigger_id", PLANNABLE as unknown as string[]);
+    .in("trigger_id", SUPPORTED_TRIGGERS as unknown as string[]);
 
   if (error) {
     console.error("planAutomations select:", error);
-    return { planned: 0, rules: 0 };
+    return { planned: 0, rules: 0, quiet: false };
   }
 
-  const rules = (data ?? []) as Rule[];
+  const rules = ((data ?? []) as Rule[]).filter(isRuleRunnable);
   let planned = 0;
 
   for (const rule of rules) {
-    let items: PlannedReminder[] = [];
     try {
-      items = await planRule(admin, rule, now);
+      planned += await enqueueRule(admin, rule, now);
     } catch (e) {
       console.error(`planAutomations rule ${rule.id}:`, e);
-      continue;
     }
-    if (items.length === 0) continue;
-
-    // Bu kuraldan daha önce üretilmiş hatırlatmaları ele: upsert'ün
-    // ON CONFLICT'i kısmi indeksle (where automation_id is not null)
-    // eşleşmediği için mükerrer ayıklaması burada, açıkça yapılır.
-    // Yarış durumunda son savunma yine uq_reminders_automation_once.
-    const { data: existing } = await admin
-      .from("reminders")
-      .select("customer_id, scheduled_at")
-      .eq("automation_id", rule.id);
-
-    const seen = new Set(
-      (existing ?? []).map(
-        (e) =>
-          `${(e as { customer_id: string | null }).customer_id}|${
-            (e as { scheduled_at: string }).scheduled_at
-          }`
-      )
-    );
-
-    const fresh = items.filter(
-      (i) => !seen.has(`${i.customer_id}|${i.scheduled_at}`)
-    );
-    if (fresh.length === 0) continue;
-
-    const { data: inserted, error: insErr } = await admin
-      .from("reminders")
-      .insert(fresh)
-      .select("id");
-
-    if (insErr) {
-      console.error(`planAutomations insert ${rule.id}:`, insErr);
-      continue;
-    }
-
-    planned += inserted?.length ?? 0;
-
-    await admin
-      .from("automations")
-      .update({ last_run_at: now.toISOString() })
-      .eq("id", rule.id);
   }
 
-  return { planned, rules: rules.length };
+  return { planned, rules: rules.length, quiet: false };
+}
+
+/** Bir kuralın hatırlatmalarını planlayıp kuyruğa yazar; eklenen satır sayısını döner. */
+async function enqueueRule(admin: SupabaseClient, rule: Rule, now: Date): Promise<number> {
+  const items = await planRule(admin, rule, now);
+  if (items.length === 0) return 0;
+
+  // Aynı müşteri + aynı an iki kez üretilebilir (aynı saatte iki randevu, aynı gün iki paket).
+  // Tekil anahtar ihlali bütün toplu eklemeyi düşürmesin diye önce kendi içinde tekilleştir.
+  const unique = new Map<string, PlannedReminder>();
+  for (const i of items) if (!unique.has(keyOf(i.customer_id, i.scheduled_at))) unique.set(keyOf(i.customer_id, i.scheduled_at), i);
+  const candidates = [...unique.values()];
+
+  const times = candidates.map((i) => new Date(i.scheduled_at).getTime());
+  const minAt = new Date(Math.min(...times)).toISOString();
+  const maxAt = new Date(Math.max(...times)).toISOString();
+
+  const seen = new Set<string>();
+  for (const part of chunks([...new Set(candidates.map((i) => i.customer_id))], CHUNK)) {
+    const existing = await fetchAll<{ customer_id: string | null; scheduled_at: string }>((from, to) =>
+      admin
+        .from("reminders")
+        .select("customer_id, scheduled_at")
+        .eq("automation_id", rule.id)
+        .in("customer_id", part)
+        .gte("scheduled_at", minAt)
+        .lte("scheduled_at", maxAt)
+        .order("id")
+        .range(from, to)
+    );
+    for (const r of existing) if (r.customer_id) seen.add(keyOf(r.customer_id, r.scheduled_at));
+  }
+
+  const fresh = candidates.filter((i) => !seen.has(keyOf(i.customer_id, i.scheduled_at)));
+  if (fresh.length === 0) return 0;
+
+  let inserted = 0;
+  for (const part of chunks(fresh, 200)) {
+    const { data, error } = await admin.from("reminders").insert(part).select("id");
+    if (!error) {
+      inserted += data?.length ?? part.length;
+      continue;
+    }
+    // Toplu ekleme düştü (yarış, tek bir kötü satır…): tek tek dene; çakışanlar zaten kuyrukta.
+    console.error(`planAutomations insert ${rule.id}:`, error);
+    for (const row of part) {
+      const { error: oneErr } = await admin.from("reminders").insert(row);
+      if (!oneErr) inserted++;
+      else if ((oneErr as { code?: string }).code !== "23505") console.error(`planAutomations insert row ${rule.id}:`, oneErr);
+    }
+  }
+
+  if (inserted > 0) {
+    await admin.from("automations").update({ last_run_at: now.toISOString() }).eq("id", rule.id);
+  }
+  return inserted;
 }

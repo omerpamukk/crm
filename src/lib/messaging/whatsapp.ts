@@ -6,9 +6,11 @@ import { normalizePhone } from "./sms";
  *
  * credentials: { phone_number_id, access_token }
  *
- * NOT: Meta, 24 saatlik müşteri hizmeti penceresi dışında yalnızca
- * ONAYLI ŞABLON gönderimine izin verir. Serbest metin göndermek için
- * müşterinin son 24 saatte yazmış olması gerekir.
+ * Meta, 24 saatlik müşteri hizmeti penceresi dışında yalnızca ONAYLI
+ * ŞABLON gönderimine izin verir. Hatırlatma, doğum günü ve geri kazanım
+ * mesajlarını işletme başlattığı için bunlar şablonla gider
+ * (`req.template`). Şablon verilmezse serbest metin denenir; bu yalnızca
+ * müşteri son 24 saatte yazdıysa kabul edilir.
  */
 export const whatsappProvider: Provider = {
   channel: "whatsapp",
@@ -31,12 +33,7 @@ export const whatsappProvider: Provider = {
             Authorization: `Bearer ${access_token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            messaging_product: "whatsapp",
-            to: phone,
-            type: "text",
-            text: { body: req.body },
-          }),
+          body: JSON.stringify(whatsappPayload(phone, req)),
         }
       );
 
@@ -54,3 +51,32 @@ export const whatsappProvider: Provider = {
     }
   },
 };
+
+/** Cloud API mesaj gövdesi: şablon varsa şablon, yoksa serbest metin. */
+export function whatsappPayload(phone: string, req: SendRequest) {
+  if (req.template) {
+    return {
+      messaging_product: "whatsapp",
+      to: phone,
+      type: "template",
+      template: {
+        name: req.template.name,
+        language: { code: req.template.language },
+        components: req.template.params.length
+          ? [
+              {
+                type: "body",
+                parameters: req.template.params.map((text) => ({ type: "text", text })),
+              },
+            ]
+          : [],
+      },
+    };
+  }
+  return {
+    messaging_product: "whatsapp",
+    to: phone,
+    type: "text",
+    text: { body: req.body },
+  };
+}

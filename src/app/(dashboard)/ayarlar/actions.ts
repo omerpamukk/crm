@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { authorize } from "@/lib/supabase/authorize";
 import { sendMessage } from "@/lib/messaging/send";
+import { cleanModules, isModuleEnabled } from "@/lib/modules";
 import type { Channel } from "@/lib/messaging/types";
 import {
   businessInfoSchema,
@@ -339,5 +340,67 @@ export async function testIntegration(
     .eq("provider", parsed.data);
 
   revalidatePath("/ayarlar");
+  return {};
+}
+
+/**
+ * Açık modüller (0036). Yalnızca bilinen anahtarlar kaydedilir.
+ *
+ * "Online randevu linki" kapanınca herkese açık link da kapatılır
+ * (booking_settings.is_active = false); aksi halde müşteriler menüde
+ * görünmeyen linkten randevu almaya devam ederdi. Modül yeniden açılınca
+ * link otomatik AÇILMAZ: işletme sahibi Online randevu sayfasından bilerek
+ * açar. `notice` arayüzün gösterebileceği bilgi mesajıdır.
+ */
+export async function updateModules(modules: string[]): Promise<ActionResult & { notice?: string }> {
+  if (!Array.isArray(modules) || modules.some((m) => typeof m !== "string")) {
+    return { error: "Geçersiz veri" };
+  }
+
+  const supabase = await createClient();
+  const auth = await authorize(supabase, "ayarlar");
+  if ("error" in auth) return { error: auth.error };
+  const { businessId } = auth;
+
+  const next = cleanModules(modules);
+
+  const { data: current } = await supabase
+    .from("businesses")
+    .select("enabled_modules")
+    .eq("id", businessId)
+    .maybeSingle();
+  const before = (current as { enabled_modules: string[] | null } | null)?.enabled_modules ?? null;
+  const wasOn = isModuleEnabled(before, "randevu_linki");
+  const isOn = next.includes("randevu_linki");
+
+  // Önce linki kapat: modül kaydı başarısız olursa link yine de kapalı kalır.
+  if (!isOn) {
+    const { error: linkErr } = await supabase
+      .from("booking_settings")
+      .update({ is_active: false })
+      .eq("business_id", businessId);
+    if (linkErr) {
+      console.error("updateModules booking_settings:", linkErr);
+      return { error: "Online randevu linki kapatılamadı. Biraz sonra tekrar deneyin." };
+    }
+  }
+
+  const { error } = await supabase
+    .from("businesses")
+    .update({ enabled_modules: next, updated_at: new Date().toISOString() })
+    .eq("id", businessId);
+
+  if (error) {
+    console.error("updateModules:", error);
+    return { error: "Modüller kaydedilemedi." };
+  }
+
+  revalidatePath("/", "layout");
+  if (!wasOn && isOn) {
+    return { notice: "Online randevu linki kapalı. Açmak için Online randevu sayfasına gidin." };
+  }
+  if (wasOn && !isOn) {
+    return { notice: "Online randevu linki de kapatıldı; müşteriler artık bu linkten randevu alamaz." };
+  }
   return {};
 }

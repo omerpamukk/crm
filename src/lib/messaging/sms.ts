@@ -1,13 +1,14 @@
 import type { Provider, SendRequest, SendResult, Credentials } from "./types";
 
 /**
- * SMS sağlayıcısı — Netgsm.
+ * SMS sağlayıcısı — Netgsm REST v2.
  *
  * Kimlik bilgileri integrations.credentials içinde tutulur:
  *   { usercode, password, msgheader }
  *
- * Netgsm "00" ile başlayan yanıt verirse başarılı sayılır; aksi halde
- * dönen kod hata olarak kaydedilir.
+ * Kimlik bilgisi Basic Auth başlığında gider, adres satırında değil
+ * (eski GET uç noktası şifreyi URL'de taşıyordu; sunucu ve vekil
+ * kayıtlarına düşebiliyordu). Yanıt kodu "00" başarılıdır.
  */
 export const netgsmProvider: Provider = {
   channel: "sms",
@@ -22,32 +23,41 @@ export const netgsmProvider: Provider = {
     if (!phone) return { ok: false, error: "Geçersiz telefon numarası." };
 
     try {
-      const params = new URLSearchParams({
-        usercode,
-        password,
-        gsmno: phone,
-        message: req.body,
-        msgheader,
-        dil: "TR",
+      const res = await fetch("https://api.netgsm.com.tr/sms/rest/v2/send", {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${usercode}:${password}`).toString("base64")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          msgheader,
+          encoding: "TR",
+          messages: [{ msg: req.body, no: phone }],
+        }),
       });
 
-      const res = await fetch(`https://api.netgsm.com.tr/sms/send/get/?${params}`, {
-        method: "GET",
-      });
-
-      const text = (await res.text()).trim();
-      // "00 <mesaj_id>" veya "01 <mesaj_id>" → başarılı
-      if (text.startsWith("00") || text.startsWith("01")) {
-        return { ok: true, providerId: text.split(" ")[1] };
-      }
-
-      return { ok: false, error: `Sağlayıcı hatası (${text})` };
+      return parseNetgsmResponse(await res.text());
     } catch (error) {
       console.error("netgsm send:", error);
       return { ok: false, error: "SMS gönderilemedi." };
     }
   },
 };
+
+/** Netgsm REST v2 yanıtı: { code: "00", jobid: "…" } başarılı; diğer kodlar hata. */
+export function parseNetgsmResponse(text: string): SendResult {
+  try {
+    const data = JSON.parse(text) as { code?: string | number; jobid?: string; description?: string } | null;
+    if (!data || typeof data !== "object" || data.code === undefined || data.code === null || data.code === "") {
+      return { ok: false, error: `Sağlayıcı hatası (${text.slice(0, 40)})` };
+    }
+    const code = String(data.code).padStart(2, "0");
+    if (code === "00") return { ok: true, providerId: data.jobid };
+    return { ok: false, error: `Sağlayıcı hatası (${code})` };
+  } catch {
+    return { ok: false, error: `Sağlayıcı hatası (${text.slice(0, 40)})` };
+  }
+}
 
 /** "0532 123 45 67" → "905321234567" */
 export function normalizePhone(raw: string): string | null {

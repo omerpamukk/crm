@@ -24,6 +24,7 @@ import {
 
 import type { UserRole } from "@/types/database";
 import { can, type Capability } from "@/lib/permissions";
+import { isModuleEnabled, moduleForPath } from "@/lib/modules";
 
 export interface NavItem {
   href: string;
@@ -114,13 +115,18 @@ export const NAV_SECTIONS: NavSection[] = [
 export const NAV_ITEMS: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
 
 /**
- * Menüyü role göre süzer: yetkisiz öğeler gizlenir, boş kalan bölüm düşer.
+ * Menüyü role ve açık modüllere göre süzer: yetkisiz ya da kapalı modüle ait
+ * öğeler gizlenir, boş kalan bölüm düşer.
  * Bu yalnızca görsel gizleme — asıl koruma server action'larda ve RLS'te.
  */
-export function navSectionsForRole(role: UserRole): NavSection[] {
+export function navSectionsForRole(role: UserRole, modules: readonly string[] | null = null): NavSection[] {
   return NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((item) => !item.cap || can(role, item.cap)),
+    items: section.items.filter((item) => {
+      if (item.cap && !can(role, item.cap)) return false;
+      const mod = moduleForPath(item.href);
+      return !mod || isModuleEnabled(modules, mod);
+    }),
   })).filter((section) => section.items.length > 0);
 }
 
@@ -146,9 +152,9 @@ export function sectionKeyForPath(pathname: string): string | null {
 export const MOBILE_TAB_HREFS = ["/panel", "/takvim", "/musteriler"] as const;
 
 /** Rolün görebildiği sekme sayfaları (Menü sekmesi her zaman ayrıca vardır). */
-export function mobileTabsForRole(role: UserRole): NavItem[] {
+export function mobileTabsForRole(role: UserRole, modules: readonly string[] | null = null): NavItem[] {
   const visible = new Map(
-    navSectionsForRole(role)
+    navSectionsForRole(role, modules)
       .flatMap((s) => s.items)
       .map((i) => [i.href, i] as const)
   );

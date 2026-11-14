@@ -27,6 +27,7 @@ export function Sidebar({
   displayName,
   roleLabel,
   role,
+  modules,
   badges,
   counts,
   initialCollapsed,
@@ -37,6 +38,7 @@ export function Sidebar({
   displayName: string
   roleLabel: string
   role: UserRole
+  modules: string[] | null
   badges: Record<string, number>
   counts: Record<string, number>
   /** Kapalı başlayan grup anahtarları (çerezden). */
@@ -46,7 +48,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = React.useState(() => new Set(initialCollapsed))
-  const sections = navSectionsForRole(role)
+  const sections = navSectionsForRole(role, modules)
   const navRef = React.useRef<HTMLElement>(null)
   const [moreBelow, setMoreBelow] = React.useState(false)
 

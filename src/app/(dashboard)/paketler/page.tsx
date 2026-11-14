@@ -3,7 +3,7 @@ import { getAccountContext } from "@/lib/supabase/account";
 import { can } from "@/lib/permissions";
 import { getBusinessId } from "@/lib/supabase/business";
 import { fetchDebtors, summarizeBalances } from "@/lib/balances";
-import { requireCapability } from "@/lib/supabase/guard";
+import { requireCapability, requireModule } from "@/lib/supabase/guard";
 
 import { PackagesView, type PackageRow } from "./packages-view";
 
@@ -11,6 +11,7 @@ export const metadata = { title: "Paketler" };
 
 export default async function PaketlerPage() {
   await requireCapability("tahsilat");
+  await requireModule("paketler");
   const { role } = await getAccountContext();
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);

@@ -12,6 +12,7 @@ import { AuditSection } from "./section-audit";
 import { GeneralSection } from "./section-general";
 import { HoursSection } from "./section-hours";
 import { IntegrationsSection } from "./section-integrations";
+import { ModulesSection } from "./section-modules";
 import { NotificationsSection } from "./section-notifications";
 import { SubscriptionSection } from "./section-subscription";
 import type { NotificationSettingInput, Provider, WorkingDay } from "./schema";
@@ -33,11 +34,16 @@ export interface SettingsData {
     last_error: string | null;
     connected_at: string | null;
   }[];
+  /** Açık modüller; null = hepsi açık (0036 öncesi işletme). */
+  modules: string[] | null;
+  /** 0036 çalıştırıldı mı (enabled_modules okunabildi mi). */
+  modulesReady: boolean;
 }
 
 const SECTIONS = [
   { value: "temel", label: "Temel bilgiler" },
   { value: "saatler", label: "Çalışma saatleri" },
+  { value: "moduller", label: "Modüller" },
   { value: "bildirimler", label: "Bildirimler" },
   { value: "baglantilar", label: "Bağlantılar" },
   { value: "abonelik", label: "Abonelik" },
@@ -57,7 +63,7 @@ export function SettingsView({ data, loadFailed }: { data: SettingsData; loadFai
     <div className="min-w-0 space-y-8">
       <PageHeader
         title="Ayarlar"
-        description="İşletme bilgilerinizi, çalışma saatlerinizi, bildirimleri ve bağlantıları buradan yönetin."
+        description="İşletme bilgilerinizi, çalışma saatlerinizi, açık modülleri, bildirimleri ve bağlantıları buradan yönetin."
       />
 
       {loadFailed ? (
@@ -75,6 +81,7 @@ export function SettingsView({ data, loadFailed }: { data: SettingsData; loadFai
 
           {section === "temel" && <GeneralSection business={data.business} owner={data.owner} />}
           {section === "saatler" && <HoursSection days={data.workingDays} />}
+          {section === "moduller" && <ModulesSection modules={data.modules} ready={data.modulesReady} />}
           {section === "bildirimler" && (
             <NotificationsSection items={data.notifications} connected={connected} />
           )}

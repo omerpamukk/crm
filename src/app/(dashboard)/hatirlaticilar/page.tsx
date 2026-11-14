@@ -18,7 +18,7 @@ export default async function HatirlaticilarPage() {
   // Erişim kapsamını RLS de sınırlar; işletme kimliği bulunursa ayrıca süzülür.
   let query = supabase
     .from("automations")
-    .select("id, title, active, trigger_id, trigger_param, action_id, action_param, message")
+    .select("id, title, active, trigger_id, trigger_param, action_id, action_param, message, wa_template")
     .order("created_at", { ascending: true });
   if (businessId) query = query.eq("business_id", businessId);
   const { data, error } = await query;

@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { netgsmProvider } from "./sms";
 import { resendProvider } from "./email";
 import { whatsappProvider } from "./whatsapp";
-import type { Channel, Provider, SendResult } from "./types";
+import type { Channel, Provider, SendResult, WhatsAppTemplate } from "./types";
 
 const PROVIDERS: Record<Channel, Provider> = {
   sms: netgsmProvider,
@@ -32,6 +32,7 @@ export async function sendMessage(params: {
   body: string;
   subject?: string;
   customerId?: string | null;
+  template?: WhatsAppTemplate;
 }): Promise<SendResult> {
   const admin = createAdminClient();
 
@@ -66,7 +67,7 @@ export async function sendMessage(params: {
   }
 
   const result = await PROVIDERS[params.channel].send(
-    { to: params.to, body: params.body, subject: params.subject },
+    { to: params.to, body: params.body, subject: params.subject, template: params.template },
     row.credentials ?? {}
   );
 
