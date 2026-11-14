@@ -12,10 +12,11 @@ import {
   Banknote,
   Columns3,
   User,
+  LayoutDashboard,
   type LucideIcon,
 } from "lucide-react";
 
-import { NAV_SECTIONS, navSectionsForRole } from "@/lib/nav";
+import { NAV_PAGES, navPagesForRole } from "@/lib/nav";
 import { isModuleEnabled } from "@/lib/modules";
 import { can } from "@/lib/permissions";
 import type { UserRole } from "@/types/database";
@@ -70,15 +71,13 @@ function Palette({ onClose, role, modules }: { onClose: () => void; role?: UserR
 
   const navItems: Item[] = useMemo(
     () =>
-      (role ? navSectionsForRole(role, modules) : NAV_SECTIONS).flatMap((s) =>
-        s.items.map((i) => ({
-          id: i.href,
-          label: i.label,
-          icon: i.icon,
-          href: i.href,
-          group: "Sayfalar",
-        }))
-      ),
+      (role ? navPagesForRole(role, modules) : NAV_PAGES.map((p) => ({ ...p, icon: LayoutDashboard }))).map((p) => ({
+        id: p.href,
+        label: p.label,
+        icon: p.icon,
+        href: p.href,
+        group: "Sayfalar",
+      })),
     [role, modules]
   );
   const quickActions = useMemo(

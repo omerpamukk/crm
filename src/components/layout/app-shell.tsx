@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation"
 import { PanelLeft, Search } from "lucide-react"
 
 import type { UserRole } from "@/types/database"
-import { NAV_ITEMS } from "@/lib/nav"
+import { pageLabelForPath } from "@/lib/nav"
+import { PageTabs } from "./page-tabs"
 import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeToggle } from "./account-menu"
@@ -184,6 +185,7 @@ function Shell({
           className="relative min-w-0 flex-1 overflow-x-clip px-4 pt-1 pb-36 outline-none md:px-6 md:pb-14 xl:px-8"
         >
           <div className="page-shell">
+            <PageTabs role={role} modules={modules} />
             <PageTransition>{children}</PageTransition>
           </div>
         </main>
@@ -243,15 +245,13 @@ function Toolbar({
 }) {
   const pathname = usePathname()
   const tb = useToolbar()
-  const fallback =
-    NAV_ITEMS.find((i) => pathname === i.href) ?? NAV_ITEMS.find((i) => pathname.startsWith(`${i.href}/`))
-  const title = tb?.title ?? fallback?.label ?? ""
+  const title = tb?.title ?? pageLabelForPath(pathname) ?? ""
   const showTitle = Boolean(tb?.titleHidden && title)
 
   return (
     <header
       data-scrolled={scrolled}
-      className="toolbar-edge sticky top-0 z-30 flex h-[var(--toolbar-h)] items-center gap-3 px-4 md:pr-4 md:pl-3"
+      className="toolbar-edge sticky top-0 z-30 flex h-[var(--toolbar-h)] items-center gap-3 px-4 pt-[env(safe-area-inset-top)] md:pr-4 md:pl-3"
     >
       {/* Sol: kenar çubuğu düğmesi + küçük başlık (masaüstü) · bildirimler (telefon) */}
       <div className="flex min-w-0 flex-1 items-center gap-2.5">

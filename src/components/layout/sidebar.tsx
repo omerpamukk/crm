@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ChevronDown, Settings } from "lucide-react"
 
-import { navSectionsForRole, type NavItem } from "@/lib/nav"
+import { navSectionsForRole, type NavItem, isItemActive } from "@/lib/nav"
 import { can } from "@/lib/permissions"
 import type { UserRole } from "@/types/database"
 import { cn } from "@/lib/utils"
@@ -129,7 +129,7 @@ export function Sidebar({
                   <li key={item.href}>
                     <SidebarLink
                       item={item}
-                      active={isActivePath(pathname, item.href)}
+                      active={isItemActive(pathname, item)}
                       badge={item.badge ? badges[item.badge] ?? 0 : 0}
                       count={counts[item.href]}
                       onNavigate={onNavigate}

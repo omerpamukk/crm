@@ -86,7 +86,7 @@ export default async function DashboardLayout({
   const counts: Record<string, number> = {
     "/musteriler": b.customers ?? 0,
     "/leadler": b.leads ?? 0,
-    "/randevular": b.upcomingAppts ?? 0,
+    "/takvim": b.upcomingAppts ?? 0,
   };
 
   return (
