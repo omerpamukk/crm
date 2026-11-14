@@ -60,7 +60,7 @@ export default async function CustomerDetailPage({
       ? supabase.from("staff").select("full_name").eq("id", (customer as Customer).assigned_to as string).maybeSingle()
       : Promise.resolve({ data: null }),
     fetchCustomerBalances(supabase, businessId, { customerId: id }),
-    (customer as Customer).is_lead ? Promise.resolve(null) : fetchRhythm(supabase, businessId),
+    (customer as Customer).is_lead ? Promise.resolve(null) : fetchRhythm(supabase, businessId, new Date(), { customerId: id }),
   ]);
 
   const loadFailed = [apptRes, pkgRes, payRes, intRes].some((r) => r.error);

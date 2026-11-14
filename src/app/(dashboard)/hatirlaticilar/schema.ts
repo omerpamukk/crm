@@ -1,8 +1,10 @@
 import { z } from "zod";
 
-import { isSupportedAction, isSupportedTrigger } from "@/lib/automations/supported";
+import { isRuleSupported, isSupportedAction, isSupportedTrigger } from "@/lib/automations/supported";
 
 export const UNSUPPORTED_TRIGGER = "Bu tetikleyici henüz çalışmıyor. Listeden başka bir tetikleyici seçin.";
+export const UNSUPPORTED_EMAIL_MARKETING =
+  "E-posta ile kampanya mesajı henüz çalışmıyor. Aksiyon olarak SMS ya da WhatsApp seçin.";
 export const UNSUPPORTED_ACTION = "Bu aksiyon henüz çalışmıyor. Mesaj gönderen bir aksiyon seçin.";
 
 /**
@@ -94,6 +96,9 @@ export const ruleFormSchema = z
     }
     if (!isSupportedAction(v.action_id)) {
       ctx.addIssue({ code: "custom", path: ["action_id"], message: UNSUPPORTED_ACTION });
+    }
+    if (isSupportedTrigger(v.trigger_id) && isSupportedAction(v.action_id) && !isRuleSupported(v)) {
+      ctx.addIssue({ code: "custom", path: ["action_id"], message: UNSUPPORTED_EMAIL_MARKETING });
     }
     if (PARAM_TRIGGERS.includes(v.trigger_id) && !/^[1-9]\d*$/.test(v.trigger_param.trim())) {
       ctx.addIssue({ code: "custom", path: ["trigger_param"], message: "0'dan büyük bir sayı yazın" });

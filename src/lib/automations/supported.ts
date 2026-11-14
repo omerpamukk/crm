@@ -39,8 +39,36 @@ export function isSupportedAction(id: string): boolean {
   return (SUPPORTED_ACTIONS as readonly string[]).includes(id);
 }
 
+/** WhatsApp'tan giden aksiyonlar; Meta onaylı şablon adı ister. */
+export const WHATSAPP_ACTION_IDS = ["wa", "indirim"] as const;
+
+export function isWhatsAppAction(id: string): boolean {
+  return (WHATSAPP_ACTION_IDS as readonly string[]).includes(id);
+}
+
+/**
+ * Tetikleyici ve aksiyon çalışan bir çift mi? E-posta ile ticari ileti
+ * çalışmaz: e-posta izni (marketing_email_at) hiçbir ekrandan alınmıyor,
+ * böyle bir kural hiç mesaj göndermez.
+ */
 export function isRuleSupported(rule: { trigger_id: string; action_id: string }): boolean {
-  return isSupportedTrigger(rule.trigger_id) && isSupportedAction(rule.action_id);
+  if (!isSupportedTrigger(rule.trigger_id) || !isSupportedAction(rule.action_id)) return false;
+  if (rule.action_id === "eposta" && isMarketingRule(rule)) return false;
+  return true;
+}
+
+/** WhatsApp kuralında şablon adı eksik mi? (Şablonsuz kural hiç gitmez.) */
+export function isTemplateMissing(rule: { action_id: string; wa_template?: string | null }): boolean {
+  return isWhatsAppAction(rule.action_id) && !(rule.wa_template ?? "").trim();
+}
+
+/** Planlayıcının gerçekten çalıştıracağı kural: desteklenen çift + gerekli şablon. */
+export function isRuleRunnable(rule: {
+  trigger_id: string;
+  action_id: string;
+  wa_template?: string | null;
+}): boolean {
+  return isRuleSupported(rule) && !isTemplateMissing(rule);
 }
 
 export function isMarketingRule(rule: { trigger_id: string; action_id: string }): boolean {

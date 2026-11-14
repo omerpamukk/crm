@@ -31,7 +31,8 @@ export function ModulesSection({ modules, ready }: { modules: string[] | null; r
         return;
       }
       const label = MODULES.find((m) => m.key === key)?.label ?? "Modül";
-      toast.success(next ? `${label} açıldı` : `${label} kapatıldı`);
+      // Online randevu kapanınca link de kapanır; sunucu bunu açıklayan metni döner.
+      toast.success(res.notice ?? (next ? `${label} açıldı` : `${label} kapatıldı`));
       router.refresh();
     });
   }

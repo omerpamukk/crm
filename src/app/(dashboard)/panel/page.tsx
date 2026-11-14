@@ -317,7 +317,11 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
                 detail={oppTotal > 0 ? `${oppTotal} fırsat` : undefined}
                 action={<Link href="/firsatlar" className="focus-ring rounded text-subhead font-medium text-primary-text">Tümü</Link>}
               >
-                {oppTotal === 0 ? (
+                {inactiveRes.error ? (
+                  <li>
+                    <SectionError title="Gelir fırsatları yüklenemedi" />
+                  </li>
+                ) : oppTotal === 0 ? (
                   <li>
                     <EmptyState variant="inline" icon={TrendingUp} title="Şu an açık fırsat yok" description="Paketi biten, uzun süredir gelmeyen ve doğum günü yaklaşan müşteriler burada görünür." className="py-8" />
                   </li>

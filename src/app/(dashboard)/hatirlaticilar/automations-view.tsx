@@ -29,7 +29,7 @@ import { deleteAutomation, toggleAutomation } from "./actions";
 import { RuleForm, type RuleSeed } from "./rule-form";
 import { TEMPLATES, ruleSentence, trigDef } from "./rule-meta";
 import type { ActionId, TriggerId } from "./schema";
-import { isRuleSupported } from "@/lib/automations/supported";
+import { isRuleSupported, isTemplateMissing } from "@/lib/automations/supported";
 
 /** DB satırı (0025_automations.sql) — alan adları tabloyla birebir. */
 export type Automation = {
@@ -172,14 +172,17 @@ export function AutomationsView({ items, loadFailed }: { items: Automation[]; lo
             {shown.map((a) => {
               const Icon = trigDef(a.trigger_id).icon;
               const supported = isRuleSupported(a);
-              const on = supported && isActive(a);
+              const noTemplate = supported && isTemplateMissing(a);
+              const on = supported && !noTemplate && isActive(a);
               return (
                 <ListRow
                   key={a.id}
                   leading={<Icon aria-hidden className="size-5 text-label-2" />}
                   title={a.title}
                   subtitle={
-                    supported
+                    noTemplate
+                      ? `${ruleSentence(a)} Şablon adı eksik; düzenleyip yazın.`
+                      : supported
                       ? ruleSentence(a)
                       : `${ruleSentence(a)} Bu kural henüz çalışmıyor; düzenleyip çalışan bir tetikleyici seçin.`
                   }
@@ -196,7 +199,7 @@ export function AutomationsView({ items, loadFailed }: { items: Automation[]; lo
                       </Button>
                       <Switch
                         checked={on}
-                        disabled={!supported}
+                        disabled={!supported || noTemplate}
                         onCheckedChange={(v) => toggle(a, v)}
                         label={`${a.title} kuralı ${on ? "açık" : "kapalı"}`}
                       />

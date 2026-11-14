@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { authorize } from "@/lib/supabase/authorize";
-import { isRuleSupported, isSupportedAction, isSupportedTrigger } from "@/lib/automations/supported";
+import { isRuleRunnable, isRuleSupported, isSupportedAction, isSupportedTrigger } from "@/lib/automations/supported";
 
 import {
   automationSchema,
@@ -14,6 +14,7 @@ import {
   TEMPLATE_NAME,
   TEMPLATE_REQUIRED,
   UNSUPPORTED_ACTION,
+  UNSUPPORTED_EMAIL_MARKETING,
   UNSUPPORTED_TRIGGER,
   WHATSAPP_ACTIONS,
   type AutomationInput,
@@ -29,6 +30,7 @@ type ActionResult = { error?: string };
 function validateShape(v: AutomationInput): string | null {
   if (!isSupportedTrigger(v.trigger_id)) return UNSUPPORTED_TRIGGER;
   if (!isSupportedAction(v.action_id)) return UNSUPPORTED_ACTION;
+  if (!isRuleSupported(v)) return UNSUPPORTED_EMAIL_MARKETING;
   if (WHATSAPP_ACTIONS.includes(v.action_id)) {
     const name = v.wa_template?.trim() ?? "";
     if (!name) return TEMPLATE_REQUIRED;
@@ -106,12 +108,16 @@ export async function toggleAutomation(
   if (active) {
     const { data: rule } = await supabase
       .from("automations")
-      .select("trigger_id, action_id")
+      .select("trigger_id, action_id, wa_template")
       .eq("id", id)
       .eq("business_id", businessId)
       .maybeSingle();
-    if (rule && !isRuleSupported(rule as { trigger_id: string; action_id: string })) {
+    const r = rule as { trigger_id: string; action_id: string; wa_template: string | null } | null;
+    if (r && !isRuleSupported(r)) {
       return { error: "Bu kural henüz çalışmıyor. Açmak için tetikleyicisini ya da aksiyonunu değiştirin." };
+    }
+    if (r && !isRuleRunnable(r)) {
+      return { error: "Şablon adı eksik. Kuralı düzenleyip Meta'da onaylı şablonun adını yazın." };
     }
   }
 

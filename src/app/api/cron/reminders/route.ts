@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 import { NextResponse, type NextRequest } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,7 +11,8 @@ import { firstName, isQuietHour, planAutomations } from "@/lib/automations/plan"
  *
  * Saatte bir çağrılır: Supabase pg_cron (0034_saatlik_cron.sql) ya da Vercel
  * Pro'da vercel.json. Vercel Hobby günde yalnızca bir cron'a izin verdiği
- * için vercel.json'daki günlük tur yedek olarak kalır.
+ * için vercel.json'daki günlük tur (07:00 UTC = 10:00 İstanbul, sessiz
+ * saatlerin dışında) yedek olarak kalır.
  *
  * Önce kurallardan hatırlatma planlanır, sonra vadesi gelen kuyruk
  * gönderilir. İşletme saatiyle 09:00–21:00 dışında hiçbir şey gönderilmez;
@@ -18,7 +21,8 @@ import { firstName, isQuietHour, planAutomations } from "@/lib/automations/plan"
  * Elle tetiklemek için:
  *   curl -H "Authorization: Bearer $CRON_SECRET" <alan-adı>/api/cron/reminders
  *
- * Güvenlik: CRON_SECRET tanımlıysa Authorization başlığı doğrulanır.
+ * Güvenlik: CRON_SECRET ZORUNLU. Tanımlı değilse uç nokta kapalıdır (401);
+ * sır sabit sürede karşılaştırılır.
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -26,15 +30,22 @@ export const maxDuration = 60;
 /** Tek turda işlenecek en fazla kayıt; maxDuration 60 sn'ye sığacak kadar. */
 const BATCH = 200;
 
+/** Döngü bu süreyi aşarsa durur; kalanlar bekleyen kalır, sonraki turda gider. */
+const TIME_BUDGET_MS = 45_000;
+
+function secretMatches(auth: string | null, secret: string): boolean {
+  const expected = Buffer.from(`Bearer ${secret}`);
+  const given = Buffer.from(auth ?? "");
+  return given.length === expected.length && timingSafeEqual(given, expected);
+}
+
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
-    }
+  if (!secret || !secretMatches(request.headers.get("authorization"), secret)) {
+    return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
   }
 
+  const startedAt = Date.now();
   const now = new Date();
   if (isQuietHour(now)) {
     return NextResponse.json({ quiet: true, planned: 0, processed: 0, sent: 0, failed: 0 });
@@ -75,6 +86,9 @@ export async function GET(request: NextRequest) {
   let failed = 0;
 
   for (const r of rows) {
+    // Süre doldu: bu satıra hiç dokunulmadı (status hâlâ pending), sonraki tur alır.
+    if (Date.now() - startedAt > TIME_BUDGET_MS) break;
+
     // Alıcı adresini müşteriden al
     let to: string | null = null;
     let name = "";
@@ -127,5 +141,5 @@ export async function GET(request: NextRequest) {
     else failed++;
   }
 
-  return NextResponse.json({ planned, processed: rows.length, sent, failed });
+  return NextResponse.json({ planned, processed: sent + failed, sent, failed });
 }

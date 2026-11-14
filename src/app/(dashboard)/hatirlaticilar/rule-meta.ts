@@ -127,7 +127,7 @@ export type Template = {
 };
 
 const ALL_TEMPLATES: Template[] = [
-  { title: "Randevu hatırlatma", trigger_id: "randevu_oncesi", trigger_param: 24, action_id: "wa", action_param: null, message: "Merhaba {ad}, yarınki randevunuzu hatırlatmak isteriz.", wa_template: "randevu_hatirlatma" },
+  { title: "Randevu hatırlatma", trigger_id: "randevu_oncesi", trigger_param: 24, action_id: "wa", action_param: null, message: "Merhaba {ad}, yaklaşan randevunuzu hatırlatmak isteriz.", wa_template: "randevu_hatirlatma" },
   { title: "Paket yenileme", trigger_id: "paket_bitiyor", trigger_param: 1, action_id: "wa", action_param: null, message: "Merhaba {ad}, paketinizde son seansınız kaldı. Yenilemek isterseniz size yer ayıralım.", wa_template: "paket_yenileme" },
   { title: "Ödeme hatırlatma", trigger_id: "odeme_gecikti", trigger_param: 7, action_id: "sms", action_param: null, message: "Merhaba {ad}, bekleyen ödemenizi hatırlatmak isteriz." },
   { title: "Doğum günü hediyesi", trigger_id: "dogum_gunu", trigger_param: null, action_id: "indirim", action_param: null, message: "İyi ki doğdunuz {ad}. Size özel bir indirim hediyemiz var.", wa_template: "dogum_gunu" },

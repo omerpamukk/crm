@@ -4,7 +4,7 @@
  * Çekirdek (Genel Bakış, Takvim, Randevular, Müşteriler, Satışlar, Cari,
  * Raporlar, Hizmetler, Personel, Giderler, Hatırlatmalar, Lead'ler, Gelir
  * Fırsatları) her zaman açıktır. Bunlar ise işletmenin işine göre açılır;
- * yeni işletme kapalı başlar, ihtiyacı olan Ayarlar → Modüller'den açar.
+ * yeni işletme de hepsi açık başlar; kullanmadığını Ayarlar → Modüller'den kapatır.
  *
  * enabled_modules null = eski işletme: modül ayrımı gelmeden önce her şeyi
  * görüyordu, görmeye devam eder.

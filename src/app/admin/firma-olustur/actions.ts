@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertPerm } from "@/lib/supabase/admin-context";
 import { logAdminAction } from "@/lib/supabase/audit";
+import { MODULE_KEYS } from "@/lib/modules";
 
 export interface ProvisionInput {
   businessName: string;
@@ -72,8 +73,8 @@ export async function provisionBusiness(input: ProvisionInput): Promise<Result> 
   // 4) Firma
   const { data: biz, error: bErr } = await admin
     .from("businesses")
-    // Yeni firma sade başlar: paket, online randevu, stok, görevler kapalı (0036).
-    .insert({ name: businessName, sector: input.sector || null, enabled_modules: [] })
+    // Yeni firma bütün modüller açık başlar (0036); kullanmadığını Ayarlar → Modüller'den kapatır.
+    .insert({ name: businessName, sector: input.sector || null, enabled_modules: MODULE_KEYS })
     .select("id")
     .single();
   if (bErr || !biz) {
