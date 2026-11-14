@@ -46,6 +46,8 @@ export interface Business {
   working_hours?: Record<string, unknown>;
   slug?: string | null;
   updated_at?: string | null;
+  /** Açık modüller (0036); null = hepsi açık. */
+  enabled_modules?: string[] | null;
 }
 
 /** customer_summary view (0007) — müşteri başına özet metrikler. */
@@ -275,4 +277,21 @@ export interface Package {
   price: number | null;
   paid_amount: number;
   payment_status: PaymentStatus;
+}
+
+/** Toplu SMS kampanyası (0037). */
+export interface Campaign {
+  id: string;
+  created_at: string;
+  business_id: string;
+  created_by: string | null;
+  name: string;
+  channel: "sms";
+  audience: string;
+  body: string;
+  recipient_count: number;
+  sent_count: number;
+  failed_count: number;
+  status: "sending" | "sent" | "failed";
+  sent_at: string | null;
 }

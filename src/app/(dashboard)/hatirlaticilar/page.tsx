@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessId } from "@/lib/supabase/business";
-import { requireCapability } from "@/lib/supabase/guard";
+import { requireCapability, requireModule } from "@/lib/supabase/guard";
 
 import { AutomationsView, type Automation } from "./automations-view";
 
@@ -12,6 +12,7 @@ export const metadata = { title: "Hatırlatmalar" };
  */
 export default async function HatirlaticilarPage() {
   await requireCapability("musteri_yonet");
+  await requireModule("hatirlaticilar");
   const supabase = await createClient();
   const businessId = await getBusinessId(supabase);
 

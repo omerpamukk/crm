@@ -28,7 +28,7 @@ describe("menü", () => {
 
   it("demo sayfalar menüde yok", () => {
     const hrefs = hrefsFor("owner");
-    for (const href of ["/mesajlar", "/eposta-sms", "/yorumlar"]) {
+    for (const href of ["/mesajlar", "/yorumlar"]) {
       expect(hrefs).not.toContain(href);
     }
   });
@@ -41,5 +41,12 @@ describe("menü", () => {
       "utf8"
     );
     expect(page).toContain(`requireCapability("${item.cap}")`);
+  });
+});
+
+describe("giriş koruması", () => {
+  it("menüdeki her sayfa girişsiz açılmaz", () => {
+    const mw = readFileSync(join(process.cwd(), "src/middleware.ts"), "utf8");
+    for (const item of NAV_ITEMS) expect(mw).toContain(`"${item.href}"`);
   });
 });

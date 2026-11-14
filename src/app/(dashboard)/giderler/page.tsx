@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getBusinessId } from "@/lib/supabase/business";
-import { requireCapability } from "@/lib/supabase/guard";
+import { requireCapability, requireModule } from "@/lib/supabase/guard";
 import type { Expense } from "@/types/database";
 
 import { parseDateKey } from "../randevular/date-range";
@@ -18,6 +18,7 @@ export default async function GiderlerPage({
 }) {
   // Giderler yalnızca işletme sahibine açık (RLS de ayrıca kısıtlar).
   await requireCapability("finans");
+  await requireModule("giderler");
 
   const now = new Date();
   const period = resolvePeriod(await searchParams, "ay", KINDS, now);

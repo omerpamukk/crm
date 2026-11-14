@@ -4,13 +4,16 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Users, CalendarCheck, Banknote, Save, UserPlus, KeyRound, Trash2, Copy, CheckCircle2, ShieldAlert,
+  ChevronLeft, Save, UserPlus, KeyRound, Trash2, Copy, CheckCircle2, ShieldAlert,
   Play, Pause, Eye, Pencil, Phone, Mail, MapPin, Globe, Clock, Image as ImageIcon, Ban, RotateCcw, CreditCard,
-  Wallet, Package as PackageIcon, Briefcase, Building2,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { SECTORS } from "@/lib/constants";
+import { SECTORS, sectorLabel } from "@/lib/constants";
+import { enabledModuleKeys } from "@/lib/modules";
+import { Avatar } from "@/components/ui/avatar";
+import { StatusBadge, type StatusVariant } from "@/components/shared/status";
+import { ModulePicker } from "../../module-picker";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Business, Subscription, SubscriptionStatus, UserRole } from "@/types/database";
@@ -21,18 +24,18 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 import {
-  updateBusinessInfo, updateSubscription, setSubscriptionStatus, addUserToBusiness,
+  updateBusinessInfo, updateBusinessModules, updateSubscription, setSubscriptionStatus, addUserToBusiness,
   changeUserRole, resetUserPassword, setUserActive, removeUser, deleteBusiness,
 } from "./actions";
 import { enterViewAs } from "../../view-as-actions";
 
 export type FirmaUser = { id: string; full_name: string | null; role: UserRole; email: string; phone: string | null; banned: boolean };
 
-const STATUS_META: Record<SubscriptionStatus, { label: string; cls: string }> = {
-  active: { label: "Aktif", cls: "bg-positive/12 text-positive" },
-  trial: { label: "Deneme", cls: "bg-primary/10 text-primary" },
-  suspended: { label: "Askıda", cls: "bg-warning/15 text-amber-700" },
-  cancelled: { label: "İptal", cls: "bg-danger/12 text-danger" },
+const STATUS_META: Record<SubscriptionStatus, { label: string; cls: string; variant: StatusVariant }> = {
+  active: { label: "Aktif", cls: "bg-positive/12 text-positive", variant: "positive" },
+  trial: { label: "Deneme", cls: "bg-primary/10 text-primary", variant: "info" },
+  suspended: { label: "Askıda", cls: "bg-warning/15 text-amber-700", variant: "warning" },
+  cancelled: { label: "İptal", cls: "bg-danger/12 text-danger", variant: "danger" },
 };
 const PLAN_LABEL: Record<string, string> = { trial: "Deneme", temel: "Temel", pro: "Pro" };
 const CURRENCIES = ["TRY", "USD", "EUR"];
@@ -79,6 +82,8 @@ export function FirmaDetail({
     currency: business.currency ?? "TRY", timezone: business.timezone ?? "Europe/Istanbul",
     slug: business.slug ?? "", logo_url: business.logo_url ?? "",
   });
+  // Modüller
+  const [mods, setMods] = useState<string[]>(() => enabledModuleKeys(business.enabled_modules ?? null));
   // Abonelik
   const [sub, setSub] = useState({
     plan: subscription?.plan ?? "trial", status: status as string, price: String(subscription?.price ?? 0),
@@ -113,70 +118,77 @@ export function FirmaDetail({
 
   return (
     <div className="space-y-6">
-      <Link href="/admin" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" />Firmalar</Link>
+      <Link href="/admin" className="focus-ring inline-flex items-center gap-0.5 rounded text-[0.9375rem] text-primary-text"><ChevronLeft className="size-5" />Firmalar</Link>
 
       {/* Başlık */}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-lg font-bold text-primary">{business.name.slice(0, 2).toLocaleUpperCase("tr")}</span>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold">{business.name}</h1>
-              <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", STATUS_META[status].cls)}>{STATUS_META[status].label}</span>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{PLAN_LABEL[sub.plan] ?? sub.plan}</span>
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar name={business.name} size="lg" />
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <h1 className="truncate text-title-2 font-bold">{business.name}</h1>
+              <StatusBadge variant={STATUS_META[status].variant}>{STATUS_META[status].label}</StatusBadge>
+              <span className="text-subhead text-label-2">{PLAN_LABEL[sub.plan] ?? sub.plan}</span>
             </div>
-            <p className="text-sm text-muted-foreground">{business.sector ?? "—"} · Oluşturma {formatDate(business.created_at)}</p>
+            <p className="truncate text-subhead text-label-2">{sectorLabel(business.sector)} · Oluşturma {formatDate(business.created_at)}</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          {perms.goruntule && <Button variant="outline" disabled={pending} onClick={() => start(() => enterViewAs(business.id, "view"))}><Eye className="size-4" />Görüntüle</Button>}
-          {perms.yonet && <Button disabled={pending} onClick={() => start(() => enterViewAs(business.id, "manage"))}><Pencil className="size-4" />Yönetici Olarak Gir</Button>}
+        <div className="flex w-full gap-2 sm:w-auto">
+          {perms.goruntule && <Button variant="secondary" className="flex-1 sm:flex-none" disabled={pending} onClick={() => start(() => enterViewAs(business.id, "view"))}><Eye />Görüntüle</Button>}
+          {perms.yonet && <Button className="flex-1 sm:flex-none" disabled={pending} onClick={() => start(() => enterViewAs(business.id, "manage"))}><Pencil />Yönetici olarak gir</Button>}
         </div>
       </div>
 
       {/* Firma istatistikleri */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <section aria-label="Firma özeti" className="surface grid grid-cols-2 gap-px overflow-clip bg-separator sm:grid-cols-3 lg:grid-cols-6">
         {[
-          { label: "Müşteri", value: String(stats.customers), sub: `${stats.leads} lead`, icon: Users, tone: "bg-primary/10 text-primary", bar: "border-l-primary", accent: "" },
-          { label: "Randevu", value: String(stats.appointments), sub: `${stats.completed} tamamlandı`, icon: CalendarCheck, tone: "bg-warning/12 text-amber-600", bar: "border-l-warning", accent: "" },
-          { label: "Toplam Ciro", value: formatPrice(stats.revenue), sub: `Bu ay ${formatPrice(stats.monthRevenue)}`, icon: Banknote, tone: "bg-positive/10 text-positive", bar: "border-l-positive", accent: "text-positive" },
-          { label: "Açık Borç", value: formatPrice(stats.openDebt), sub: stats.openDebt > 0 ? "tahsil edilecek" : "borç yok", icon: Wallet, tone: stats.openDebt > 0 ? "bg-danger/10 text-danger" : "bg-muted text-muted-foreground", bar: stats.openDebt > 0 ? "border-l-danger" : "border-l-border", accent: stats.openDebt > 0 ? "text-danger" : "" },
-          { label: "Paket", value: String(stats.packages), sub: "satılan paket", icon: PackageIcon, tone: "bg-violet-100 text-violet-600", bar: "border-l-violet-400", accent: "" },
-          { label: "Personel", value: String(stats.staff), sub: "aktif ekip", icon: Briefcase, tone: "bg-sky-100 text-sky-600", bar: "border-l-sky-400", accent: "" },
-        ].map((s) => {
-          const Icon = s.icon;
-          return (
-            <Card key={s.label} className={cn("border-l-4", s.bar)}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{s.label}</span>
-                  <span className={cn("flex size-8 items-center justify-center rounded-lg", s.tone)}><Icon className="size-4" /></span>
-                </div>
-                <p className={cn("mt-2 text-lg font-bold tabular-nums", s.accent)}>{s.value}</p>
-                <p className="truncate text-[11px] text-muted-foreground">{s.sub}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+          { label: "Müşteri", value: String(stats.customers), sub: `${stats.leads} lead` },
+          { label: "Randevu", value: String(stats.appointments), sub: `${stats.completed} tamamlandı` },
+          { label: "Toplam ciro", value: formatPrice(stats.revenue), sub: `Bu ay ${formatPrice(stats.monthRevenue)}` },
+          { label: "Açık borç", value: formatPrice(stats.openDebt), sub: stats.openDebt > 0 ? "tahsil edilecek" : "borç yok", danger: stats.openDebt > 0 },
+          { label: "Paket", value: String(stats.packages), sub: "satılan paket" },
+          { label: "Personel", value: String(stats.staff), sub: "aktif ekip" },
+        ].map((s) => (
+          <div key={s.label} className="flex min-w-0 flex-col gap-0.5 bg-surface px-3.5 py-3 md:px-5 md:py-4">
+            <span className="truncate text-subhead font-semibold text-label-2">{s.label}</span>
+            <span className={cn("metric-value truncate", s.danger && "text-danger-text")}>{s.value}</span>
+            <span className="truncate text-footnote text-label-2">{s.sub}</span>
+          </div>
+        ))}
+      </section>
 
       <Tabs defaultValue="kullanici">
-        <TabsList className="grid h-auto w-full grid-cols-3 gap-1.5 rounded-xl border bg-muted/40 p-1.5">
-          <TabsTrigger value="kullanici" className="group flex h-auto items-center justify-center gap-2 rounded-lg px-3 py-2.5 data-active:bg-card data-active:shadow-sm">
-            <span className="flex size-7 items-center justify-center rounded-md bg-background/70 text-muted-foreground transition-colors group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary"><Users className="size-4" /></span>
-            <span className="hidden sm:inline">Kullanıcılar</span>
-            <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground transition-colors group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary">{users.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="abonelik" className="group flex h-auto items-center justify-center gap-2 rounded-lg px-3 py-2.5 data-active:bg-card data-active:shadow-sm">
-            <span className="flex size-7 items-center justify-center rounded-md bg-background/70 text-muted-foreground transition-colors group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary"><CreditCard className="size-4" /></span>
-            <span className="hidden sm:inline">Abonelik</span>
-            <span className={cn("size-2 shrink-0 rounded-full ring-2 ring-card", subscription?.status === "active" ? "bg-positive" : subscription?.status === "trial" ? "bg-primary" : subscription?.status === "suspended" ? "bg-amber-500" : "bg-danger")} />
-          </TabsTrigger>
-          <TabsTrigger value="genel" className="group flex h-auto items-center justify-center gap-2 rounded-lg px-3 py-2.5 data-active:bg-card data-active:shadow-sm">
-            <span className="flex size-7 items-center justify-center rounded-md bg-background/70 text-muted-foreground transition-colors group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary"><Building2 className="size-4" /></span>
-            <span className="hidden sm:inline">Firma Bilgileri</span>
-          </TabsTrigger>
+        <TabsList className="scrollbar-none flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-fill p-1">
+          {[
+            { value: "kullanici", label: "Kullanıcılar", count: users.length },
+            { value: "abonelik", label: "Abonelik" },
+            { value: "moduller", label: "Modüller" },
+            { value: "genel", label: "Firma bilgileri" },
+          ].map((t) => (
+            <TabsTrigger key={t.value} value={t.value} className="h-9 shrink-0 flex-1 gap-1.5 rounded-lg px-3 text-subhead font-semibold whitespace-nowrap data-active:bg-surface data-active:shadow-sm">
+              {t.label}
+              {t.count != null && <span className="tabular-nums text-label-2">{t.count}</span>}
+            </TabsTrigger>
+          ))}
         </TabsList>
+
+        {/* MODÜLLER */}
+        <TabsContent value="moduller" className="mt-4">
+          <ModulePicker
+            value={mods}
+            disabled={pending || !perms.firma_duzenle}
+            onChange={(next) => {
+              const prev = mods;
+              setMods(next);
+              start(async () => {
+                const res = await updateBusinessModules(business.id, next);
+                if (!res.ok) { setMods(prev); toast.error(res.error ?? "Modüller kaydedilemedi."); return; }
+                toast.success("Modüller güncellendi");
+                router.refresh();
+              });
+            }}
+          />
+        </TabsContent>
 
         {/* KULLANICILAR */}
         <TabsContent value="kullanici" className="mt-4">

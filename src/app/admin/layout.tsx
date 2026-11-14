@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Building2, ShieldCheck, Plus, Users, History } from "lucide-react";
+import { ShieldCheck, Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext, getActingSession } from "@/lib/supabase/admin-context";
@@ -14,6 +14,7 @@ import { ThemeToggle } from "@/components/layout/account-menu";
 import { exitViewAs } from "./view-as-actions";
 import { AdminUserMenu } from "./admin-logout";
 import { AdminNotifications } from "./admin-notifications";
+import { AdminNav } from "./admin-nav";
 
 /**
  * Süper-admin (ajans) paneli kabuğu.
@@ -39,46 +40,30 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const notifications = await getAdminNotifications(!!ctx?.isOwner);
 
   return (
-    <div className="min-h-svh bg-muted/30">
-      <header className="sticky top-0 z-30 border-b bg-card/85 shadow-soft backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4">
-          <div className="flex items-center gap-5">
-            <Link href="/admin" className="flex items-center gap-2.5">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-white shadow-sm">
+    <div className="min-h-svh">
+      <div aria-hidden className="app-wall" />
+      <header className="glass sticky top-0 z-30">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 md:h-16">
+          <div className="flex min-w-0 items-center gap-5">
+            <Link href="/admin" className="focus-ring flex min-w-0 items-center gap-2.5 rounded-lg">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-fill text-primary">
                 <ShieldCheck className="size-5" />
               </span>
-              <div className="leading-tight">
-                <p className="font-semibold">Süper-Admin</p>
-                <p className="text-xs text-muted-foreground">Ajans Yönetim Paneli</p>
-              </div>
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate font-semibold text-label">Yönetim</span>
+                <span className="hidden truncate text-footnote text-label-2 sm:block">Ajans paneli</span>
+              </span>
             </Link>
-            <nav className="hidden items-center gap-1 md:flex">
-              <Link href="/admin" className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
-                <Building2 className="size-4 text-primary" />
-                Firmalar
-              </Link>
-              {ctx?.isOwner && (
-                <>
-                  <Link href="/admin/ekip" className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-                    <Users className="size-4" />
-                    Ekip
-                  </Link>
-                  <Link href="/admin/gunluk" className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-                    <History className="size-4" />
-                    Günlük
-                  </Link>
-                </>
-              )}
-            </nav>
+            <AdminNav isOwner={!!ctx?.isOwner} variant="bar" />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {(ctx?.isOwner || ctx?.perms.includes("firma_olustur")) && (
-              <Link href="/admin/firma-olustur" className={cn(buttonVariants({ size: "sm" }))}>
-                <Plus className="size-4" />
-                Yeni Firma
+              <Link href="/admin/firma-olustur" aria-label="Yeni firma" className={cn(buttonVariants({ size: "sm" }), "size-9 px-0 sm:w-auto sm:px-3.5")}>
+                <Plus />
+                <span className="hidden sm:inline">Yeni firma</span>
               </Link>
             )}
-            <ThemeToggle className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" />
+            <ThemeToggle className="focus-ring hover-tint grid size-9 place-items-center rounded-full text-label-2" />
             <AdminNotifications items={notifications.items} count={notifications.count} />
             <AdminUserMenu email={user.email ?? ""} />
           </div>
@@ -86,21 +71,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </header>
 
       {actingError && (
-        <div className="border-b bg-muted/60 px-4 py-2 text-center text-sm text-destructive">
+        <div className="bg-danger-soft px-4 py-2 text-center text-subhead text-danger-text">
           Firmaya giriş açılamadı, tekrar deneyin.
         </div>
       )}
       {acting && (
-        <div className="border-b bg-muted/60">
+        <div className="bg-fill">
           <form action={exitViewAs} className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2 text-sm">
             <span>
               <span className="font-medium">{actingName}</span> firmasındasınız
             </span>
-            <button type="submit" className="font-medium text-primary hover:underline">Firmadan çık</button>
+            <button type="submit" className="focus-ring rounded font-semibold text-primary-text">Firmadan çık</button>
           </form>
         </div>
       )}
-      <main className="mx-auto max-w-7xl p-4 md:p-6">{children}</main>
+      <main className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+        <AdminNav isOwner={!!ctx?.isOwner} variant="mobile" />
+        {children}
+      </main>
       <Toaster />
     </div>
   );
